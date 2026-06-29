@@ -1,0 +1,53 @@
+import type { ComponentChildren } from "preact";
+
+// Shared components live alongside views and are imported with plain ESM. TypeScript rewrites
+// "./Layout.tsx" to "./Layout.js" on the way out, so the browser resolves this graph natively
+// and the server-side renderer loads exactly the same files.
+
+export function Page({ title, active, children }: { title: string; active: string; children?: ComponentChildren }) {
+    return (
+        <div class="page">
+            <Nav active={active} />
+            <header>
+                <h1>{title}</h1>
+            </header>
+            <main>{children}</main>
+            <footer>
+                Rendered by <strong>JsxCore</strong>
+            </footer>
+        </div>
+    );
+}
+
+const links = [
+    { href: "/", label: "Client rendered" },
+    { href: "/server", label: "Server rendered" },
+    { href: "/hybrid", label: "Server + client" },
+    { href: "/dashboard", label: ".NET globals" },
+    { href: "/preact", label: "Preact features" },
+    { href: "/markdown", label: "npm package" },
+    { href: "/mvc", label: "MVC controller" }
+];
+
+export function Nav({ active }: { active: string }) {
+    return (
+        <nav>
+            <ul>
+                {links.map((link) => (
+                    <li key={link.href} class={link.href === active ? "active" : undefined}>
+                        <a href={link.href}>{link.label}</a>
+                    </li>
+                ))}
+            </ul>
+        </nav>
+    );
+}
+
+export function Card({ title, children }: { title: string; children?: ComponentChildren }) {
+    return (
+        <section class="card">
+            <h2>{title}</h2>
+            {children}
+        </section>
+    );
+}

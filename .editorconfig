@@ -1,0 +1,17 @@
+root = true
+
+[*.cs]
+# Namespace must match the folder. Checked by the compiler rather than by eye, because it drifts
+# silently: a file moved between folders keeps its old namespace and nothing complains.
+dotnet_style_namespace_match_folder = true:warning
+dotnet_diagnostic.IDE0130.severity = warning
+
+# Test data whose namespace is the thing under test. The generator tests exercise conventional
+# namespace detection, shadowing, cross-namespace references and the global namespace, so these
+# names are fixtures and cannot follow their folder.
+[test/JsxCore.Tests/Fixtures/Models/*.cs]
+dotnet_diagnostic.IDE0130.severity = none
+
+# A polyfill has to sit in the namespace the compiler looks for it in.
+[src/JsxCore.Analyzers/IsExternalInit.cs]
+dotnet_diagnostic.IDE0130.severity = none

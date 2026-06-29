@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\JsxCore\JsxCore.csproj" />
+    <!-- Built, not referenced: the targets invoke it as a process. -->
+    <ProjectReference Include="..\..\src\JsxCore.Tool\JsxCore.Tool.csproj" ReferenceOutputAssembly="false" />
+    <!-- Loaded by the compiler rather than the application, as it would be from the package. -->
+    <ProjectReference Include="..\..\src\JsxCore.Analyzers\JsxCore.Analyzers.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <JsxCoreRuntime>preact</JsxCoreRuntime>
+
+    <!-- Packed into the package's build folder; imported from source here, so point at the source. -->
+    <JsxCoreToolsDirectory>$(MSBuildThisFileDirectory)..\..\src\JsxCore\Assets\</JsxCoreToolsDirectory>
+    <JsxCoreToolPath>$(MSBuildThisFileDirectory)..\..\src\JsxCore.Tool\bin\$(Configuration)\net8.0\JsxCore.Tool.dll</JsxCoreToolPath>
+  </PropertyGroup>
+
+  <!--
+    A consuming application gets this from the NuGet package. The sample uses a ProjectReference, so
+    it imports the targets by hand to exercise the same build-time compilation and publish path.
+  -->
+  <Import Project="..\..\src\JsxCore\build\JsxCore.targets" />
+
+</Project>

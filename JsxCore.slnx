@@ -1,0 +1,13 @@
+<Solution>
+  <Folder Name="/samples/">
+    <Project Path="samples/SampleApp/SampleApp.csproj" />
+  </Folder>
+  <Folder Name="/src/">
+    <Project Path="src/JsxCore/JsxCore.csproj" />
+    <Project Path="src/JsxCore.Tool/JsxCore.Tool.csproj" />
+    <Project Path="src/JsxCore.Analyzers/JsxCore.Analyzers.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/JsxCore.Tests/JsxCore.Tests.csproj" />
+  </Folder>
+</Solution>
