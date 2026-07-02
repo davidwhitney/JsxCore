@@ -1,0 +1,39 @@
+// Single source of truth for how JsxCore compiles views.
+//
+// This file is embedded in the JsxCore assembly and also shipped in the NuGet package, so the
+// MSBuild build-time target and the view engine's own compiler always use identical settings.
+// rootDir, outDir, paths and include are filled in by whichever one is driving.
+//
+// tsconfig files are JSONC, so these comments are legal here.
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": ["es2022", "dom", "dom.iterable"],
+
+    "jsx": "react-jsx",
+    "jsxImportSource": "@jsxcore/runtime",
+
+    // This is what removes the need for a bundler: "./Card.tsx" is emitted as "./Card.js",
+    // which the browser can resolve natively.
+    "rewriteRelativeImportExtensions": true,
+    "allowImportingTsExtensions": true,
+
+    // Without this the compiler silently ignores every .jsx and .js file.
+    "allowJs": true,
+
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "noEmitOnError": false,
+    "sourceMap": true,
+    "inlineSources": true,
+    "declaration": false,
+
+    // Do not implicitly pull in every @types package the application happens to have.
+    "types": []
+  }
+}
