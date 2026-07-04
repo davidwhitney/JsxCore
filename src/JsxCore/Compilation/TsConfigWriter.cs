@@ -1,0 +1,309 @@
+using System.Text.Json;
+using System.Text.Json.Nodes;
+using JsxCore.Compilation.Modules;
+using JsxCore.Compilation.Assets;
+using JsxCore.TypeScript;
+
+namespace JsxCore.Compilation;
+
+public sealed record CompilationLayout(
+    string ViewsDirectory,
+    string WorkingDirectory,
+    string RuntimeDirectory,
+    string OutputDirectory,
+    string TsConfigPath,
+    string ContentRoot,
+    string GeneratedTypesDirectory)
+{
+    public static CompilationLayout Create(JsxCoreOptions options, string contentRoot)
+    {
+        var views = ContentRootPath.Resolve(options.ViewsDirectory, contentRoot);
+        var working = ContentRootPath.Resolve(options.WorkingDirectory, contentRoot);
+
+        return new CompilationLayout(
+            views,
+            working,
+            Path.Combine(working, "runtime"),
+            Path.Combine(working, "js"),
+            Path.Combine(working, "tsconfig.json"),
+            Path.GetFullPath(contentRoot),
+            options.TypeDefinitions.OutputPath is { } configured
+                ? ContentRootPath.Resolve(configured, contentRoot)
+                : Path.Combine(working, "types"));
+    }
+}
+
+public static class TsConfigWriter
+{
+    public const string BaseConfigResource = "JsxCore.Assets.tsconfig.base.json";
+
+    public static JsonObject ReadBaseConfig()
+    {
+        using var stream = typeof(TsConfigWriter).Assembly.GetManifestResourceStream(BaseConfigResource)
+            ?? throw new JsxCoreException($"Embedded resource '{BaseConfigResource}' could not be opened.");
+
+        using var reader = new StreamReader(stream);
+
+        // tsconfig files are JSONC; the base carries explanatory comments.
+        return JsonNode.Parse(
+                   reader.ReadToEnd(),
+                   documentOptions: new JsonDocumentOptions
+                   {
+                       CommentHandling = JsonCommentHandling.Skip,
+                       AllowTrailingCommas = true
+                   }) as JsonObject
+               ?? throw new JsxCoreException("The embedded tsconfig base is not a JSON object.");
+    }
+
+    public static JsonObject Build(JsxCoreOptions options, CompilationLayout layout, NodeModulesLayout? nodeModules = null)
+    {
+        var config = ReadBaseConfig();
+        var compilerOptions = config["compilerOptions"]!.AsObject();
+
+        ApplyRuntimeMode(options, compilerOptions, layout, layout.WorkingDirectory, nodeModules);
+
+        compilerOptions["rootDir"] = Normalise(layout.ViewsDirectory);
+        compilerOptions["outDir"] = Normalise(layout.OutputDirectory);
+        var paths = new JsonObject
+        {
+            [RuntimeAssets.ModuleSpecifier] = new JsonArray("./runtime/index.d.ts"),
+            [RuntimeAssets.ModuleSpecifier + "/*"] = new JsonArray("./runtime/*")
+        };
+        var ambientTypes = AddGeneratedTypesPath(options, layout, paths, relativeTo: layout.WorkingDirectory);
+        compilerOptions["paths"] = MergePaths(compilerOptions, paths);
+
+        if (options.TypeChecking == TypeCheckingMode.Off)
+        {
+            compilerOptions["noCheck"] = true;
+        }
+
+        foreach (var (key, value) in options.CompilerOptions)
+        {
+            compilerOptions[key] = JsonSerializer.SerializeToNode(value);
+        }
+
+        var includes = new JsonArray();
+        foreach (var extension in options.Extensions.Concat([".ts", ".js"]).Distinct(StringComparer.OrdinalIgnoreCase))
+        {
+            includes.Add(Normalise(layout.ViewsDirectory) + "/**/*" + extension);
+        }
+
+        if (ambientTypes is not null)
+        {
+            includes.Add(ambientTypes);
+        }
+
+        config["include"] = includes;
+        return config;
+    }
+
+    private static void ApplyRuntimeMode(
+        JsxCoreOptions options,
+        JsonObject compilerOptions,
+        CompilationLayout layout,
+        string relativeTo,
+        NodeModulesLayout? nodeModules = null)
+    {
+        // Built once when the caller has not already done so: this looks up nine declaration files
+        // and each lookup used to walk for node_modules from scratch.
+        nodeModules ??= NodeModulesLayout.For(layout.ContentRoot, options.AdditionalToolchainSearchPaths);
+
+        if (options.Runtime != JsxRuntimeMode.Preact)
+        {
+            return;
+        }
+
+        // Preact ships its own type declarations, so the JSX namespace and hook types come
+        // straight from the application's installed version.
+        compilerOptions["jsxImportSource"] = "preact";
+        compilerOptions.Remove("types");
+
+        // Map the Preact packages explicitly rather than relying on the compiler walking up to
+        // node_modules. The generated config lives under obj/, and an application whose content
+        // root sits outside the npm project would otherwise fail to resolve any Preact types.
+        var paths = new JsonObject();
+
+        void MapType(string specifier, string declarationPath)
+        {
+            var resolved = nodeModules.FindFile(declarationPath);
+            if (resolved is null)
+            {
+                return;
+            }
+
+            // Relative, not absolute: the editor config is meant to be committed, and an absolute
+            // node_modules path would only be correct on the machine that generated it.
+            var relative = Normalise(Path.GetRelativePath(relativeTo, resolved));
+            if (!relative.StartsWith('.') && !Path.IsPathRooted(relative))
+            {
+                relative = "./" + relative;
+            }
+
+            paths[specifier] = new JsonArray(relative);
+        }
+
+        MapType("preact", "preact/src/index.d.ts");
+        MapType("preact/hooks", "preact/hooks/src/index.d.ts");
+        MapType("preact/jsx-runtime", "preact/jsx-runtime/src/index.d.ts");
+        MapType("preact/jsx-dev-runtime", "preact/jsx-runtime/src/index.d.ts");
+        MapType("preact/compat", "preact/compat/src/index.d.ts");
+        MapType("preact-render-to-string", "preact-render-to-string/dist/index.d.ts");
+
+        if (options.EnableReactCompatibility)
+        {
+            // React-targeted imports type check through compat, matching how they resolve at runtime.
+            MapType("react", "preact/compat/src/index.d.ts");
+            MapType("react-dom", "preact/compat/src/index.d.ts");
+            MapType("react-dom/client", "preact/compat/src/index.d.ts");
+        }
+
+        compilerOptions["preactPaths"] = paths;
+    }
+
+    public const string GeneratedMarker = "jsxcore-generated";
+    
+    public static JsonObject BuildIdeConfig(JsxCoreOptions options, CompilationLayout layout)
+    {
+        var config = ReadBaseConfig();
+        var compilerOptions = config["compilerOptions"]!.AsObject();
+
+        ApplyRuntimeMode(options, compilerOptions, layout, relativeTo: layout.ViewsDirectory);
+
+        // Editors only type check; emit settings would just cause confusing output.
+        compilerOptions["noEmit"] = true;
+        compilerOptions.Remove("sourceMap");
+        compilerOptions.Remove("inlineSources");
+        compilerOptions.Remove("declaration");
+
+        var runtime = Normalise(Path.GetRelativePath(layout.ViewsDirectory, layout.RuntimeDirectory));
+        var paths = new JsonObject
+        {
+            [RuntimeAssets.ModuleSpecifier] = new JsonArray($"{runtime}/index.d.ts"),
+            [RuntimeAssets.ModuleSpecifier + "/*"] = new JsonArray($"{runtime}/*")
+        };
+        var ambientTypes = AddGeneratedTypesPath(options, layout, paths, relativeTo: layout.ViewsDirectory);
+        compilerOptions["paths"] = MergePaths(compilerOptions, paths);
+
+        foreach (var (key, value) in options.CompilerOptions)
+        {
+            compilerOptions[key] = JsonSerializer.SerializeToNode(value);
+        }
+
+        config["//"] = $"{GeneratedMarker}: written by JsxCore so editors can resolve " +
+                       $"'{RuntimeAssets.ModuleSpecifier}'. Delete or edit this file freely; JsxCore only " +
+                       $"overwrites a file that still contains the marker above. Compilation itself uses " +
+                       $"the config in the intermediate output directory, not this one.";
+        // "**/*" is relative to the views directory, which the generated declarations sit outside.
+        config["include"] = ambientTypes is null ? new JsonArray("**/*") : new JsonArray("**/*", ambientTypes);
+
+        return config;
+    }
+    
+    public static bool WriteIdeConfigIfOwned(JsxCoreOptions options, CompilationLayout layout)
+    {
+        var path = Path.Combine(layout.ViewsDirectory, "tsconfig.json");
+
+        if (File.Exists(path))
+        {
+            string existing;
+            try
+            {
+                existing = File.ReadAllText(path);
+            }
+            catch (IOException)
+            {
+                return false;
+            }
+
+            // Never clobber a hand-written config.
+            if (!existing.Contains(GeneratedMarker, StringComparison.Ordinal))
+            {
+                return false;
+            }
+
+            var updated = BuildIdeConfig(options, layout).ToJsonString(Indented);
+            if (existing == updated)
+            {
+                return false;
+            }
+
+            File.WriteAllText(path, updated);
+            return true;
+        }
+
+        Directory.CreateDirectory(layout.ViewsDirectory);
+        return AssetStage.WriteFileIfChanged(path, BuildIdeConfig(options, layout).ToJsonString(Indented));
+    }
+
+    private static readonly JsonSerializerOptions Indented = new()
+    {
+        WriteIndented = true,
+        Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+
+        // Stated rather than inherited from the host: serialising a node marks these options read
+        // only, which fails where reflection-based serialisation is not enabled by default. The
+        // build tool is such a host, and so is any trimmed or AOT-published application.
+        TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver()
+    };
+
+    public static bool WriteIfChanged(JsxCoreOptions options, CompilationLayout layout, NodeModulesLayout? nodeModules = null)
+    {
+        Directory.CreateDirectory(layout.WorkingDirectory);
+        return AssetStage.WriteFileIfChanged(layout.TsConfigPath, Build(options, layout, nodeModules).ToJsonString(Indented));
+    }
+
+    /// <summary>
+    /// Points the compiler at the generated declarations, or at an ambient stand-in when they have
+    /// not been generated yet. Returns a file the configuration has to include, if any.
+    /// </summary>
+    private static string? AddGeneratedTypesPath(
+        JsxCoreOptions options,
+        CompilationLayout layout,
+        JsonObject paths,
+        string relativeTo)
+    {
+        if (!options.TypeDefinitions.Enabled)
+        {
+            return null;
+        }
+
+        var relative = Normalise(Path.GetRelativePath(relativeTo, layout.GeneratedTypesDirectory));
+        if (!relative.StartsWith('.') && !Path.IsPathRooted(relative))
+        {
+            relative = "./" + relative;
+        }
+
+        // A path mapping to a file that is not there resolves to nothing, so the stand-in is
+        // reached the other way: no mapping at all, and an ambient declaration in the program.
+        if (!ModelTypeDeclarations.Exist(layout.GeneratedTypesDirectory))
+        {
+            ModelTypeDeclarations.WritePending(
+                layout.GeneratedTypesDirectory, options.TypeDefinitions.ModuleSpecifier);
+
+            return $"{relative}/{ModelTypeDeclarations.PendingFileName}";
+        }
+
+        // Everything generated lives in one file; namespaces inside it do the disambiguating.
+        paths[options.TypeDefinitions.ModuleSpecifier] =
+            new JsonArray($"{relative}/{ModelTypeDeclarations.FileName}");
+
+        return null;
+    }
+
+    private static JsonObject MergePaths(JsonObject compilerOptions, JsonObject basePaths)
+    {
+        if (compilerOptions["preactPaths"] is JsonObject extra)
+        {
+            compilerOptions.Remove("preactPaths");
+            foreach (var (specifier, value) in extra.ToList())
+            {
+                basePaths[specifier] = value?.DeepClone();
+            }
+        }
+
+        return basePaths;
+    }
+
+    // tsconfig paths use forward slashes on every platform.
+    private static string Normalise(string path) => path.Replace('\\', '/');
+}
