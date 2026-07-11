@@ -1,0 +1,146 @@
+# .NET interop
+
+← [Documentation index](README.md)
+
+Server-side rendering runs in-process, so .NET objects exposed to a view are **real objects**.
+Calls are synchronous and direct, with no `await`, no serialisation and no bridge.
+
+---
+
+## Registering globals
+
+```csharp
+builder.AddJsxCore(options =>
+{
+    options.Globals.Register<InventoryService>("Inventory");   // resolved from the request scope
+    options.Globals.Register("Config", myConfigSingleton);     // one shared instance
+    options.Globals.Register("Clock", sp => new Clock(sp));    // custom factory
+});
+```
+
+| Overload | Lifetime |
+|---|---|
+| `Register<TService>(name?)` | Resolved per render from the request's service scope |
+| `Register(name, instance)` | One shared instance, which must be thread-safe |
+| `Register(name, factory)` | Whatever your factory decides |
+
+`Register<T>()` defaults the name to the type name, so `Register<InventoryService>()` is exposed as
+`InventoryService`.
+
+---
+
+## Calling them
+
+```tsx
+import { dotnet } from "@jsxcore/runtime";
+
+interface Inventory {
+    getTotalValue(): number;
+    getLowStock(threshold: number): Array<{ sku: string; name: string; quantity: number }>;
+}
+
+export default function Dashboard() {
+    const inventory = dotnet.Inventory as Inventory;
+    const lowStock = inventory.getLowStock(20);
+
+    return (
+        <section>
+            <p>Total: {inventory.getTotalValue().toFixed(2)}</p>
+            <ul>{lowStock.map((i) => <li key={i.sku}>{i.name}: {i.quantity}</li>)}</ul>
+        </section>
+    );
+}
+```
+
+The C# behind it is completely ordinary. Nothing here knows about JavaScript:
+
+```csharp
+public sealed class InventoryService
+{
+    public decimal GetTotalValue() => Items.Sum(i => i.Quantity * i.UnitPrice);
+    public StockItem[] GetLowStock(int threshold) => Items.Where(i => i.Quantity <= threshold).ToArray();
+}
+```
+
+### Naming
+
+Members are reachable under **both** their exact .NET name and a camelCase alias, so `Greet()` and
+`greet()` both work. Returned objects follow the same rule, which is why `item.sku` above resolves
+a C# property called `Sku`.
+
+Turn the aliasing off if you would rather have one spelling:
+
+```csharp
+options.ServerRendering.ExposeCamelCaseMembers = false;
+```
+
+### Scoped services
+
+`Register<T>()` resolves from the **request** scope, so a `DbContext`, the current user, or
+anything else scoped behaves as it would in a controller.
+
+---
+
+## Typing the surface
+
+`dotnet` is untyped, because it is a bag of whatever you registered. Cast at the use site, as
+above, or declare the shapes once in a `.d.ts` of your own and reuse them.
+
+If your service types live in a `Models` namespace they are already
+[generated for you](model-types.md), so you can often skip the hand-written interface:
+
+```tsx
+import type { MyApp } from "@jsxcore/generated";
+
+const items = dotnet.Inventory.getLowStock(20) as MyApp.Models.StockItem[];
+```
+
+---
+
+## Availability
+
+`.NET` globals exist **only during server rendering**: `RenderMode.Server`, or the server pass of
+`RenderMode.ServerAndClient`.
+
+Accessing `dotnet` on the client throws with an explanatory message rather than failing silently.
+If a component runs in both modes, guard it:
+
+```tsx
+import { dotnet, isServerRender } from "@jsxcore/runtime";
+
+const summary = isServerRender() ? dotnet.Inventory.getSummary() : null;
+```
+
+---
+
+## Security
+
+**Only what you register is reachable.** JsxCore never enables the JavaScript engine's general CLR
+access, so a view cannot load arbitrary .NET types, touch the file system, or reach anything you
+did not explicitly hand it.
+
+Server rendering also runs under limits:
+
+```csharp
+options.ServerRendering.Timeout = TimeSpan.FromSeconds(5);    // wall clock per render
+options.ServerRendering.MaxRecursionDepth = 256;
+```
+
+Treat a registered global the way you would treat a public API surface: a view is code, and a
+compromised view could call anything you exposed.
+
+---
+
+## Why this is synchronous
+
+Because the JavaScript engine runs in-process, a call into .NET returns immediately. There is no
+I/O boundary to await across. That removes the usual SSR dance of collecting promises and
+re-rendering, and it is why **server components must be synchronous**. An async component is
+rejected with an explicit error.
+
+Do the async work in your endpoint and pass the result in the model:
+
+```csharp
+app.MapGet("/dashboard", async (InventoryService inventory) =>
+    Results.Extensions.JsxServerRendered("Home/Dashboard", await inventory.LoadAsync()));
+```
