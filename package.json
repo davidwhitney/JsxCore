@@ -1,0 +1,16 @@
+{
+  "name": "jsxcore-repo",
+  "private": true,
+  "description": "TypeScript toolchain used by the JsxCore test suite. JsxCore invokes the native tsc binary from this package directly.",
+  "devDependencies": {
+    "typescript": "^7.0.2"
+  },
+  "dependencies": {
+    "classnames": "^2.5.1",
+    "date-fns": "^4.4.0",
+    "marked": "^18.0.7",
+    "nanoid": "^6.0.0",
+    "preact": "^10.29.7",
+    "preact-render-to-string": "^6.7.0"
+  }
+}
