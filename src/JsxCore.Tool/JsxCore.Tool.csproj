@@ -1,0 +1,64 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Two deliveries of one implementation.
+
+    The JsxCore package embeds this project's publish output under tools/, and the MSBuild targets
+    invoke it, so anything needing real parsing, probing or JSON construction is C# with tests
+    behind it rather than property functions and regular expressions in a .targets file.
+
+    It is also packed as a dotnet tool, JsxCore.Npm, which puts the same npm client on the command
+    line as "dotnet npm add marked". A package added there and a package restored by a build take
+    the same code path, because there is only one.
+  -->
+  <PropertyGroup>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>JsxCore.Tool</AssemblyName>
+    <RootNamespace>JsxCore.Tool</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <!--
+      Named for the "dotnet <verb>" convention, which is what makes "dotnet npm add" work: the SDK
+      resolves that to an executable called dotnet-npm. Naming it plainly "npm" would install an
+      executable called npm onto PATH and shadow the real one, which is the last thing a tool
+      whose selling point is not needing npm should do.
+    -->
+    <ToolCommandName>dotnet-npm</ToolCommandName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!--
+      Targets net8.0 so it runs on every framework JsxCore supports, which means its own launcher
+      asks for a .NET 8 runtime. A machine with only .NET 10 installed is an ordinary one, and
+      without this the tool refuses to start there with "You must install or update .NET".
+      The MSBuild targets set a roll forward policy on the command line and are unaffected.
+    -->
+    <RollForward>Major</RollForward>
+
+    <!-- Invoked as "dotnet exec", so the native launcher and symbols are dead weight in the package. -->
+    <UseAppHost>false</UseAppHost>
+    <DebugType>none</DebugType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+  </PropertyGroup>
+
+  <PropertyGroup Label="Package">
+    <PackageId>JsxCore.Npm</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>David Whitney</Authors>
+    <Title>JsxCore.Npm: npm packages without npm</Title>
+    <Description>Adds and restores npm packages from the command line with nothing installed but the .NET SDK. Resolves versions, verifies integrity, writes node_modules and a package-lock.json that real npm accepts. Ships the same client the JsxCore build uses.</Description>
+    <PackageTags>npm;package-manager;dotnet-tool;node;jsxcore;javascript;typescript</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/davidwhitney/JsxCore</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/davidwhitney/JsxCore</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\JsxCore\JsxCore.csproj" />
+  </ItemGroup>
+
+</Project>

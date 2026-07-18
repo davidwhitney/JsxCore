@@ -1,0 +1,492 @@
+<Project>
+
+  <!--
+    Build-time compilation of JSX/TSX views.
+
+    Views are compiled by the native TypeScript compiler as part of `dotnet build` and
+    `dotnet publish`, and the emitted JavaScript is carried into the publish output. A published
+    application therefore contains everything it needs to render and can run with
+    JsxCoreOptions.PrecompiledOnly set, with no TypeScript toolchain installed on the server.
+
+    Set <JsxCoreCompileOnBuild>false</JsxCoreCompileOnBuild> to opt out and rely on the view
+    engine's own startup compilation instead.
+  -->
+
+  <PropertyGroup>
+    <JsxCoreCompileOnBuild Condition="'$(JsxCoreCompileOnBuild)' == ''">true</JsxCoreCompileOnBuild>
+    <JsxCoreViewsDirectory Condition="'$(JsxCoreViewsDirectory)' == ''">Views</JsxCoreViewsDirectory>
+    <JsxCoreWorkingDirectory Condition="'$(JsxCoreWorkingDirectory)' == ''">$(BaseIntermediateOutputPath)JsxCore\</JsxCoreWorkingDirectory>
+
+    <!--
+      Directory arguments are passed to the tool with their trailing separator stripped. On Windows
+      a quoted argument that ends in a backslash reads as an escaped quote, so "obj\JsxCore\" does
+      not terminate: it swallows the rest of the command line and every argument after it is lost.
+      The tool joins paths, so whether one ends in a separator makes no difference to it.
+    -->
+    <_JsxCoreWorkingArg>$(JsxCoreWorkingDirectory.TrimEnd('\').TrimEnd('/'))</_JsxCoreWorkingArg>
+    <_JsxCoreViewsArg>$(JsxCoreViewsDirectory.TrimEnd('\').TrimEnd('/'))</_JsxCoreViewsArg>
+
+    <!-- error | warn | off -->
+    <JsxCoreTypeChecking Condition="'$(JsxCoreTypeChecking)' == ''">warn</JsxCoreTypeChecking>
+
+    <!--
+      builtin | preact. Must match the runtime the application configures. Views are compiled
+      against this runtime's JSX factory, and elements built by one runtime cannot be rendered by
+      the other. The view engine verifies the two agree at startup and fails loudly if they do not.
+    -->
+    <JsxCoreRuntime Condition="'$(JsxCoreRuntime)' == ''">builtin</JsxCoreRuntime>
+
+    <!--
+      Install missing npm packages as part of the build. This is what makes a clean checkout work:
+      without it the compiler is absent, nothing is compiled, and the failure only surfaces later.
+    -->
+    <JsxCoreAutoInstallDependencies Condition="'$(JsxCoreAutoInstallDependencies)' == ''">true</JsxCoreAutoInstallDependencies>
+    <JsxCoreGenerateEditorTsConfig Condition="'$(JsxCoreGenerateEditorTsConfig)' == ''">true</JsxCoreGenerateEditorTsConfig>
+
+    <!-- Left empty so the tool probes for npm itself, including the .cmd wrapper on Windows. -->
+    <JsxCoreNpm Condition="'$(JsxCoreNpm)' == ''"></JsxCoreNpm>
+
+    <!--
+      Which package manager restores packages. Empty takes the first that can run, which is the
+      native client: it talks to the registry directly and needs no Node installed. Set this to
+      npm to run the npm on the machine instead.
+    -->
+    <JsxCorePackageManager Condition="'$(JsxCoreUseNpm)' == 'true'">npm</JsxCorePackageManager>
+    <JsxCorePackageManager Condition="'$(JsxCorePackageManager)' == ''"></JsxCorePackageManager>
+
+    <!-- Overridable so the repository's own sample can import these targets from source, where the
+         asset files sit outside the build folder they are packed into. -->
+    <JsxCoreToolsDirectory Condition="'$(JsxCoreToolsDirectory)' == ''">$(MSBuildThisFileDirectory)</JsxCoreToolsDirectory>
+  </PropertyGroup>
+
+  <!--
+    Settings the view location generator reads.
+
+    It emits the assembly annotations that let an IDE resolve a View() call returning a .tsx file,
+    which it cannot do by itself because it looks for Razor. A generator rather than a written file,
+    so the annotations reach the compilation an editor is already running and views resolve without
+    a build first.
+
+    The attribute definitions are skipped when the project references JetBrains.Annotations, which
+    already has them.
+  -->
+  <PropertyGroup>
+    <JsxCoreEmitViewLocationAnnotations Condition="'$(JsxCoreEmitViewLocationAnnotations)' == ''">true</JsxCoreEmitViewLocationAnnotations>
+    <JsxCoreViewExtensions Condition="'$(JsxCoreViewExtensions)' == ''">.tsx;.jsx</JsxCoreViewExtensions>
+  </PropertyGroup>
+
+  <Target Name="JsxCoreDetectAnnotationsPackage" BeforeTargets="CoreCompile">
+    <ItemGroup>
+      <_JsxCoreAnnotationsPackage Include="@(PackageReference)" Condition="'%(Identity)' == 'JetBrains.Annotations'" />
+    </ItemGroup>
+
+    <PropertyGroup>
+      <JsxCoreDefinesAnnotationAttributes Condition="'@(_JsxCoreAnnotationsPackage)' != ''">false</JsxCoreDefinesAnnotationAttributes>
+    </PropertyGroup>
+  </Target>
+
+  <ItemGroup>
+    <CompilerVisibleProperty Include="JsxCoreEmitViewLocationAnnotations" />
+    <CompilerVisibleProperty Include="JsxCoreViewsDirectory" />
+    <CompilerVisibleProperty Include="JsxCoreViewExtensions" />
+    <CompilerVisibleProperty Include="JsxCoreViewLocationFormats" />
+    <CompilerVisibleProperty Include="JsxCoreAreaViewLocationFormats" />
+    <CompilerVisibleProperty Include="JsxCoreDefinesAnnotationAttributes" />
+  </ItemGroup>
+
+  <!--
+    Build logic that needs real parsing, probing or JSON construction lives in JsxCore.Tool and is
+    invoked from here. Locating node_modules, reading package.json and writing the compiler
+    configuration are all things a .targets file can only approximate, and the approximations had
+    drifted from the C# that does the same jobs at run time. The targets now decide when things
+    happen; the tool decides what the answers are.
+
+    Roll-forward is set so the tool runs on whatever shared runtime the machine has, rather than
+    requiring the exact one it was built against.
+  -->
+  <PropertyGroup>
+    <JsxCoreToolPath Condition="'$(JsxCoreToolPath)' == ''">$(MSBuildThisFileDirectory)../tools/net8.0/JsxCore.Tool.dll</JsxCoreToolPath>
+    <JsxCoreToolCommand Condition="'$(JsxCoreToolCommand)' == ''">dotnet exec --roll-forward Major &quot;$(JsxCoreToolPath)&quot;</JsxCoreToolCommand>
+    <!-- Absolute: an Import resolves a relative path against this file, not the project. -->
+    <JsxCoreGeneratedProps>$([System.IO.Path]::GetFullPath('$(MSBuildProjectDirectory)/$(JsxCoreWorkingDirectory)JsxCore.g.props'))</JsxCoreGeneratedProps>
+  </PropertyGroup>
+
+  <!--
+    Written by the analysis step during restore and imported on the next evaluation, which is what
+    lets an IDE show the packages: a project tree is built from the evaluated project without
+    running targets, so items that only exist inside a target are invisible to it. NuGet does the
+    same thing for restore, and this inherits the same behaviour, that the tree reflects the last
+    restore rather than an unsaved edit.
+  -->
+  <Import Project="$(JsxCoreGeneratedProps)" Condition="Exists('$(JsxCoreGeneratedProps)')" />
+
+  <!--
+    Runs the tool and reads its answers back.
+
+    The generated file is both an import for the next evaluation, which is what an IDE reads, and
+    the source of truth for this build, which is read back with XmlPeek. It cannot simply be
+    imported and used immediately: an Import is resolved during evaluation, long before any target
+    runs, and NuGet deliberately does not import a package's build assets during restore, so there
+    is no earlier point at which this could have happened.
+  -->
+  <Target Name="JsxCoreAnalyse" Condition="'$(_JsxCoreAnalysed)' != 'true'">
+    <Warning Condition="!Exists('$(JsxCoreToolPath)')"
+             Code="JSX0006"
+             Text="JsxCore could not find its build tool at '$(JsxCoreToolPath)'. Views will not be compiled at build time. Set JsxCoreToolPath if you have relocated it." />
+
+    <Exec Condition="Exists('$(JsxCoreToolPath)')"
+          Command="$(JsxCoreToolCommand) analyse --project-dir &quot;$(MSBuildProjectDirectory)&quot; --output &quot;$(JsxCoreGeneratedProps)&quot; --search-paths &quot;@(JsxCoreSearchPath)&quot;"
+          ContinueOnError="true"
+          StandardOutputImportance="low" />
+
+    <PropertyGroup>
+      <_JsxCoreAnalysed>true</_JsxCoreAnalysed>
+    </PropertyGroup>
+
+    <XmlPeek Condition="Exists('$(JsxCoreGeneratedProps)')" XmlInputPath="$(JsxCoreGeneratedProps)"
+             Query="/Project/PropertyGroup/JsxCoreResolvedCompilerPath/text()">
+      <Output TaskParameter="Result" PropertyName="JsxCoreResolvedCompilerPath" />
+    </XmlPeek>
+
+    <XmlPeek Condition="Exists('$(JsxCoreGeneratedProps)')" XmlInputPath="$(JsxCoreGeneratedProps)"
+             Query="/Project/PropertyGroup/JsxCoreManifestDirectory/text()">
+      <Output TaskParameter="Result" PropertyName="JsxCoreManifestDirectory" />
+    </XmlPeek>
+
+    <XmlPeek Condition="Exists('$(JsxCoreGeneratedProps)')" XmlInputPath="$(JsxCoreGeneratedProps)"
+             Query="/Project/PropertyGroup/JsxCoreNodeModulesRoot/text()">
+      <Output TaskParameter="Result" PropertyName="JsxCoreNodeModulesRoot" />
+    </XmlPeek>
+
+    <XmlPeek Condition="Exists('$(JsxCoreGeneratedProps)')" XmlInputPath="$(JsxCoreGeneratedProps)"
+             Query="/Project/ItemGroup/JsxCoreNpmDependency/@Include">
+      <Output TaskParameter="Result" ItemName="JsxCoreDependencyName" />
+    </XmlPeek>
+
+    <XmlPeek Condition="Exists('$(JsxCoreGeneratedProps)')" XmlInputPath="$(JsxCoreGeneratedProps)"
+             Query="/Project/ItemGroup/JsxCoreNpmDevDependency/@Include">
+      <Output TaskParameter="Result" ItemName="JsxCoreDevDependencyName" />
+    </XmlPeek>
+  </Target>
+
+  <Target Name="JsxCoreLocateCompiler" DependsOnTargets="JsxCoreAnalyse;JsxCoreLocateManifest">
+    <PropertyGroup>
+      <JsxCoreCompilerPath Condition="'$(JsxCoreCompilerPath)' == ''">$(JsxCoreResolvedCompilerPath)</JsxCoreCompilerPath>
+      <_JsxCoreNodeModules Condition="'$(JsxCoreNodeModulesRoot)' != ''">$(JsxCoreNodeModulesRoot)/</_JsxCoreNodeModules>
+    </PropertyGroup>
+  </Target>
+
+  <!--
+    Declared outside the target on purpose: MSBuild evaluates a target's Inputs before running it,
+    so an item group defined inside the target would still be empty and the target would be skipped
+    as having no inputs.
+  -->
+  <ItemGroup>
+    <JsxCoreViewFile Include="$(JsxCoreViewsDirectory)/**/*.tsx;$(JsxCoreViewsDirectory)/**/*.jsx;$(JsxCoreViewsDirectory)/**/*.ts;$(JsxCoreViewsDirectory)/**/*.js"
+                     Exclude="$(JsxCoreViewsDirectory)/**/node_modules/**/*" />
+  </ItemGroup>
+
+  <!--
+    npm packages the views import come from package.json, installed the ordinary way:
+
+        npm install marked
+
+    package.json is the record, not the project file. The two kinds mean what they mean to npm:
+
+      dependencies      needed to render. Resolved on the server, served to the browser, and copied
+                        into the publish output.
+      devDependencies   needed to build. The TypeScript compiler lives here. Never published, and
+                        never served to a browser.
+
+    Parsed during evaluation rather than in a target, because an IDE builds its project tree from the
+    evaluated project without running targets, and the tree is one of the things this feeds.
+
+    Values in these two blocks are flat strings, so matching to the first closing brace is enough to
+    isolate each one. MSBuild escapes separators in property function results, hence the unescape
+    before the names become items.
+  -->
+  <!--
+    Search paths handed to the tool, so an application whose content root sits away from its npm
+    project can still be analysed.
+  -->
+  <ItemGroup>
+    <JsxCoreSearchPath Include="$(JsxCoreAdditionalSearchPaths.TrimEnd('\').TrimEnd('/'))" Condition="'$(JsxCoreAdditionalSearchPaths)' != ''" />
+  </ItemGroup>
+
+  <!--
+    Show the installed packages in the IDE's project tree.
+
+    A package name is not a file, and an item whose Include is not a path is drawn as a missing file,
+    which is why those items stay hidden. Instead each package is surfaced through the one thing
+    about it that is a real file: its installed manifest, linked into a virtual folder.
+
+    That folder shadows package.json itself, so the manifest reads as the root of what it declares:
+
+        package.json/
+            package.json
+            dependencies/
+                marked/package.json
+            devDependencies/
+                typescript/package.json
+
+    The manifest is relocated into the folder rather than left beside it, so there is one node for
+    the subject rather than a file and a folder of the same name sitting next to each other. Where
+    the two groups appear relative to the manifest inside the folder is the IDE's own sorting, which
+    a project file cannot influence.
+
+    Exists() does the filtering, so a package that is declared but not installed contributes nothing
+    rather than a broken entry.
+
+    Set <JsxCoreShowNpmPackagesInIde>false</JsxCoreShowNpmPackagesInIde> to leave the tree alone.
+  -->
+  <PropertyGroup>
+    <JsxCoreShowNpmPackagesInIde Condition="'$(JsxCoreShowNpmPackagesInIde)' == ''">true</JsxCoreShowNpmPackagesInIde>
+    <JsxCoreIdePackageFolder Condition="'$(JsxCoreIdePackageFolder)' == ''">package.json</JsxCoreIdePackageFolder>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(JsxCoreShowNpmPackagesInIde)' == 'true'">
+    <!--
+      The manifest and its lock file. Both are already items from the SDK's glob, so they are
+      updated in place. Which glob depends on the SDK: the web SDK classifies .json as Content,
+      others leave it as None. An Update that matches nothing costs nothing, so both are stated,
+      as are the lock file names npm can produce.
+
+      TargetPath is pinned because Link is what publish derives an output path from when nothing
+      else says otherwise, and moving these in the tree must not move them in the output. The
+      manifest is read at run time to tell dependencies from devDependencies, so it has to stay
+      where it lands today.
+    -->
+    <Content Update="package.json;package-lock.json;npm-shrinkwrap.json">
+      <Link>$(JsxCoreIdePackageFolder)\%(Filename)%(Extension)</Link>
+      <TargetPath>%(Filename)%(Extension)</TargetPath>
+      <Visible>true</Visible>
+    </Content>
+
+    <None Update="package.json;package-lock.json;npm-shrinkwrap.json">
+      <Link>$(JsxCoreIdePackageFolder)\%(Filename)%(Extension)</Link>
+      <TargetPath>%(Filename)%(Extension)</TargetPath>
+      <Visible>true</Visible>
+    </None>
+
+    <!--
+      Each installed package, shown through its own manifest. Which packages exist, where they are
+      and how they are labelled were all decided by the tool, so nothing is derived here.
+    -->
+    <None Include="@(JsxCoreNpmDependency->WithMetadataValue('Installed','true')->'%(InstalledManifest)')">
+      <Link>$(JsxCoreIdePackageFolder)\dependencies\%(PackageLabel)\package.json</Link>
+      <Visible>true</Visible>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <Pack>false</Pack>
+    </None>
+
+    <None Include="@(JsxCoreNpmDevDependency->WithMetadataValue('Installed','true')->'%(InstalledManifest)')">
+      <Link>$(JsxCoreIdePackageFolder)\devDependencies\%(PackageLabel)\package.json</Link>
+      <Visible>true</Visible>
+      <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+      <Pack>false</Pack>
+    </None>
+  </ItemGroup>
+
+  <Target Name="JsxCoreLocateManifest" DependsOnTargets="JsxCoreAnalyse">
+    <PropertyGroup>
+      <_JsxCoreManifestDir Condition="'$(JsxCoreManifestDirectory)' != ''">$(JsxCoreManifestDirectory)/</_JsxCoreManifestDir>
+      <_JsxCoreManifestDir Condition="'$(_JsxCoreManifestDir)' == ''">$(MSBuildProjectDirectory)/</_JsxCoreManifestDir>
+    </PropertyGroup>
+  </Target>
+
+  <!--
+    Makes node_modules match package.json before anything tries to read it.
+
+    Every declared package is checked, not just the compiler. A dependency that is listed but not
+    installed is the cause of the worst kind of failure here: the build succeeds, because tsc only
+    resolves types, and the view then fails to render at run time with an error about a module,
+    which reads as a JsxCore fault rather than a missing install.
+
+    Which package manager does the work is decided by the tool, not here. npm is the only one today
+    and is used when it is on PATH. That is the seam a native restore, needing no Node installed,
+    would arrive through.
+
+    Set <JsxCoreAutoInstallDependencies>false</JsxCoreAutoInstallDependencies> to manage packages
+    yourself, and JsxCore will report what is missing rather than install it.
+  -->
+  <Target Name="JsxCoreEnsureDependencies"
+          DependsOnTargets="JsxCoreAnalyse;JsxCoreLocateManifest"
+          Condition="Exists('$(MSBuildProjectDirectory)/$(JsxCoreViewsDirectory)')">
+
+    <Exec Condition="Exists('$(JsxCoreToolPath)')"
+          Command="$(JsxCoreToolCommand) provision --project-dir &quot;$(MSBuildProjectDirectory)&quot; --manifest-dir &quot;$(_JsxCoreManifestDir)&quot; --runtime &quot;$(JsxCoreRuntime)&quot; --auto-install &quot;$(JsxCoreAutoInstallDependencies)&quot; --npm-path &quot;$(JsxCoreNpm)&quot; --package-manager &quot;$(JsxCorePackageManager)&quot;"
+          ContinueOnError="true"
+          IgnoreExitCode="true"
+          StandardOutputImportance="high"
+          ConsoleToMSBuild="true">
+      <Output TaskParameter="ExitCode" PropertyName="_JsxCoreRestoreExit" />
+      <Output TaskParameter="ConsoleOutput" ItemName="_JsxCoreRestoreOutput" />
+    </Exec>
+
+    <Error Condition="'$(_JsxCoreRestoreExit)' == '4'"
+           Code="JSX0005"
+           Text="@(_JsxCoreRestoreOutput, ' ')" />
+
+    <Warning Condition="'$(_JsxCoreRestoreExit)' == '3' Or '$(_JsxCoreRestoreExit)' == '5'"
+             Code="JSX0004"
+             Text="@(_JsxCoreRestoreOutput, ' ')" />
+
+    <!--
+      Anything installed above did not exist when the project was analysed, so the answers are
+      stale. This is the first build of a clean checkout: the compiler is fetched here and would
+      otherwise not be found until the next build.
+    -->
+    <Exec Condition="'$(_JsxCoreRestoreExit)' == '0' And Exists('$(JsxCoreToolPath)')"
+          Command="$(JsxCoreToolCommand) analyse --project-dir &quot;$(MSBuildProjectDirectory)&quot; --output &quot;$(JsxCoreGeneratedProps)&quot; --search-paths &quot;@(JsxCoreSearchPath)&quot;"
+          ContinueOnError="true"
+          StandardOutputImportance="low" />
+
+    <XmlPeek Condition="Exists('$(JsxCoreGeneratedProps)')"
+             XmlInputPath="$(JsxCoreGeneratedProps)"
+             Query="/Project/PropertyGroup/JsxCoreResolvedCompilerPath/text()">
+      <Output TaskParameter="Result" PropertyName="JsxCoreResolvedCompilerPath" />
+    </XmlPeek>
+
+    <PropertyGroup>
+      <JsxCoreCompilerPath Condition="'$(JsxCoreCompilerPath)' == ''">$(JsxCoreResolvedCompilerPath)</JsxCoreCompilerPath>
+    </PropertyGroup>
+  </Target>
+
+  <!--
+    The assembly is an input alongside the views because declarations for .NET model types are
+    generated from it. Changing a model with no view touched still has to recompile, or views would
+    keep type checking against the shape the models used to have.
+  -->
+  <Target Name="JsxCoreCompileViews"
+          AfterTargets="Build"
+          DependsOnTargets="JsxCoreLocateCompiler;JsxCoreEnsureDependencies"
+          Condition="'$(JsxCoreCompileOnBuild)' == 'true' And Exists('$(MSBuildProjectDirectory)/$(JsxCoreViewsDirectory)')"
+          Inputs="@(JsxCoreViewFile);$(TargetPath)"
+          Outputs="$(JsxCoreWorkingDirectory)build.stamp">
+
+    <Warning Condition="'$(JsxCoreCompilerPath)' == ''"
+             Code="JSX0001"
+             Text="JsxCore could not find the TypeScript compiler and could not install it, so views were not compiled at build time. Check network access to the npm registry, or install typescript@^7 as a dev dependency yourself. The view engine will compile views at startup instead, which requires the toolchain to be present on the machine that runs the application." />
+
+    <CallTarget Targets="JsxCoreRunCompiler" Condition="'$(JsxCoreCompilerPath)' != ''" />
+  </Target>
+
+  <!--
+    Declarations for .NET model types are generated from the assembly the build just produced, by
+    loading it for inspection only. The application's own entry point never runs.
+
+    It has to happen before the configuration is written, because whether the compiler is pointed
+    at real declarations or at the ambient stand-in depends on whether these exist.
+
+    Rolled forward to the newest installed runtime rather than the tool's own, because the tool
+    targets net8.0 and has to be able to load an assembly built for a later one.
+  -->
+  <Target Name="JsxCoreGenerateModelTypes"
+          Condition="'$(JsxCoreGenerateModelTypes)' != 'false' And Exists('$(JsxCoreToolPath)') And Exists('$(TargetPath)')"
+          Inputs="$(TargetPath)"
+          Outputs="$(JsxCoreWorkingDirectory)modeltypes.stamp">
+    <Exec Command="dotnet exec --roll-forward LatestMajor &quot;$(JsxCoreToolPath)&quot; types --project-dir &quot;$(MSBuildProjectDirectory)&quot; --views &quot;$(_JsxCoreViewsArg)&quot; --working &quot;$(_JsxCoreWorkingArg)&quot; --assembly &quot;$(TargetPath)&quot;"
+          ContinueOnError="true"
+          StandardOutputImportance="normal" />
+
+    <!-- Stamped whatever the outcome: a model set that produced nothing should not be retried on
+         every build, and the assembly changing is what makes it worth trying again. -->
+    <Touch Files="$(JsxCoreWorkingDirectory)modeltypes.stamp" AlwaysCreate="true" />
+  </Target>
+
+  <Target Name="JsxCoreRunCompiler" DependsOnTargets="JsxCoreGenerateModelTypes;JsxCoreWriteConfig">
+    <Exec Command="&quot;$(JsxCoreCompilerPath)&quot; --project &quot;$(JsxCoreWorkingDirectory)tsconfig.json&quot; --pretty false"
+          WorkingDirectory="$(MSBuildProjectDirectory)"
+          ContinueOnError="true"
+          StandardOutputImportance="high"
+          IgnoreExitCode="true">
+      <Output TaskParameter="ExitCode" PropertyName="JsxCoreExitCode" />
+    </Exec>
+
+    <Error Condition="'$(JsxCoreExitCode)' != '0' And '$(JsxCoreTypeChecking)' == 'error'"
+           Code="JSX0002"
+           Text="JsxCore: TypeScript reported errors in your views. See the output above. Set &lt;JsxCoreTypeChecking&gt;warn&lt;/JsxCoreTypeChecking&gt; to downgrade this to a warning." />
+
+    <Warning Condition="'$(JsxCoreExitCode)' != '0' And '$(JsxCoreTypeChecking)' != 'error'"
+             Code="JSX0003"
+             Text="JsxCore: TypeScript reported errors in your views. See the output above." />
+
+    <Touch Files="$(JsxCoreWorkingDirectory)build.stamp" AlwaysCreate="true" />
+  </Target>
+
+  <!--
+    The compiler configuration is written by the tool, which calls the same code the view engine
+    calls at run time, so a build-time compilation and a startup compilation cannot disagree about
+    compiler settings. This used to be assembled here by loading the base configuration as text,
+    trimming its last two closing braces and concatenating fragments onto the end.
+
+    The editor configuration beside the views is written by the same call, and only while it still
+    carries JsxCore's marker, so a hand-edited one is left alone.
+  -->
+  <Target Name="JsxCoreWriteConfig" DependsOnTargets="JsxCoreLocateCompiler">
+    <Exec Command="$(JsxCoreToolCommand) tsconfig --project-dir &quot;$(MSBuildProjectDirectory)&quot; --views &quot;$(_JsxCoreViewsArg)&quot; --working &quot;$(_JsxCoreWorkingArg)&quot; --runtime &quot;$(JsxCoreRuntime)&quot; --type-checking &quot;$(JsxCoreTypeChecking)&quot; --editor-config &quot;$(JsxCoreGenerateEditorTsConfig)&quot; --search-paths &quot;@(JsxCoreSearchPath)&quot;"
+          StandardOutputImportance="low" />
+  </Target>
+
+  <!--
+    Carry the compiled views into the publish output, along with the Preact ES modules if they are
+    installed.
+
+    Preact matters because the view engine stages it out of node_modules at startup. Without this,
+    an application published with PrecompiledOnly would start on a server that has no npm packages
+    and then fail to render, which is exactly the deployment this feature exists to support. Only
+    the .mjs files and manifests are taken, so this costs a few tens of kilobytes rather than the
+    whole package.
+  -->
+  <Target Name="JsxCoreIncludeInPublish"
+          BeforeTargets="ComputeResolvedFilesToPublishList"
+          DependsOnTargets="JsxCoreAnalyse;JsxCoreLocateCompiler;JsxCoreCompileViews"
+          Condition="'$(JsxCoreCompileOnBuild)' == 'true'">
+
+    <ItemGroup>
+      <_JsxCorePublishFile Include="$(JsxCoreWorkingDirectory)js/**/*" />
+      <ResolvedFileToPublish Include="@(_JsxCorePublishFile)">
+        <RelativePath>$(JsxCoreWorkingDirectory)js/%(RecursiveDir)%(Filename)%(Extension)</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+
+    <!--
+      Published under node_modules/ so the runtime resolves them exactly as it does in development,
+      walking up from the content root. No file list to keep in step with the C# side.
+    -->
+    <ItemGroup Condition="'$(JsxCoreRuntime)' == 'preact' And '$(_JsxCoreNodeModules)' != ''">
+      <_JsxCorePreactFile Include="$(_JsxCoreNodeModules)preact/**/dist/*.mjs" />
+      <_JsxCorePreactFile Include="$(_JsxCoreNodeModules)preact/package.json"
+                          Condition="Exists('$(_JsxCoreNodeModules)preact/package.json')" />
+      <_JsxCorePreactFile Include="$(_JsxCoreNodeModules)preact-render-to-string/dist/*.mjs" />
+      <_JsxCorePreactFile Include="$(_JsxCoreNodeModules)preact-render-to-string/package.json"
+                          Condition="Exists('$(_JsxCoreNodeModules)preact-render-to-string/package.json')" />
+
+      <ResolvedFileToPublish Include="@(_JsxCorePreactFile)">
+        <RelativePath>node_modules/$([MSBuild]::MakeRelative('$(_JsxCoreNodeModules)', '%(FullPath)'))</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+
+    <!--
+      Runtime dependencies from package.json. Server rendering reads these from node_modules at run
+      time, and the browser is served them from the same place, so they have to reach the published
+      output. devDependencies are build-time only and are deliberately absent, which is the same cut
+      a production npm ci makes.
+    -->
+    <ItemGroup Condition="'$(_JsxCoreNodeModules)' != ''">
+      <_JsxCoreRuntimePackage Include="@(JsxCoreDependencyName)"
+                              Exclude="preact;preact-render-to-string" />
+
+      <_JsxCorePackageFile Include="$(_JsxCoreNodeModules)%(_JsxCoreRuntimePackage.Identity)/**/*"
+                           Exclude="$(_JsxCoreNodeModules)%(_JsxCoreRuntimePackage.Identity)/**/node_modules/.bin/**/*" />
+
+      <ResolvedFileToPublish Include="@(_JsxCorePackageFile)">
+        <RelativePath>node_modules/$([MSBuild]::MakeRelative('$(_JsxCoreNodeModules)', '%(FullPath)'))</RelativePath>
+        <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      </ResolvedFileToPublish>
+    </ItemGroup>
+  </Target>
+
+</Project>
