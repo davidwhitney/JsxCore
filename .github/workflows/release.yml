@@ -1,0 +1,97 @@
+name: Release
+
+# Publishing a GitHub release creates the tag, and this reacts to it. The release is the trigger
+# and the version: whatever it is tagged is what goes to NuGet, so there is one place to decide it.
+#
+# Two things have to exist before this can run:
+#   - a repository secret named NUGET_API_KEY, from nuget.org under API Keys
+#   - an environment named "nuget", under Settings, Environments. Add a required reviewer to it if
+#     you want a publish to need approval. Delete the "environment:" line below to do without one.
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+
+jobs:
+  publish:
+    name: Publish to NuGet
+    runs-on: ubuntu-latest
+
+    # Attaching the packages to the release needs write; nothing else here does.
+    permissions:
+      contents: write
+
+    # A release is irreversible on NuGet: a version can be unlisted but never replaced. Naming an
+    # environment is what allows a required reviewer to stand between the tag and the push.
+    environment: nuget
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name }}
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Read the version from the tag
+        id: version
+        run: |
+          version="${{ github.event.release.tag_name }}"
+          version="${version#v}"
+
+          # NuGet takes SemVer 2.0: 1.2.3, optionally with a prerelease label and build metadata.
+          if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+            echo "::error::Release tag '${{ github.event.release.tag_name }}' is not a version NuGet will accept. Tag as 1.2.3 or v1.2.3."
+            exit 1
+          fi
+
+          echo "value=$version" >> "$GITHUB_OUTPUT"
+          echo "Publishing $version"
+
+      # Nothing ships that has not passed here, on the commit being released rather than on
+      # whatever main happened to be when the build last ran.
+      - name: Test
+        run: dotnet test test/JsxCore.Tests --configuration Release
+
+      - name: Pack
+        run: |
+          dotnet pack src/JsxCore --configuration Release --output artifacts \
+            -p:Version=${{ steps.version.outputs.value }}
+          dotnet pack src/JsxCore.Tool --configuration Release --output artifacts \
+            -p:Version=${{ steps.version.outputs.value }}
+
+      - name: Check the tool installs and runs
+        run: |
+          dotnet tool install --global JsxCore.Npm \
+            --add-source artifacts --version ${{ steps.version.outputs.value }}
+          dotnet npm init --project "$RUNNER_TEMP/tool-check"
+          dotnet npm add classnames --project "$RUNNER_TEMP/tool-check"
+
+      - name: Push to NuGet
+        # --skip-duplicate so that re-running a partly failed release publishes what is missing
+        # rather than failing on what already went.
+        run: >
+          dotnet nuget push "artifacts/*.nupkg"
+          --source https://api.nuget.org/v3/index.json
+          --api-key ${{ secrets.NUGET_API_KEY }}
+          --skip-duplicate
+
+      - name: Attach the packages to the release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*.nupkg
