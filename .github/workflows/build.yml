@@ -1,0 +1,112 @@
+name: Build
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: true
+  DOTNET_CLI_TELEMETRY_OPTOUT: true
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: true
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      # One platform failing is a result worth having from the other, not a reason to stop it.
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: Linux
+          - os: windows-latest
+            name: Windows
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      # JsxCore restores npm packages itself, so a build needs no Node at all. npm is installed
+      # anyway because part of the test suite compares what JsxCore resolves against what npm
+      # resolves, and skips itself when npm is absent. Without this the comparison would pass by
+      # not running, which is the failure mode worth avoiding on the machine meant to catch it.
+      - name: Set up Node, for the tests that compare against npm
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Restore
+        run: dotnet restore JsxCore.slnx
+
+      - name: Build
+        run: dotnet build JsxCore.slnx --configuration Release --no-restore
+
+      - name: Test
+        run: >
+          dotnet test test/JsxCore.Tests
+          --configuration Release
+          --no-build
+          --logger "trx;LogFileName=test-results.trx"
+          --logger "console;verbosity=normal"
+          --results-directory ${{ github.workspace }}/TestResults
+
+      - name: Upload test results
+        # Results are most wanted precisely when the step before failed.
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-${{ matrix.name }}
+          path: ${{ github.workspace }}/TestResults/*.trx
+          if-no-files-found: warn
+
+  pack:
+    name: Pack
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            9.0.x
+            10.0.x
+
+      # Packing is its own job because the two packages are assembled rather than just compiled:
+      # JsxCore embeds the build tool's publish output, and JsxCore.Npm packs that same project as
+      # a dotnet tool. Both are ways to get this wrong that a successful build would not catch.
+      - name: Pack
+        run: |
+          dotnet pack src/JsxCore --configuration Release --output artifacts
+          dotnet pack src/JsxCore.Tool --configuration Release --output artifacts
+
+      - name: Check the tool installs and runs
+        run: |
+          dotnet tool install --global JsxCore.Npm --add-source artifacts --version 1.0.0
+          dotnet npm init --project "$RUNNER_TEMP/tool-check"
+          dotnet npm add classnames --project "$RUNNER_TEMP/tool-check"
+          dotnet npm list --project "$RUNNER_TEMP/tool-check"
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages
+          path: artifacts/*.nupkg
