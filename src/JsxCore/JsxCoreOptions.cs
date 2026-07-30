@@ -18,21 +18,28 @@ public enum TypeCheckingMode
     Error
 }
 
-/// <summary>Which JSX runtime views are compiled and rendered against.</summary>
-public enum JsxRuntimeMode
+/// <summary>
+/// Which JavaScript framework views are compiled and rendered against.
+/// </summary>
+/// <remarks>
+/// Chosen in the project file with <c>&lt;JsxCoreFramework&gt;</c>, because the build acts on it:
+/// it decides which packages are installed and which JSX runtime views compile against, long
+/// before any of the application's own code runs.
+/// </remarks>
+public enum JsFramework
 {
     /// <summary>
-    /// The small runtime embedded in JsxCore. No npm dependencies beyond the compiler, but a
-    /// reduced programming model: no context, suspense, portals or error boundaries.
+    /// Preact, which ships inside JsxCore. A full component model: context, error boundaries,
+    /// refs and the complete hook set, plus true DOM-preserving hydration, and via preact/compat
+    /// most of the React ecosystem. Nothing to install and nothing extra in the publish output.
     /// </summary>
-    Builtin,
+    Preact,
 
     /// <summary>
-    /// Preact, taken from the application's own node_modules. A full component model: context,
-    /// error boundaries, refs and the complete hook set, plus true DOM-preserving hydration, and via
-    /// preact/compat most of the React ecosystem. Requires preact and preact-render-to-string.
+    /// React itself, installed from npm. Chosen when a dependency needs the real thing rather than
+    /// preact/compat; react and react-dom are added to package.json and restored by the build.
     /// </summary>
-    Preact
+    React
 }
 
 /// <summary>When JsxCore may install missing npm packages on the developer's behalf.</summary>
@@ -97,29 +104,9 @@ public sealed class JsxCoreOptions
     public RenderMode DefaultRenderMode { get; set; } = RenderMode.Client;
 
     /// <summary>
-    /// Which JSX runtime views compile and render against. Defaults to
-    /// <see cref="JsxRuntimeMode.Builtin"/>.
-    /// </summary>
-    public JsxRuntimeMode Runtime { get; set; } = JsxRuntimeMode.Builtin;
-
-    /// <summary>
-    /// Compile and render views against the application's own Preact installation.
-    /// </summary>
-    /// <remarks>
-    /// Requires <c>preact</c> and <c>preact-render-to-string</c> in node_modules; startup fails
-    /// with an explanatory message if either is missing. Preact publishes real ES modules, so its
-    /// files are copied as-is with no bundling step.
-    /// </remarks>
-    public JsxCoreOptions UsePreact()
-    {
-        Runtime = JsxRuntimeMode.Preact;
-        return this;
-    }
-
-    /// <summary>
     /// Map the bare specifiers <c>react</c> and <c>react-dom</c> onto <c>preact/compat</c>, so
-    /// components written against React work unchanged. Defaults to true and only applies in
-    /// Preact mode.
+    /// components written against React work unchanged. Defaults to true and only applies when the
+    /// framework is Preact.
     /// </summary>
     public bool EnableReactCompatibility { get; set; } = true;
 

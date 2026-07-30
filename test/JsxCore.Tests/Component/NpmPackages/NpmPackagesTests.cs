@@ -25,7 +25,7 @@ public class NpmPackageTests
     {
         await project.CompileAsync();
         var renderer = new JsxServerRenderer(
-            project.Options, project.Compilation, JsxRuntimeLayout.Builtin(), Resolver());
+            project.Options, project.Compilation, project.RuntimeLayout, Resolver());
 
         var result = await renderer.RenderAsync(
             project.Locate(view), model, new Dictionary<string, object?>(),
@@ -117,7 +117,7 @@ public class NpmPackageTests
             """);
 
         await project.CompileAsync();
-        var renderer = new JsxServerRenderer(project.Options, project.Compilation, JsxRuntimeLayout.Builtin(), null);
+        var renderer = new JsxServerRenderer(project.Options, project.Compilation, project.RuntimeLayout, null);
 
         var exception = await Should.ThrowAsync<JsxRenderException>(() => renderer.RenderAsync(
             project.Locate("Home/Index"), null, new Dictionary<string, object?>(),
@@ -144,7 +144,7 @@ public class NpmPackageTests
     {
         await project.CompileAsync();
         var renderer = new JsxServerRenderer(
-            project.Options, project.Compilation, JsxRuntimeLayout.Builtin(),
+            project.Options, project.Compilation, project.RuntimeLayout,
             new NodeModuleResolver(NodeModulesLayout.For(project.Root)));
 
         var result = await renderer.RenderAsync(
@@ -415,8 +415,7 @@ public class NpmPackageTests
                 return <p>{n}{typeof marked}</p>;
             }
             """);
-        project.Options.UsePreact();
-        await using var host = await JsxTestHost.StartAsync(project, options => options.UsePreact());
+        await using var host = await JsxTestHost.StartAsync(project);
 
         var html = await host.GetStringAsync("/client/Index");
 

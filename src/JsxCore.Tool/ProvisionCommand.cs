@@ -11,7 +11,7 @@ public static class ProvisionCommand
     public const int Unresolved = 3;
     public const int InstallationDisabled = 4;
     public const int NoPackageManager = 5;
-    public const int RuntimeMismatch = 6;
+    public const int UnsupportedFramework = 6;
 
     public static int Run(Arguments arguments)
     {
@@ -19,27 +19,30 @@ public static class ProvisionCommand
 
         var options = new JsxCoreOptions
         {
-            Runtime = arguments.Optional("runtime") is "preact" ? JsxRuntimeMode.Preact : JsxRuntimeMode.Builtin,
             NpmPath = arguments.Optional("npm-path")
         };
 
-        // The application says which runtime it wants twice: here, from the project file, and again
-        // in its own code. Disagreeing means installing and compiling against one while rendering
-        // with the other, so it is caught now rather than at startup on a machine serving
-        // precompiled output.
-        if (options.Runtime != JsxRuntimeMode.Preact
-            && arguments.Optional("assembly") is { } assembly
-            && ConfiguredRuntime.CallsUsePreact(assembly))
+        // React is a recognised value with nothing behind it yet. Refusing it here means a project
+        // that asks for it is told during the build, rather than quietly getting Preact and only
+        // finding out when a dependency needs the real React.
+        if (arguments.Optional("framework") is { } framework && !framework.Equals("preact", StringComparison.OrdinalIgnoreCase))
         {
-            Console.Error.WriteLine(
-                "JsxCore: this application calls UsePreact(), but the build is configured for the " +
-                "built-in runtime, so Preact would not be installed and views would be compiled " +
-                "against the wrong JSX runtime. Add this to the project file:" +
-                Environment.NewLine + Environment.NewLine +
-                "    <JsxCoreRuntime>preact</JsxCoreRuntime>" + Environment.NewLine + Environment.NewLine +
-                "or remove the UsePreact() call to use the runtime built into JsxCore.");
+            if (framework.Equals("react", StringComparison.OrdinalIgnoreCase))
+            {
+                Console.Error.WriteLine(
+                    "JsxCore cannot compile against React yet. <JsxCoreFramework>react</JsxCoreFramework> is " +
+                    "recognised but not implemented." + Environment.NewLine + Environment.NewLine +
+                    "Remove the property to use Preact, which ships inside JsxCore and covers most of " +
+                    "the React ecosystem through preact/compat.");
 
-            return RuntimeMismatch;
+                return UnsupportedFramework;
+            }
+
+            Console.Error.WriteLine(
+                $"JsxCore does not know the framework '{framework}'. " +
+                $"<JsxCoreFramework> takes 'preact', which is the default and may be omitted.");
+
+            return UnsupportedFramework;
         }
 
         var directory = arguments.Optional("manifest-dir")
@@ -104,13 +107,8 @@ public static class ProvisionCommand
             new("typescript", $"^{options.MinimumTypeScriptMajorVersion}", Development: true)
         };
 
-        if (options.Runtime == JsxRuntimeMode.Preact)
-        {
-            // Published with the application, so runtime dependencies rather than development ones.
-            packages.Add(new PackageRequest("preact"));
-            packages.Add(new PackageRequest("preact-render-to-string"));
-        }
-
+        // Preact is not here: it ships inside JsxCore, so an application never has to install it
+        // and never publishes it. Installing one anyway is still honoured, and takes precedence.
         return packages;
     }
 

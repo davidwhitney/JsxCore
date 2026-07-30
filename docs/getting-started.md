@@ -205,7 +205,7 @@ Paths searched:
 ## Where to go next
 
 - [Package management](package-management.md): adding npm packages with `dotnet npm add`
-- [Runtimes](runtimes.md): the built-in runtime is small; Preact is one line away
+- [Runtimes](runtimes.md): Preact ships inside JsxCore, and how to upgrade it
 - [Render modes](render-modes.md): client, server, or both
 - [Model types](model-types.md): stop hand-writing TypeScript interfaces for your view models
 - [How it works](how-it-works.md): why there is no bundler

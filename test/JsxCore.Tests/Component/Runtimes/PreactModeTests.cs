@@ -22,7 +22,6 @@ public class PreactModeTests
     private static JsxProjectFixture PreactProject()
     {
         var project = JsxProjectFixture.Create();
-        project.Options.UsePreact();
 
         // The fixture's content root is a temp directory, so point node_modules resolution at the
         // repository. This is the same setting a relocated test-host content root needs.
@@ -238,7 +237,6 @@ public class PreactModeTests
 
         await using var host = await JsxTestHost.StartAsync(project, options =>
         {
-            options.UsePreact();
             options.AdditionalToolchainSearchPaths.Add(JsxProjectFixture.RepositoryRoot());
         });
 
@@ -268,7 +266,6 @@ public class PreactModeTests
 
         await using var host = await JsxTestHost.StartAsync(project, options =>
         {
-            options.UsePreact();
             options.AdditionalToolchainSearchPaths.Add(JsxProjectFixture.RepositoryRoot());
         });
 
@@ -279,21 +276,18 @@ public class PreactModeTests
     }
 
     [Fact]
-    public void Registration_PreactIsNotInstalled_FailsWithAnActionableMessage()
+    public void Registration_PreactIsNotInstalled_StartsAnyway()
     {
+        // Preact ships inside JsxCore, so there is no "forgot npm install" case left: a directory
+        // with no node_modules above it renders exactly like one that has them.
         var root = Path.Combine(Path.GetTempPath(), "jsxcore-preact", Guid.NewGuid().ToString("n")[..8]);
         Directory.CreateDirectory(Path.Combine(root, "Views"));
 
         var options = new JsxCoreOptions { TypeScriptCompilerPath = JsxProjectFixture.Toolchain.ExecutablePath };
-        options.UsePreact();
 
         try
         {
-            // A temp directory with no node_modules above it: exactly the "forgot npm install" case.
-            var exception = Should.Throw<JsxCoreEnvironmentException>(() => EnvironmentVerifier.Verify(options, root));
-
-            exception.Message.ShouldContain("npm install preact preact-render-to-string");
-            exception.Message.ShouldContain("preact");
+            Should.NotThrow(() => EnvironmentVerifier.Verify(options, root));
         }
         finally
         {

@@ -41,12 +41,7 @@ public sealed class NpmBootstrapper(Action<string> report, TimeSpan timeout, str
             ("typescript", $"^{options.MinimumTypeScriptMajorVersion}", true)
         };
 
-        if (options.Runtime == JsxRuntimeMode.Preact)
-        {
-            packages.Add(("preact", string.Empty, false));
-            packages.Add(("preact-render-to-string", string.Empty, false));
-        }
-
+        // Preact ships inside JsxCore, so there is nothing to fetch for it.
         return packages;
     }
 

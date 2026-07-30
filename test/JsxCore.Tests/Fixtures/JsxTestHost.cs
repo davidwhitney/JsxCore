@@ -65,7 +65,6 @@ public sealed class JsxTestHost : IAsyncDisposable
             options.WorkingDirectory = project.Options.WorkingDirectory;
             options.DefaultRenderMode = project.Options.DefaultRenderMode;
             options.TypeChecking = project.Options.TypeChecking;
-            options.Runtime = project.Options.Runtime;
             options.EnableReactCompatibility = project.Options.EnableReactCompatibility;
 
             foreach (var path in project.Options.AdditionalToolchainSearchPaths)

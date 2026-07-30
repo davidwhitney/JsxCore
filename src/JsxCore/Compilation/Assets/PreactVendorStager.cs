@@ -37,7 +37,11 @@ public sealed class PreactVendorStager(
         _staged.Clear();
         var result = AssetStage.WriteTo(Directory, new VendoredPreactModules(this));
 
-        foreach (var module in Modules.Where(m => ResolveInNodeModules(m.PackagePath) is not null))
+        // What was actually written, rather than what node_modules happens to contain: a module
+        // JsxCore ships is staged too, and leaving it out of this map is what makes server
+        // rendering fall through to node_modules and report Preact as missing.
+        foreach (var module in Modules.Where(m =>
+                     ResolveInNodeModules(m.PackagePath) is not null || VendoredPreact.Has(m.FileName)))
         {
             _staged[module.Specifier] = module.FileName;
         }

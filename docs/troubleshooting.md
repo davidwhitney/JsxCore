@@ -28,23 +28,11 @@ JsxCore depends on the native compiler and on `rewriteRelativeImportExtensions`,
 versions do not provide. Raise the range in `package.json` and rebuild, or run
 `dotnet npm add typescript --version ^7 --dev`.
 
-### `JsxCoreEnvironmentException`: Preact is not installed
-
-You called `options.UsePreact()` without the packages, and the automatic install did not run.
-Outside Development it never does. Run `dotnet npm add preact preact-render-to-string`, or the npm
-equivalent, and rebuild.
-
 ### `JsxCoreEnvironmentException`: no compiled views were found
 
 `PrecompiledOnly` is set but the publish output has no compiled views. Check that the package's
 build targets ran, that `JsxCoreCompileOnBuild` is not `false`, and that
 `options.WorkingDirectory` matches `JsxCoreWorkingDirectory`.
-
-### `JsxCoreEnvironmentException`: compiled against a different runtime
-
-Your build compiled views against one JSX runtime and the application renders with the other. Set
-`<JsxCoreRuntime>preact</JsxCoreRuntime>` in your project file to match `options.UsePreact()`, then
-rebuild. See [Build and deploy](build-and-deploy.md#jsxcoreruntime-has-to-match-your-runtime).
 
 ### `error JSX0005: JsxCore needs npm packages that are not installed`
 
@@ -56,19 +44,11 @@ The check exists because the alternative is worse. A missing package does not fa
 without it the build succeeds and the view fails to render later with an error about a module,
 which reads as a JsxCore fault rather than a missing install.
 
-### `error JSX0007: this application calls UsePreact()`
+### `error JSX0007: JsxCore cannot compile against React yet`
 
-The runtime is set in two places and they disagree: `options.UsePreact()` in code, and
-`JsxCoreRuntime` in the project file, which is what the build reads. Left alone the build would
-install the wrong packages and compile views against the wrong JSX runtime, and only a machine
-serving precompiled output would find out. Add the property:
-
-```xml
-<JsxCoreRuntime>preact</JsxCoreRuntime>
-```
-
-or drop the `UsePreact()` call. Development hides this, because startup recompiles views with
-whatever the application configured; a build server does not.
+`<JsxCoreFramework>` names a framework JsxCore does not implement. `preact` is the only value
+today, and it is the default, so removing the property is usually the fix. See
+[Runtimes](runtimes.md#switching-frameworks).
 
 ### `warning JSX0006: JsxCore could not find its build tool`
 
@@ -253,10 +233,6 @@ it, check that a proxy is not rewriting `/_jsx/...` paths or stripping the versi
 
 Things to know before you commit to this:
 
-- **The built-in runtime is small.** A keyed reconciler with hooks, enough for views, forms and
-  interactive widgets, but with no context, suspense, portals or error boundaries, and it replaces
-  server markup on mount rather than hydrating it. Switch to [Preact](runtimes.md) for the full
-  component model and true hydration; it is one line.
 
 - **Server components must be synchronous.** Because .NET calls return immediately there is no need
   for async, and an async component is rejected with a clear error.

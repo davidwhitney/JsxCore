@@ -16,7 +16,6 @@ builder.Services.AddSingleton<ClockService>();
 builder.AddJsxCore(options =>
 {
     options.DefaultRenderMode = RenderMode.Client;
-    options.UsePreact();
 
     // Published output already contains the compiled views, so production needs no toolchain.
     options.PrecompiledOnly = builder.Environment.IsProduction();

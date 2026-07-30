@@ -3,20 +3,15 @@ using Shouldly;
 
 namespace JsxCore.Tests.Component.HotReload;
 
-// A hot update re-renders in place rather than reloading. The element it renders has to be one the
-// active runtime understands, which is why this is tested against both of them: building the
-// element in the reload client produced a blank page under Preact.
+// A hot update re-renders in place rather than reloading, which needs the mounted root to expose an
+// update function. Building the element in the reload client instead produced a blank page.
 public class HotUpdateTests
 {
-    private static JsxProjectFixture Project(JsxRuntimeMode runtime)
+    private static JsxProjectFixture Project()
     {
         var project = JsxProjectFixture.Create();
-        project.Options.Runtime = runtime;
         project.Options.TypeChecking = TypeCheckingMode.Off;
-        if (runtime == JsxRuntimeMode.Preact)
-        {
-            project.Options.AdditionalToolchainSearchPaths.Add(JsxProjectFixture.RepositoryRoot());
-        }
+        project.Options.AdditionalToolchainSearchPaths.Add(JsxProjectFixture.RepositoryRoot());
 
         project.AddView("Home/Index.tsx", """
             export default function Index() { return <p>original</p>; }
@@ -24,13 +19,11 @@ public class HotUpdateTests
         return project;
     }
 
-    [Theory]
-    [InlineData(JsxRuntimeMode.Builtin)]
-    [InlineData(JsxRuntimeMode.Preact)]
-    public async Task MountView_AnyRuntime_ExposesAnUpdateFunctionForHotReload(JsxRuntimeMode runtime)
+    [Fact]
+    public async Task MountView_Always_ExposesAnUpdateFunctionForHotReload()
     {
-        using var project = Project(runtime);
-        await using var host = await JsxTestHost.StartAsync(project, options => options.Runtime = runtime);
+        using var project = Project();
+        await using var host = await JsxTestHost.StartAsync(project);
 
         var html = await host.GetStringAsync("/client/Index");
         var entry = System.Text.RegularExpressions.Regex.Match(html, @"""(/_jsx/[^""]*client[^""]*)""");
@@ -47,7 +40,7 @@ public class HotUpdateTests
     [Fact]
     public async Task HotReloadClient_RuntimeSuppliesNoUpdate_FallsBackToAFullReload()
     {
-        using var project = Project(JsxRuntimeMode.Builtin);
+        using var project = Project();
         await using var host = await JsxTestHost.StartAsync(project);
 
         var client = await host.GetStringAsync(
@@ -60,9 +53,9 @@ public class HotUpdateTests
     [Fact]
     public async Task HotReloadClient_AppliesAnUpdate_DoesNotBuildTheElementItself()
     {
-        // The bug this covers: the client built a built-in element literal and handed it to
-        // whichever runtime was mounted, which Preact renders as nothing.
-        using var project = Project(JsxRuntimeMode.Builtin);
+        // The bug this covers: the client built an element literal itself and handed it to the
+        // mounted root, which Preact renders as nothing.
+        using var project = Project();
         await using var host = await JsxTestHost.StartAsync(project);
 
         var client = await host.GetStringAsync(

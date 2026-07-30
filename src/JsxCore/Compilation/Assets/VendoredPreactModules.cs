@@ -9,25 +9,33 @@ public sealed class VendoredPreactModules(PreactVendorStager stager) : IAssetSou
     // Installed versions are in the fingerprint as well as the contents, so an upgrade moves the
     // build id even where the copied bytes happen not to change.
     public IEnumerable<string> Provenance => PreactVendorStager.VersionedPackages.Select(
-        package => $"{package}@{_stager.ReadInstalledVersion(package) ?? "unknown"}");
+        package => $"{package}@{_stager.ReadInstalledVersion(package) ?? VendoredPreact.Versions.GetValueOrDefault(package, "unknown")}");
 
     public IEnumerable<StagedFile> Enumerate()
     {
         foreach (var module in PreactVendorStager.Modules)
         {
-            var source = _stager.ResolveInNodeModules(module.PackagePath);
-            if (source is null)
+            // An installed copy wins, so upgrading Preact is an npm install rather than a wait for
+            // the next JsxCore release. Otherwise the copy shipped in the package is used, which is
+            // what lets a project render without installing anything at all.
+            if (_stager.ResolveInNodeModules(module.PackagePath) is { } source)
             {
-                if (module.Required)
-                {
-                    throw new JsxCoreEnvironmentException(_stager.MissingModuleMessage(module));
-                }
-
-                _stager.LogOptionalModuleMissing(module);
+                yield return new StagedFile(module.FileName, File.ReadAllBytes(source));
                 continue;
             }
 
-            yield return new StagedFile(module.FileName, File.ReadAllBytes(source));
+            if (VendoredPreact.ReadModule(module.FileName) is { } vendored)
+            {
+                yield return new StagedFile(module.FileName, vendored);
+                continue;
+            }
+
+            if (module.Required)
+            {
+                throw new JsxCoreEnvironmentException(_stager.MissingModuleMessage(module));
+            }
+
+            _stager.LogOptionalModuleMissing(module);
         }
 
         // JsxCore's own mount and render entry points sit alongside them and import bare "preact".

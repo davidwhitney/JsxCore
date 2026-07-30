@@ -34,7 +34,12 @@
       against this runtime's JSX factory, and elements built by one runtime cannot be rendered by
       the other. The view engine verifies the two agree at startup and fails loudly if they do not.
     -->
-    <JsxCoreRuntime Condition="'$(JsxCoreRuntime)' == ''">builtin</JsxCoreRuntime>
+    <!--
+      Optional. The framework normally comes from the UseFramework call in the application, read
+      back out of the compiled assembly, so nothing has to be set here. Naming one overrides that,
+      which is the answer when the call lives in an assembly the generator does not compile.
+      Values: preact, react.
+    -->
 
     <!--
       Install missing npm packages as part of the build. This is what makes a clean checkout work:
@@ -316,7 +321,7 @@
           Condition="Exists('$(MSBuildProjectDirectory)/$(JsxCoreViewsDirectory)')">
 
     <Exec Condition="Exists('$(JsxCoreToolPath)')"
-          Command="$(JsxCoreToolCommand) provision --project-dir &quot;$(MSBuildProjectDirectory)&quot; --manifest-dir &quot;$(_JsxCoreManifestDir)&quot; --runtime &quot;$(JsxCoreRuntime)&quot; --auto-install &quot;$(JsxCoreAutoInstallDependencies)&quot; --npm-path &quot;$(JsxCoreNpm)&quot; --package-manager &quot;$(JsxCorePackageManager)&quot; --assembly &quot;$(TargetPath)&quot;"
+          Command="$(JsxCoreToolCommand) provision --project-dir &quot;$(MSBuildProjectDirectory)&quot; --manifest-dir &quot;$(_JsxCoreManifestDir)&quot; --framework &quot;$(JsxCoreFramework)&quot; --auto-install &quot;$(JsxCoreAutoInstallDependencies)&quot; --npm-path &quot;$(JsxCoreNpm)&quot; --package-manager &quot;$(JsxCorePackageManager)&quot; --assembly &quot;$(TargetPath)&quot;"
           ContinueOnError="true"
           IgnoreExitCode="true"
           StandardOutputImportance="high"
@@ -329,7 +334,7 @@
            Code="JSX0005"
            Text="@(_JsxCoreRestoreOutput, ' ')" />
 
-    <!-- Configured for Preact in code but not in the project file, which only fails at run time. -->
+
     <Error Condition="'$(_JsxCoreRestoreExit)' == '6'"
            Code="JSX0007"
            Text="@(_JsxCoreRestoreOutput, ' ')" />
@@ -431,7 +436,7 @@
     carries JsxCore's marker, so a hand-edited one is left alone.
   -->
   <Target Name="JsxCoreWriteConfig" DependsOnTargets="JsxCoreLocateCompiler">
-    <Exec Command="$(JsxCoreToolCommand) tsconfig --project-dir &quot;$(MSBuildProjectDirectory)&quot; --views &quot;$(_JsxCoreViewsArg)&quot; --working &quot;$(_JsxCoreWorkingArg)&quot; --runtime &quot;$(JsxCoreRuntime)&quot; --type-checking &quot;$(JsxCoreTypeChecking)&quot; --editor-config &quot;$(JsxCoreGenerateEditorTsConfig)&quot; --search-paths &quot;@(JsxCoreSearchPath)&quot;"
+    <Exec Command="$(JsxCoreToolCommand) tsconfig --project-dir &quot;$(MSBuildProjectDirectory)&quot; --views &quot;$(_JsxCoreViewsArg)&quot; --working &quot;$(_JsxCoreWorkingArg)&quot; --framework &quot;$(JsxCoreFramework)&quot; --type-checking &quot;$(JsxCoreTypeChecking)&quot; --editor-config &quot;$(JsxCoreGenerateEditorTsConfig)&quot; --search-paths &quot;@(JsxCoreSearchPath)&quot;"
           StandardOutputImportance="low" />
   </Target>
 
@@ -462,7 +467,7 @@
       Published under node_modules/ so the runtime resolves them exactly as it does in development,
       walking up from the content root. No file list to keep in step with the C# side.
     -->
-    <ItemGroup Condition="'$(JsxCoreRuntime)' == 'preact' And '$(_JsxCoreNodeModules)' != ''">
+    <ItemGroup Condition="'$(_JsxCoreNodeModules)' != ''">
       <_JsxCorePreactFile Include="$(_JsxCoreNodeModules)preact/**/dist/*.mjs" />
       <_JsxCorePreactFile Include="$(_JsxCoreNodeModules)preact/package.json"
                           Condition="Exists('$(_JsxCoreNodeModules)preact/package.json')" />

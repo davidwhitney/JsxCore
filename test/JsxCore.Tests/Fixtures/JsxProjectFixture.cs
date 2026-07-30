@@ -1,5 +1,7 @@
 using JsxCore;
 using JsxCore.Compilation;
+using JsxCore.Compilation.Assets;
+using JsxCore.Compilation.Modules;
 using JsxCore.Hosting;
 using JsxCore.Rendering;
 using Microsoft.Extensions.DependencyInjection;
@@ -125,7 +127,16 @@ public sealed class JsxProjectFixture : IDisposable
     private JsxCompilationService CreateCompilation()
     {
         var layout = CompilationLayout.Create(Options, Root);
-        var service = new JsxCompilationService(Options, layout, Toolchain, NullLogger<JsxCompilationService>.Instance);
+
+        // The framework is staged as part of compiling, exactly as it is in a hosted application:
+        // server rendering resolves "preact" through what the staging step wrote.
+        _stager = new PreactVendorStager(
+            layout,
+            NodeModulesLayout.For(Root, Options.AdditionalToolchainSearchPaths),
+            NullLogger<PreactVendorStager>.Instance);
+
+        var service = new JsxCompilationService(
+            Options, layout, Toolchain, NullLogger<JsxCompilationService>.Instance, _stager);
         _disposables.Add(service);
         return service;
     }
@@ -152,10 +163,28 @@ public sealed class JsxProjectFixture : IDisposable
         ?? throw new InvalidOperationException($"View '{viewName}' not found. Searched:{Environment.NewLine}"
                                                + string.Join(Environment.NewLine, searched));
 
+    private PreactVendorStager? _stager;
+
+    /// <summary>
+    /// The framework layout for this fixture, staged as the compilation pipeline stages it.
+    /// </summary>
+    public JsxRuntimeLayout RuntimeLayout
+    {
+        get
+        {
+            // Touching Compilation is what creates the stager, and staging is what fills in the
+            // module list the layout reports.
+            _ = Compilation;
+            _stager!.Stage();
+
+            return JsxRuntimeLayout.Preact(_stager, Options.EnableReactCompatibility);
+        }
+    }
+
     /// <summary>Creates a server renderer over this fixture's compiled output.</summary>
     public JsxServerRenderer CreateServerRenderer()
     {
-        var renderer = new JsxServerRenderer(Options, Compilation, JsxRuntimeLayout.Builtin());
+        var renderer = new JsxServerRenderer(Options, Compilation, RuntimeLayout);
         _disposables.Add(renderer);
         return renderer;
     }

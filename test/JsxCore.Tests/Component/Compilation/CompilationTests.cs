@@ -22,7 +22,7 @@ public class CompilationTests
         build.Result.Succeeded.ShouldBeTrue(build.Result.FormatDiagnostics());
 
         var emitted = await File.ReadAllTextAsync(Path.Combine(project.Layout.OutputDirectory, "Home", "Index.js"));
-        emitted.ShouldContain("""from "@jsxcore/runtime/jsx-runtime";""");
+        emitted.ShouldContain("""from "preact/jsx-runtime";""");
         emitted.ShouldContain("export default function Index");
     }
 

@@ -108,11 +108,6 @@ public static class TsConfigWriter
         // and each lookup used to walk for node_modules from scratch.
         nodeModules ??= NodeModulesLayout.For(layout.ContentRoot, options.AdditionalToolchainSearchPaths);
 
-        if (options.Runtime != JsxRuntimeMode.Preact)
-        {
-            return;
-        }
-
         // Preact ships its own type declarations, so the JSX namespace and hook types come
         // straight from the application's installed version.
         compilerOptions["jsxImportSource"] = "preact";
@@ -123,9 +118,19 @@ public static class TsConfigWriter
         // root sits outside the npm project would otherwise fail to resolve any Preact types.
         var paths = new JsonObject();
 
+        // Preact's declarations are shipped inside JsxCore, so views type check with nothing
+        // installed. Staged here rather than read from the assembly, because these files import
+        // each other relatively and only resolve once npm's directory layout is recreated.
+        var vendoredTypes = Path.Combine(layout.WorkingDirectory, "preact-types");
+        VendoredPreact.StageTypes(vendoredTypes);
+
         void MapType(string specifier, string declarationPath)
         {
-            var resolved = nodeModules.FindFile(declarationPath);
+            // An installed copy wins, so a project that upgrades Preact type checks against the
+            // version it will actually run.
+            var resolved = nodeModules.FindFile(declarationPath)
+                           ?? Existing(Path.Combine(vendoredTypes, declarationPath.Replace('/', Path.DirectorySeparatorChar)));
+
             if (resolved is null)
             {
                 return;
@@ -303,6 +308,8 @@ public static class TsConfigWriter
 
         return basePaths;
     }
+
+    private static string? Existing(string path) => File.Exists(path) ? path : null;
 
     // tsconfig paths use forward slashes on every platform.
     private static string Normalise(string path) => path.Replace('\\', '/');

@@ -22,7 +22,7 @@ public class TsConfigWriterTests
         var compilerOptions = TsConfigWriter.Build(options, layout)["compilerOptions"]!;
 
         compilerOptions["jsx"]!.GetValue<string>().ShouldBe("react-jsx");
-        compilerOptions["jsxImportSource"]!.GetValue<string>().ShouldBe("@jsxcore/runtime");
+        compilerOptions["jsxImportSource"]!.GetValue<string>().ShouldBe("preact");
         compilerOptions["module"]!.GetValue<string>().ShouldBe("esnext");
 
         // Without this, emitted imports would still say ".tsx" and no browser could load them.

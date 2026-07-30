@@ -1,4 +1,5 @@
 using System.Text;
+using JsxCore.Compilation.Assets;
 using JsxCore.Compilation.Modules;
 
 namespace JsxCore.Compilation.Provisioning;
@@ -16,7 +17,6 @@ public static class EnvironmentVerifier
         if (options.PrecompiledOnly)
         {
             VerifyPrecompiledOutput(options, contentRoot);
-            VerifyPrecompiledRuntimeMatches(options, contentRoot);
             return null;
         }
 
@@ -64,15 +64,15 @@ public static class EnvironmentVerifier
 
     private static void VerifyRuntimePackages(JsxCoreOptions options, string contentRoot, string? bootstrapFailure)
     {
-        if (options.Runtime != JsxRuntimeMode.Preact)
-        {
-            return;
-        }
-
+        // Preact ships inside JsxCore, so nothing has to be installed for it to render. Only a
+        // package JsxCore does not carry can be missing, which today means none of them.
         var missing = new List<string>();
         foreach (var package in new[] { "preact", "preact-render-to-string" })
         {
-            if (NodeModulesLayout.For(contentRoot, options.AdditionalToolchainSearchPaths).FindPackage(package) is null)
+            var installed = NodeModulesLayout.For(contentRoot, options.AdditionalToolchainSearchPaths)
+                .FindPackage(package) is not null;
+
+            if (!installed && !VendoredPreact.Versions.ContainsKey(package))
             {
                 missing.Add(package);
             }
@@ -126,41 +126,6 @@ public static class EnvironmentVerifier
     /// that produced the output has its own runtime setting (the JsxCoreRuntime MSBuild property),
     /// so the two can be configured independently and therefore can disagree.
     /// </remarks>
-    private static void VerifyPrecompiledRuntimeMatches(JsxCoreOptions options, string contentRoot)
-    {
-        var layout = CompilationLayout.Create(options, contentRoot);
-
-        var sample = Directory
-            .EnumerateFiles(layout.OutputDirectory, "*.js", SearchOption.AllDirectories)
-            .FirstOrDefault(path => File.ReadAllText(path).Contains("/jsx-runtime", StringComparison.Ordinal));
-
-        if (sample is null)
-        {
-            return;
-        }
-
-        var compiledAgainstPreact = File.ReadAllText(sample).Contains("\"preact/jsx-runtime\"", StringComparison.Ordinal);
-        var configuredForPreact = options.Runtime == JsxRuntimeMode.Preact;
-
-        if (compiledAgainstPreact == configuredForPreact)
-        {
-            return;
-        }
-
-        var compiled = compiledAgainstPreact ? "Preact" : "the built-in runtime";
-        var configured = configuredForPreact ? "Preact" : "the built-in runtime";
-        var property = configuredForPreact ? "preact" : "builtin";
-
-        throw new JsxCoreEnvironmentException(
-            $"JsxCore's precompiled views were compiled against {compiled}, but the application is " +
-            $"configured to render with {configured}.{Environment.NewLine}{Environment.NewLine}" +
-            $"Elements built by one JSX runtime cannot be rendered by the other, so this would " +
-            $"produce empty pages rather than an error.{Environment.NewLine}{Environment.NewLine}" +
-            $"Set the build-time runtime to match:{Environment.NewLine}{Environment.NewLine}" +
-            $"    <JsxCoreRuntime>{property}</JsxCoreRuntime>{Environment.NewLine}{Environment.NewLine}" +
-            $"in your project file, then rebuild. (Detected from {sample}.)");
-    }
-
     private static void VerifyViewsDirectory(JsxCoreOptions options, string contentRoot)
     {
         var viewsPath = ContentRootPath.Resolve(options.ViewsDirectory, contentRoot);

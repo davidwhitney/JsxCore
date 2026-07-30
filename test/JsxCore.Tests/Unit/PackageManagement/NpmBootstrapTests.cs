@@ -35,18 +35,15 @@ public class NpmBootstrapTests : IDisposable
     }
 
     [Fact]
-    public void RequiredPackages_PreactMode_IncludePreactAsARuntimeDependency()
+    public void RequiredPackages_PreactMode_DoesNotAskForPreact()
     {
+        // Preact is shipped inside JsxCore, so nothing needs fetching for it and nothing of it
+        // ends up in the publish output. The compiler is still the one thing that comes from npm.
         var options = new JsxCoreOptions();
-        options.UsePreact();
 
         var packages = NpmBootstrapper.RequiredPackages(options);
 
-        packages.Select(p => p.Package)
-            .ShouldBe(["typescript", "preact", "preact-render-to-string"]);
-
-        // Preact ships in the published output, so it is not a development-only dependency.
-        packages.Single(p => p.Package == "preact").DevDependency.ShouldBeFalse();
+        packages.Select(p => p.Package).ShouldBe(["typescript"]);
         packages.Single(p => p.Package == "typescript").DevDependency.ShouldBeTrue();
     }
 
@@ -54,21 +51,19 @@ public class NpmBootstrapTests : IDisposable
     public void MissingPackages_EverythingIsInstalled_ReportsNothing()
     {
         var options = new JsxCoreOptions();
-        options.UsePreact();
         options.AdditionalToolchainSearchPaths.Add(JsxProjectFixture.RepositoryRoot());
 
         NpmBootstrapper.MissingPackages(options, JsxProjectFixture.RepositoryRoot()).ShouldBeEmpty();
     }
 
     [Fact]
-    public void MissingPackages_DirectoryIsEmpty_ReportsEverything()
+    public void MissingPackages_DirectoryIsEmpty_ReportsOnlyWhatComesFromNpm()
     {
         var options = new JsxCoreOptions();
-        options.UsePreact();
 
         var missing = NpmBootstrapper.MissingPackages(options, TempDirectory());
 
-        missing.ShouldBe(["typescript", "preact", "preact-render-to-string"]);
+        missing.ShouldBe(["typescript"]);
     }
 
     [Fact]

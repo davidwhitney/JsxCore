@@ -139,7 +139,7 @@ migrate a page at a time.
 | | |
 |---|---|
 | **[Getting started](docs/getting-started.md)** | Prerequisites, installation, project layout |
-| **[Runtimes](docs/runtimes.md)** | The built-in runtime versus Preact, and how to switch |
+| **[Runtimes](docs/runtimes.md)** | Preact, which ships inside JsxCore, and how to upgrade it |
 | **[Render modes](docs/render-modes.md)** | Client, server, or both |
 | **[Writing views](docs/writing-views.md)** | The view contract, `head`, hooks, the JSX dialect |
 | **[npm packages](docs/npm-packages.md)** | Importing from `node_modules`, on the server and in the browser |

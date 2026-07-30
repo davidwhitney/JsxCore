@@ -14,7 +14,6 @@ public static class TsConfigCommand
         {
             ViewsDirectory = arguments.Required("views"),
             WorkingDirectory = arguments.Required("working"),
-            Runtime = arguments.Optional("runtime") is "preact" ? JsxRuntimeMode.Preact : JsxRuntimeMode.Builtin,
             TypeChecking = arguments.Optional("type-checking") switch
             {
                 "off" => TypeCheckingMode.Off,

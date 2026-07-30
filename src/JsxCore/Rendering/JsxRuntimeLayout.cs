@@ -7,8 +7,6 @@ public sealed class JsxRuntimeLayout
 {
     private JsxRuntimeLayout() { }
 
-    public required JsxRuntimeMode Mode { get; init; }
-
     public required string ClientSpecifier { get; init; }
 
     public required string ServerEntrySpecifier { get; init; }
@@ -33,35 +31,12 @@ public sealed class JsxRuntimeLayout
     public string? Directory { get; private init; }
     public required string AssetSegment { get; init; }
 
-    public static JsxRuntimeLayout Builtin()
-    {
-        var modules = new Dictionary<string, string>(StringComparer.Ordinal)
-        {
-            [RuntimeAssets.ModuleSpecifier] = "index.js"
-        };
-
-        foreach (var module in RuntimeAssets.PublicModules)
-        {
-            modules[$"{RuntimeAssets.ModuleSpecifier}/{module}"] = $"{module}.js";
-        }
-
-        return new JsxRuntimeLayout
-        {
-            Mode = JsxRuntimeMode.Builtin,
-            ClientSpecifier = RuntimeAssets.ModuleSpecifier + "/client",
-            ServerEntrySpecifier = RuntimeAssets.ModuleSpecifier + "/server",
-            AssetSegment = "runtime",
-            Modules = modules
-        };
-    }
-
     public static JsxRuntimeLayout Preact(PreactVendorStager stager, bool reactCompatibility)
     {
         ArgumentNullException.ThrowIfNull(stager);
 
         return new JsxRuntimeLayout
         {
-            Mode = JsxRuntimeMode.Preact,
             ClientSpecifier = "@jsxcore/preact/client",
             ServerEntrySpecifier = "@jsxcore/preact/server",
             AssetSegment = "preact",
@@ -112,12 +87,10 @@ public sealed class JsxRuntimeLayout
         // Trailing-slash entry so anything not listed still resolves within the runtime directory.
         map[$"{RuntimeAssets.ModuleSpecifier}/"] = $"{assetBase}/runtime/";
 
-        // The .NET interop helpers are runtime-agnostic and always come from the built-in runtime.
-        if (Mode != JsxRuntimeMode.Builtin)
-        {
-            map[RuntimeAssets.ModuleSpecifier] = $"{assetBase}/runtime/dotnet.js";
-            map[$"{RuntimeAssets.ModuleSpecifier}/dotnet"] = $"{assetBase}/runtime/dotnet.js";
-        }
+        // The .NET interop helpers belong to JsxCore rather than to any framework, so they are
+        // served from its own runtime directory whatever renders the view.
+        map[RuntimeAssets.ModuleSpecifier] = $"{assetBase}/runtime/dotnet.js";
+        map[$"{RuntimeAssets.ModuleSpecifier}/dotnet"] = $"{assetBase}/runtime/dotnet.js";
 
         return map;
     }

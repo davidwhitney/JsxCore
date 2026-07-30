@@ -33,7 +33,6 @@ and carries the compiled JavaScript into the publish output.
   <JsxCoreCompileOnBuild>true</JsxCoreCompileOnBuild>   <!-- default -->
   <JsxCoreTypeChecking>error</JsxCoreTypeChecking>      <!-- fail the build on type errors -->
   <JsxCoreViewsDirectory>Views</JsxCoreViewsDirectory>
-  <JsxCoreRuntime>preact</JsxCoreRuntime>               <!-- must match options.UsePreact() -->
 </PropertyGroup>
 ```
 
@@ -80,28 +79,6 @@ yourself:
 
 With that set, a build with no compiler emits warning `JSX0001` and compiles nothing, leaving the
 work to application startup.
-
-### `JsxCoreRuntime` has to match your runtime
-
-> **If you call `options.UsePreact()`, set `<JsxCoreRuntime>preact</JsxCoreRuntime>` as well.**
-
-Views are compiled against a specific JSX factory, and elements built by one runtime cannot be
-rendered by another's renderer. The result is empty markup rather than an error. The build and the
-application configure their runtime independently, so they *can* disagree.
-
-JsxCore checks for this at startup and refuses to start rather than serving blank pages:
-
-```
-JsxCore's precompiled views were compiled against the built-in runtime, but the application is
-configured to render with Preact.
-
-Elements built by one JSX runtime cannot be rendered by the other, so this would produce empty
-pages rather than an error.
-
-Set the build-time runtime to match:
-
-    <JsxCoreRuntime>preact</JsxCoreRuntime>
-```
 
 ### 3. Precompiled only, at run time
 
@@ -162,7 +139,6 @@ The recommended production setup:
 ```csharp
 builder.AddJsxCore(options =>
 {
-    options.UsePreact();
     options.PrecompiledOnly = builder.Environment.IsProduction();
 });
 ```

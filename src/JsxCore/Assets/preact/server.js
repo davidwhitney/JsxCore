@@ -1,6 +1,5 @@
-// Server entry for Preact mode. Loaded by the .NET host, which calls renderView/readHead exactly
-// as it does for the built-in runtime. The JSON contract is identical, so nothing above this
-// layer needs to know which runtime is in use.
+// Server entry. Loaded by the .NET host, which calls renderView/readHead and reads the JSON they
+// return; nothing above this layer knows how a view is rendered.
 
 import { createElement } from "preact";
 import { render } from "preact-render-to-string";
@@ -12,14 +11,34 @@ function resolveHead(viewModule, props) {
     return head || null;
 }
 
+// Server rendering runs to completion synchronously, so a component that returns a promise never
+// resolves into markup. Rendering it anyway produces a page with the component silently missing,
+// which is a far worse thing to debug than being told.
+function synchronous(Component) {
+    return function (props) {
+        const rendered = Component(props);
+
+        if (rendered && typeof rendered.then === "function") {
+            throw new Error(
+                "JsxCore: server rendering is synchronous, but a component returned a Promise. " +
+                "Fetch on the .NET side and pass the result in as the model, or render this view " +
+                "on the client.");
+        }
+
+        return rendered;
+    };
+}
+
 export function renderView(viewModule, props) {
     const Component = viewModule.default;
     if (typeof Component !== "function") {
         throw new Error("JsxCore: a view must have a default export that is a component function.");
     }
 
+    const element = createElement(synchronous(Component), { model: props.model, context: props.context });
+
     return JSON.stringify({
-        html: render(createElement(Component, { model: props.model, context: props.context })),
+        html: render(element),
         head: resolveHead(viewModule, props)
     });
 }

@@ -89,11 +89,11 @@ need to.
 
 ## Hooks
 
-The built-in runtime provides `useState`, `useEffect`, `useRef`, `useMemo` and `useCallback`.
-Preact mode provides the full set from `preact/hooks`.
+The full set, from `preact/hooks`: `useState`, `useEffect`, `useRef`, `useMemo`, `useCallback`,
+`useReducer`, `useContext` and the rest.
 
 ```tsx
-import { useState } from "@jsxcore/runtime";   // or "preact/hooks" in Preact mode
+import { useState } from "preact/hooks";
 
 export default function Counter() {
     const [count, setCount] = useState(0);

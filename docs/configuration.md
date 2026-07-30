@@ -7,7 +7,6 @@ Everything is configured through the callback passed to `AddJsxCore`:
 ```csharp
 builder.AddJsxCore(options =>
 {
-    options.UsePreact();
     options.DefaultRenderMode = RenderMode.Server;
     options.Globals.Register<InventoryService>("Inventory");
 });
@@ -33,7 +32,6 @@ builder.AddJsxCore(options =>
 | Option | Default | Purpose |
 |---|---|---|
 | `DefaultRenderMode` | `Client` | Mode used when a result does not specify one |
-| `Runtime` | `Builtin` | `Builtin` or `Preact`; prefer `UsePreact()` |
 | `EnableReactCompatibility` | `true` | In Preact mode, map `react`/`react-dom` to `preact/compat` |
 | `ViewEngineOrder` | `0` | Position among MVC view engines; `0` beats Razor |
 | `JsonSerializerOptions` | web defaults | How the model is serialised, and the basis for generated types |
@@ -150,7 +148,7 @@ Set these in your `.csproj`. They control [build-time compilation](build-and-dep
 |---|---|---|
 | `JsxCoreCompileOnBuild` | `true` | Compile views during `dotnet build` and `dotnet publish` |
 | `JsxCoreTypeChecking` | `warn` | `error`, `warn` or `off` |
-| `JsxCoreRuntime` | `builtin` | `builtin` or `preact`. **Must match `options.UsePreact()`** |
+| `JsxCoreFramework` | `preact` | The framework views compile against. `preact` is the only value implemented |
 | `JsxCoreViewsDirectory` | `Views` | Where views live |
 | `JsxCoreWorkingDirectory` | `$(BaseIntermediateOutputPath)JsxCore\` | Compiler output |
 | `JsxCoreAutoInstallDependencies` | `true` | Install missing npm packages during the build |
@@ -214,7 +212,7 @@ Full reference in [package management](package-management.md#on-the-command-line
 | `JSX0004` | Warning | Packages in `package.json` could not be installed |
 | `JSX0005` | Error | Packages are missing and `JsxCoreAutoInstallDependencies` is `false` |
 | `JSX0006` | Warning | The build tool could not be found, so views were not compiled |
-| `JSX0007` | Error | The application calls `UsePreact()` but `JsxCoreRuntime` is not `preact` |
+| `JSX0007` | Error | `JsxCoreFramework` names a framework JsxCore cannot compile against |
 
 ---
 

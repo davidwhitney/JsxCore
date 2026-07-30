@@ -77,10 +77,8 @@ gives you the initial state, and effects never run. That is standard SSR behavio
 The markup is produced on the server for first paint, then the same component is mounted in the
 browser so the interactive parts come alive.
 
-In **Preact mode** this is true hydration: the existing DOM nodes are reused and only event
-handlers are attached. In the built-in runtime the server markup is replaced on mount, which is
-correct but not free, and another reason to
-[prefer Preact](runtimes.md) for pages that use this mode.
+This is true hydration: the existing DOM nodes are reused and only event handlers are attached,
+rather than the server's markup being thrown away and rebuilt.
 
 ### Your component runs twice
 

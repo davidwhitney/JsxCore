@@ -78,30 +78,24 @@ public static class JsxCoreServiceCollectionExtensions
 
         services.TryAddSingleton<JsxServerRendererReset>();
 
-        // Preact mode stages the application's own Preact into the working directory; it publishes
-        // real ES modules, so there is nothing to bundle and no extra toolchain to verify.
-        if (options.Runtime == JsxRuntimeMode.Preact)
-        {
-            services.TryAddSingleton(provider => new PreactVendorStager(
-                layout,
-                nodeModules,
-                provider.GetRequiredService<ILogger<PreactVendorStager>>()));
-        }
+        // Preact is staged into the working directory from the copy JsxCore ships, or from the
+        // application's own if it installed one. Either way they are real ES modules, so there is
+        // nothing to bundle and no extra toolchain to verify.
+        services.TryAddSingleton(provider => new PreactVendorStager(
+            layout,
+            nodeModules,
+            provider.GetRequiredService<ILogger<PreactVendorStager>>()));
 
         services.TryAddSingleton(provider => new JsxCompilationService(
             options,
             layout,
             toolchain,
             provider.GetRequiredService<ILogger<JsxCompilationService>>(),
-            options.Runtime == JsxRuntimeMode.Preact ? provider.GetRequiredService<PreactVendorStager>() : null));
+            provider.GetRequiredService<PreactVendorStager>()));
 
-        services.TryAddSingleton(provider => options.Runtime switch
-        {
-            JsxRuntimeMode.Preact => JsxRuntimeLayout.Preact(
-                provider.GetRequiredService<PreactVendorStager>(),
-                options.EnableReactCompatibility),
-            _ => JsxRuntimeLayout.Builtin()
-        });
+        services.TryAddSingleton(provider => JsxRuntimeLayout.Preact(
+            provider.GetRequiredService<PreactVendorStager>(),
+            options.EnableReactCompatibility));
 
 
         services.TryAddSingleton(provider => new ViewLocator(options, layout, contentRoot));

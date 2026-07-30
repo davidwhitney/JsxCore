@@ -37,7 +37,7 @@ public class ServerRenderingTests
 
         var result = await project.RenderAsync("Home/Index", new { name = "<script>alert(1)</script>" });
 
-        result.Html.ShouldBe("<p>&lt;script&gt;alert(1)&lt;/script&gt;</p>");
+        result.Html.ShouldBe("<p>&lt;script>alert(1)&lt;/script></p>");
     }
 
     [Fact]
@@ -102,7 +102,7 @@ public class ServerRenderingTests
         var result = await project.RenderAsync("Home/Index");
 
         // alt="" is deliberately preserved: it marks an image as decorative.
-        result.Html.ShouldBe("""<p><img src="/a.png" alt="" /><input type="checkbox" checked /><br /></p>""");
+        result.Html.ShouldBe("""<p><img src="/a.png" alt/><input type="checkbox" checked/><br/></p>""");
     }
 
     [Fact]
@@ -118,7 +118,7 @@ public class ServerRenderingTests
 
         var result = await project.RenderAsync("Home/Index");
 
-        result.Html.ShouldBe("""<div style="margin-top:8px;color:red">x</div>""");
+        result.Html.ShouldBe("""<div style="margin-top:8px;color:red;">x</div>""");
     }
 
     [Fact]
@@ -240,7 +240,7 @@ public class ServerRenderingTests
     {
         using var project = JsxProjectFixture.Create();
         project.AddView("Home/Index.tsx", """
-            import { useState } from "@jsxcore/runtime";
+            import { useState } from "preact/hooks";
             export default function Index() {
                 const [count] = useState(7);
                 return <output>{count}</output>;
@@ -306,7 +306,7 @@ public class ServerRenderingTests
             """);
 
         await project.CompileAsync();
-        var renderer = new JsxServerRenderer(project.Options, project.Compilation, JsxRuntimeLayout.Builtin());
+        var renderer = new JsxServerRenderer(project.Options, project.Compilation, project.RuntimeLayout);
         var services = new ServiceCollection().BuildServiceProvider();
         var view = project.Locate("Home/Index");
 
@@ -332,7 +332,7 @@ public class ServerRenderingTests
             """);
 
         await project.CompileAsync();
-        var renderer = new JsxServerRenderer(project.Options, project.Compilation, JsxRuntimeLayout.Builtin());
+        var renderer = new JsxServerRenderer(project.Options, project.Compilation, project.RuntimeLayout);
         var services = new ServiceCollection().BuildServiceProvider();
         var view = project.Locate("Home/Index");
 
