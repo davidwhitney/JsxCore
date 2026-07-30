@@ -14,9 +14,8 @@ function resolveHead(viewModule, props) {
     return head || null;
 }
 
-// Server rendering runs to completion synchronously, so a component that returns a promise never
-// resolves into markup. Rendering it anyway produces a page with the component silently missing,
-// which is a far worse thing to debug than being told.
+// Rendering is synchronous, so a component returning a promise never resolves into markup, and
+// rendering it anyway drops the component silently.
 function synchronous(Component) {
     return function (props) {
         const rendered = Component(props);

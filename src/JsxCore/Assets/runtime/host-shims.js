@@ -1,24 +1,21 @@
-// Globals that packages built for a browser or for Node expect to already exist. Evaluated into
-// every server rendering engine before any module loads, because the packages that want these
-// touch them while their own module body runs, not when something calls into them.
+// Globals that packages built for a browser or for Node expect to exist, evaluated into every
+// server rendering engine before any module loads: the packages that want these touch them while
+// their own module body runs.
 //
-// Deliberately minimal. These are not implementations, they are enough of a shape that a module
-// referencing one can finish evaluating. Anything that genuinely needs the behaviour, rather than
-// the symbol, will still fail, and should.
+// Deliberately minimal. Enough of a shape that a module referencing one can finish evaluating;
+// anything needing the behaviour rather than the symbol will still fail, and should.
 
 (function (global) {
-    // React's entry points branch on this to pick their development or production build, and read
-    // it at module scope. Production is the right answer: server rendering wants the fast build and
-    // no development-only warnings written to a console this engine does not have.
+    // React's entries branch on this at module scope to pick a build. Production is the right
+    // answer: the fast one, and no warnings written to a console this engine does not have.
     if (typeof global.process === "undefined") {
         global.process = { env: { NODE_ENV: "production" }, platform: "browser", argv: [] };
     } else if (!global.process.env) {
         global.process.env = { NODE_ENV: "production" };
     }
 
-    // react-dom's streaming renderer constructs one at module scope to drive its scheduler. Server
-    // rendering here is synchronous and never reaches the streaming path, so the ports exist and
-    // deliver nothing.
+    // react-dom's streaming renderer constructs one at module scope. Rendering here is synchronous
+    // and never reaches that path, so the ports exist and deliver nothing.
     if (typeof global.MessageChannel === "undefined") {
         global.MessageChannel = function MessageChannel() {
             const port1 = { onmessage: null, close() {} };
@@ -32,8 +29,7 @@
         };
     }
 
-    // Also constructed at module scope by the streaming renderer, to turn chunks into bytes.
-    // Encoding UTF-8 by hand is short enough to be worth not pretending to be the real thing.
+    // Also constructed at module scope by the streaming renderer.
     if (typeof global.TextEncoder === "undefined") {
         global.TextEncoder = function TextEncoder() {
             this.encoding = "utf-8";
@@ -74,8 +70,7 @@
         };
     }
 
-    // Used by schedulers to defer work. Running it immediately keeps rendering synchronous, which
-    // is the only mode this engine supports.
+    // Immediate, because synchronous is the only mode this engine supports.
     if (typeof global.queueMicrotask === "undefined") {
         global.queueMicrotask = function (callback) { callback(); };
     }

@@ -112,18 +112,10 @@ public static partial class CommonJsInterop
     /// Names exported by whatever <c>module.exports = require(...)</c> points at.
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// A CommonJS entry point is often nothing but a re-export, and React's are the shape that
-    /// forced this: a NODE_ENV branch choosing between a development and a production build. The
-    /// entry itself assigns no named exports, so a view importing <c>jsxs</c> from it found nothing
-    /// to bind to and the module failed to link.
-    /// </para>
-    /// <para>
-    /// Both branches are followed and their names combined. That is safe because nothing is being
-    /// re-exported statically: each name resolves through <c>module.exports</c> at run time, so a
-    /// name only one branch defines is simply undefined if that branch did not run, exactly as it
-    /// would be in Node.
-    /// </para>
+    /// React's entries are the shape that forced this: a NODE_ENV branch between a development and
+    /// a production build, assigning no named exports of their own. Both branches are followed and
+    /// their names combined, which is safe because each resolves through <c>module.exports</c> at
+    /// run time: a name only one branch defines is undefined, exactly as it would be in Node.
     /// </remarks>
     public static IEnumerable<string> ReExportedNames(string source, Func<string, string?>? readRequired)
     {

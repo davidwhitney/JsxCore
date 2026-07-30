@@ -3,20 +3,12 @@ using System.Reflection;
 namespace JsxCore.Compilation.Provisioning;
 
 /// <summary>
-/// Which framework the build compiled an application against.
+/// Which framework the build compiled an application against, stamped onto its assembly.
 /// </summary>
 /// <remarks>
-/// <para>
-/// The choice is made in the project file, because the build acts on it long before any of the
-/// application's code runs. The application still has to know: it serves the framework's runtime
-/// files and picks the entry points that render a view, and doing that for the wrong one produces
-/// pages that are empty rather than broken.
-/// </para>
-/// <para>
-/// So the build stamps it onto the application's own assembly, and this reads it back. An attribute
-/// travels wherever the assembly does: through publishing, through precompiled output, and through
-/// a content root that has nothing to do with where the project was built.
-/// </para>
+/// The project file decides, because the build acts on it before any application code runs, and an
+/// attribute is the only channel that travels with the assembly through publishing and precompiled
+/// output. Serving the wrong framework's runtime produces empty pages rather than an error.
 /// </remarks>
 public static class ConfiguredFramework
 {
@@ -26,9 +18,8 @@ public static class ConfiguredFramework
     /// What <paramref name="assembly"/> was built against, or null when it says nothing.
     /// </summary>
     /// <remarks>
-    /// Silence is normal rather than an error: a project that suppresses generated assembly info
-    /// carries no attribute, and an application assembly that cannot be resolved at all is not
-    /// worth failing startup over. Both fall back to the default.
+    /// Silence is normal: a project suppressing generated assembly info carries no attribute, and
+    /// falling back to the default beats failing startup over it.
     /// </remarks>
     public static JsFramework? Read(Assembly? assembly)
     {

@@ -4,25 +4,18 @@ namespace JsxCore.Compilation.Assets;
 /// Preact, shipped inside the JsxCore package.
 /// </summary>
 /// <remarks>
-/// <para>
-/// The runtime a view compiles against has to exist before anything can render, so requiring it
-/// from npm would make "install the package and write a view" untrue: every application would need
-/// a restore, a network connection on its first build, and two more directories in its publish
-/// output. Preact is small and MIT licensed, so it travels with JsxCore instead.
-/// </para>
-/// <para>
-/// A copy in node_modules still wins, which is what keeps upgrading independently possible: install
-/// a newer Preact and it is used, without waiting for a JsxCore release.
-/// </para>
+/// Requiring it from npm would mean every application needed a restore and a network connection
+/// before it could render anything. Preact is small and MIT licensed, so it travels with JsxCore
+/// instead. A copy in node_modules still wins, so upgrading does not wait for a JsxCore release.
 /// </remarks>
 public static class VendoredPreact
 {
     private const string ResourcePrefix = "JsxCore.Assets.vendor.";
 
     /// <summary>
-    /// The versions copied in, which are part of the build id so an upgrade moves every asset URL.
+    /// The versions copied in, part of the build id so an upgrade moves every asset URL. Kept in
+    /// step with Assets/vendor/preact/README.md by hand, as the copying is.
     /// </summary>
-    /// <remarks>Kept in step with Assets/vendor/preact/README.md by hand, as the copying is.</remarks>
     public static IReadOnlyDictionary<string, string> Versions { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["preact"] = "10.29.7",
@@ -30,13 +23,9 @@ public static class VendoredPreact
     };
 
     /// <summary>
-    /// Preact's own type declarations, keyed by where they have to land on disk.
+    /// Type declarations, keyed by where they have to land on disk: they import each other
+    /// relatively, so they only resolve once npm's directory structure is recreated.
     /// </summary>
-    /// <remarks>
-    /// The paths matter: these files import each other relatively, so they only resolve once the
-    /// directory structure npm would have produced is recreated. The resource names are what
-    /// MSBuild made of those paths, which is not something worth deriving twice.
-    /// </remarks>
     public static IReadOnlyDictionary<string, string> TypeFiles { get; } = new Dictionary<string, string>(StringComparer.Ordinal)
     {
         ["preact/src/index.d.ts"] = "preact_types.preact.src.index.d.ts",

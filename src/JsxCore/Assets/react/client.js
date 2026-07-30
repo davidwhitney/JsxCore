@@ -22,9 +22,8 @@ export function mountView(Component, options) {
 
     const element = createElement(Component, { model, context });
 
-    // hydrateRoot takes the markup the server produced and attaches to it; createRoot replaces
-    // whatever is there. React insists on knowing which at creation time, unlike Preact, so the
-    // root has to be built differently rather than rendered into differently.
+    // React decides hydration when the root is created, unlike Preact which decides per render, so
+    // the two cases build different roots rather than rendering differently.
     const root = settings.hydrate
         ? hydrateRoot(container, element)
         : (() => { const created = createRoot(container); created.render(element); return created; })();
@@ -34,8 +33,7 @@ export function mountView(Component, options) {
         context,
         createElement,
         root,
-        // Re-rendering is the same root with a new element. Building it here keeps the reload
-        // client free of any knowledge of which framework is mounted.
+        // Built here so the reload client needs no knowledge of which framework is mounted.
         update: (next) => root.render(createElement(next, { model, context }))
     };
 

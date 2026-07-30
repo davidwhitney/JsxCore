@@ -7,6 +7,9 @@ public sealed class JsxRuntimeLayout
 {
     private JsxRuntimeLayout() { }
 
+    /// <summary>The framework this layout serves, as the project file names it.</summary>
+    public required string Name { get; init; }
+
     public required string ClientSpecifier { get; init; }
 
     public required string ServerEntrySpecifier { get; init; }
@@ -31,30 +34,23 @@ public sealed class JsxRuntimeLayout
     public string? Directory { get; private init; }
 
     /// <summary>
-    /// Bare specifiers this framework's entry points need from npm.
+    /// Bare specifiers this framework's entry points need from npm. The import map is built by
+    /// walking compiled views, which never mention these: JsxCore's own entries import them.
     /// </summary>
-    /// <remarks>
-    /// The browser import map is built by walking the compiled views, which never mention these:
-    /// they are imported by JsxCore's own entry points, which are not views. React needs them
-    /// because it is not staged; Preact needs none, being staged in full.
-    /// </remarks>
     public IReadOnlyList<string> ClientDependencies { get; private init; } = [];
     public required string AssetSegment { get; init; }
 
     /// <summary>
-    /// React, resolved out of node_modules like any other package.
+    /// React, resolved out of node_modules like any other package: nothing of it is mapped here,
+    /// so its import map entries come from the npm pipeline rather than from this layout.
     /// </summary>
-    /// <remarks>
-    /// Nothing of React is mapped here. It publishes CommonJS, so it is served through the npm
-    /// pipeline that wraps and serves packages generally, and the import map entries for it come
-    /// from there rather than from this layout.
-    /// </remarks>
     public static JsxRuntimeLayout React(ReactEntryStager stager)
     {
         ArgumentNullException.ThrowIfNull(stager);
 
         return new JsxRuntimeLayout
         {
+            Name = "react",
             ClientSpecifier = "@jsxcore/react/client",
             ServerEntrySpecifier = "@jsxcore/react/server",
             AssetSegment = "react",
@@ -74,6 +70,7 @@ public sealed class JsxRuntimeLayout
 
         return new JsxRuntimeLayout
         {
+            Name = "preact",
             ClientSpecifier = "@jsxcore/preact/client",
             ServerEntrySpecifier = "@jsxcore/preact/server",
             AssetSegment = "preact",

@@ -128,20 +128,11 @@ public static class PackageArchive
     /// Where an entry belongs inside the package, or null when there is nothing left of it.
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// npm tarballs put everything under a single root directory, conventionally "package/" but
-    /// not always: DefinitelyTyped roots its archives at the package's own short name. npm strips
-    /// whichever it is, so one leading component always goes.
-    /// </para>
-    /// <para>
-    /// Components that cannot be a file name go first. .NET 8's TarReader joins the ustar prefix
-    /// field onto the name for GNU-format archives, and GNU keeps access and change times in that
-    /// field, so an entry arrives as "\0\0...\0 15232743476 15232743476/react/LICENSE": NUL padding,
-    /// then two timestamps. That is not a path component, and no npm package has one containing a
-    /// space or a control character, so discarding it costs nothing and stops the real root
-    /// surviving into the extracted tree as a duplicate directory. .NET 10 reads the same archive
-    /// correctly, which is why this only ever went wrong in the build tool.
-    /// </para>
+    /// One leading component always goes: npm strips it whatever it is called, and it is not always
+    /// "package/" (DefinitelyTyped roots at the package's short name). Components containing control
+    /// characters go first, because .NET 8's TarReader joins the ustar prefix field onto the name
+    /// for GNU archives, where GNU keeps NUL-padded timestamps. .NET 10 reads them correctly, which
+    /// is why this only went wrong in the build tool.
     /// </remarks>
     public static string? RelativePathOf(string entryName)
     {

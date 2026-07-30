@@ -2,6 +2,7 @@ using System.Text;
 using JsxCore.Compilation;
 using JsxCore.Rendering;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Net.Http.Headers;
 using JsxCore.Compilation.Modules;
@@ -26,13 +27,17 @@ public sealed class JsxAssetMiddleware(
     JsxHotReloadService hotReload,
     JsxRuntimeLayout runtime,
     ILogger<JsxAssetMiddleware> logger,
+    IHostEnvironment environment,
     NpmClientGraph? npmGraph = null)
 {
     private const string ViewsSegment = "views";
     private const string RuntimeSegment = "runtime";
     private const string NpmSegment = "npm";
 
+    private const string FrameworkHeader = "X-JsxCore-Framework";
+
     private readonly NpmClientGraph? _npmGraph = npmGraph;
+    private readonly bool _development = environment?.IsDevelopment() ?? false;
 
     private readonly RequestDelegate _next = next ?? throw new ArgumentNullException(nameof(next));
     private readonly JsxCoreOptions _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -164,6 +169,14 @@ public sealed class JsxAssetMiddleware(
     private async Task ServeAsync(HttpContext context, ResolvedAsset asset)
     {
         context.Response.ContentType = ContentTypeFor(asset.Name);
+
+        // Which framework produced this, for anyone looking at a response and wondering. Only in
+        // development: it describes the build rather than the request, so it is a detail about the
+        // application that a public server has no reason to volunteer.
+        if (_development)
+        {
+            context.Response.Headers[FrameworkHeader] = _runtime.Name;
+        }
 
         // Build-id-scoped URLs never change contents, so they can be cached indefinitely. In
         // development the id changes on every edit, which is what makes that safe.

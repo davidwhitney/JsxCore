@@ -6,10 +6,8 @@ namespace JsxCore.Compilation.Assets;
 /// Writes JsxCore's React entry points into the working directory.
 /// </summary>
 /// <remarks>
-/// Far less to do than the Preact equivalent, because React itself is not staged. React publishes
-/// CommonJS, which a browser cannot load, so it goes through the same npm pipeline that serves any
-/// other package: resolved out of node_modules, wrapped as a module, and served with the rest. Only
-/// these two files, which are JsxCore's own, are written here.
+/// React itself is not staged: it publishes CommonJS, so it goes through the same npm pipeline that
+/// wraps and serves any other package. Only JsxCore's own entry points are written here.
 /// </remarks>
 public sealed class ReactEntryStager(CompilationLayout layout) : IAssetSource
 {

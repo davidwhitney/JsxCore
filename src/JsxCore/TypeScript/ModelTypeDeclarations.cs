@@ -6,19 +6,10 @@ namespace JsxCore.TypeScript;
 /// Where generated declarations live, and what the compiler is told when they are not there yet.
 /// </summary>
 /// <remarks>
-/// <para>
-/// Declarations are produced by reflecting over the running application, because which types are
-/// exported and how their properties are named both depend on configuration that only exists at
-/// run time: <c>AutoExport</c>, the naming policy in <c>JsonSerializerOptions</c>, and the rest of
-/// <see cref="TypeDefinitionOptions"/>. A build cannot know any of it.
-/// </para>
-/// <para>
-/// So on a fresh clone the build compiles views before anything has generated declarations. Rather
-/// than point the compiler at a file with no exports, which fails every named import with TS2305,
-/// it is given an ambient declaration for the module. Imports from it resolve as <c>any</c>: no
-/// model type safety until the application has run once, but no errors about types that are going
-/// to exist either.
-/// </para>
+/// A fresh clone compiles views before anything has generated declarations. Pointing the compiler
+/// at a file with no exports fails every named import with TS2305, so it gets an ambient
+/// declaration instead: imports resolve as <c>any</c> rather than as errors about types that are
+/// going to exist.
 /// </remarks>
 public static class ModelTypeDeclarations
 {
@@ -36,8 +27,8 @@ public static class ModelTypeDeclarations
 
         var path = Path.Combine(directory, PendingFileName);
 
-        // A shorthand ambient module declaration, which is the one form that makes every named
-        // import from a specifier resolve without knowing what it exports.
+        // A shorthand ambient module declaration: the one form that resolves any named import
+        // without knowing what the module exports.
         AssetStage.WriteFileIfChanged(path,
             $"""
              // Written by JsxCore. Declarations for your .NET types have not been generated yet, so

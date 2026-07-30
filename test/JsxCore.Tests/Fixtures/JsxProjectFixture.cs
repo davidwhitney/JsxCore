@@ -21,9 +21,10 @@ public sealed class JsxProjectFixture : IDisposable
 {
     private readonly List<IDisposable> _disposables = [];
 
-    private JsxProjectFixture(string root)
+    private JsxProjectFixture(string root, JsFramework framework)
     {
         Root = root;
+        Framework = framework;
         ViewsDirectory = Path.Combine(root, "Views");
         Directory.CreateDirectory(ViewsDirectory);
 
@@ -36,12 +37,31 @@ public sealed class JsxProjectFixture : IDisposable
     }
 
     /// <summary>Creates a fixture rooted in a fresh temporary directory.</summary>
-    public static JsxProjectFixture Create()
+    /// <param name="framework">
+    /// Which framework to compile and render against, as the project file would choose. React is
+    /// resolved from node_modules, so a React fixture also points package resolution at the
+    /// repository, where react and react-dom are development dependencies of the test suite.
+    /// </param>
+    public static JsxProjectFixture Create(JsFramework framework = JsFramework.Preact)
     {
         var root = Path.Combine(Path.GetTempPath(), "jsxcore-tests", Guid.NewGuid().ToString("n")[..12]);
         Directory.CreateDirectory(root);
-        return new JsxProjectFixture(root);
+
+        var fixture = new JsxProjectFixture(root, framework);
+
+        if (framework == JsFramework.React)
+        {
+            // Without this "react" resolves to preact/compat, and Preact elements reach React's
+            // renderer, which rejects them.
+            fixture.Options.EnableReactCompatibility = false;
+            fixture.Options.AdditionalToolchainSearchPaths.Add(RepositoryRoot());
+        }
+
+        return fixture;
     }
+
+    /// <summary>Which framework this fixture compiles and renders against.</summary>
+    public JsFramework Framework { get; }
 
     /// <summary>Content root of the throwaway project.</summary>
     public string Root { get; }
@@ -129,14 +149,22 @@ public sealed class JsxProjectFixture : IDisposable
         var layout = CompilationLayout.Create(Options, Root);
 
         // The framework is staged as part of compiling, exactly as it is in a hosted application:
-        // server rendering resolves "preact" through what the staging step wrote.
+        // server rendering resolves its modules through what the staging step wrote.
         _stager = new PreactVendorStager(
             layout,
             NodeModulesLayout.For(Root, Options.AdditionalToolchainSearchPaths),
             NullLogger<PreactVendorStager>.Instance);
 
+        _reactStager = new ReactEntryStager(layout);
+
         var service = new JsxCompilationService(
-            Options, layout, Toolchain, NullLogger<JsxCompilationService>.Instance, _stager);
+            Options,
+            layout,
+            Toolchain,
+            NullLogger<JsxCompilationService>.Instance,
+            Framework == JsFramework.React ? null : _stager,
+            Framework == JsFramework.React ? _reactStager : null,
+            Framework);
         _disposables.Add(service);
         return service;
     }
@@ -164,6 +192,7 @@ public sealed class JsxProjectFixture : IDisposable
                                                + string.Join(Environment.NewLine, searched));
 
     private PreactVendorStager? _stager;
+    private ReactEntryStager? _reactStager;
 
     /// <summary>
     /// The framework layout for this fixture, staged as the compilation pipeline stages it.
@@ -172,11 +201,17 @@ public sealed class JsxProjectFixture : IDisposable
     {
         get
         {
-            // Touching Compilation is what creates the stager, and staging is what fills in the
+            // Touching Compilation is what creates the stagers, and staging is what fills in the
             // module list the layout reports.
             _ = Compilation;
-            _stager!.Stage();
 
+            if (Framework == JsFramework.React)
+            {
+                _reactStager!.Stage();
+                return JsxRuntimeLayout.React(_reactStager);
+            }
+
+            _stager!.Stage();
             return JsxRuntimeLayout.Preact(_stager, Options.EnableReactCompatibility);
         }
     }
@@ -184,7 +219,11 @@ public sealed class JsxProjectFixture : IDisposable
     /// <summary>Creates a server renderer over this fixture's compiled output.</summary>
     public JsxServerRenderer CreateServerRenderer()
     {
-        var renderer = new JsxServerRenderer(Options, Compilation, RuntimeLayout);
+        // React is resolved out of node_modules rather than staged, so the renderer needs the
+        // package resolver to find it at all.
+        var renderer = Framework == JsFramework.React
+            ? new JsxServerRenderer(Options, Compilation, RuntimeLayout, new NodeModuleResolver(RepositoryRoot()))
+            : new JsxServerRenderer(Options, Compilation, RuntimeLayout);
         _disposables.Add(renderer);
         return renderer;
     }

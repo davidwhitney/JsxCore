@@ -75,17 +75,9 @@ public sealed class PackageManifest
     /// The package.json governing a project, which is the one sitting beside its project file.
     /// </summary>
     /// <remarks>
-    /// <para>
-    /// Deliberately not a search. Walking upwards eventually finds something: a project a few
-    /// directories under a home folder containing an unrelated package.json would adopt it, and
-    /// then restore that manifest's dependencies, into that manifest's node_modules, failing on
-    /// whatever it happened to declare. Every rule for when to stop climbing is a guess about
-    /// somebody's directory layout.
-    /// </para>
-    /// <para>
-    /// A solution that wants one manifest shared between several projects says so explicitly, by
-    /// setting <c>JsxCoreManifestDirectory</c> in the project file.
-    /// </para>
+    /// Deliberately not a search. Walking upwards eventually finds something: a project below a
+    /// home folder containing an unrelated package.json would adopt it and restore its dependencies
+    /// instead. A solution sharing one manifest says so with <c>JsxCoreManifestDirectory</c>.
     /// </remarks>
     public static PackageManifest? Nearest(string projectDirectory) => In(projectDirectory);
 
