@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text;
 using JsxCore.Compilation.Modules;
 using JsxCore.Compilation.Provisioning.PackageManagement;
+using JsxCore.Compilation.Provisioning.PackageManagement.Native;
 
 namespace JsxCore.Compilation.Provisioning;
 
@@ -99,10 +100,18 @@ public sealed class NpmBootstrapper(Action<string> report, TimeSpan timeout, str
             return NpmBootstrapResult.NothingToDo;
         }
 
+        // The same strategies the build uses, in the same order: the native client first, so a
+        // machine with no npm installs its dependencies at startup exactly as it does at build
+        // time. Offering npm alone here made "Node is not required" true of one path and not the
+        // other, which surfaced as a missing package rather than as anything mentioning npm.
+        //
         // Built from this instance's settings rather than the options alone, so a caller that
         // constructed the bootstrapper with an explicit npm path still gets it.
         var selector = new PackageManagerSelector(
-            [new NpmPackageManager(npmPath ?? options.NpmPath, timeout, _report)]);
+        [
+            new NativePackageManager(report: _report),
+            new NpmPackageManager(npmPath ?? options.NpmPath, timeout, _report)
+        ]);
 
         var manager = selector.Select(options.PackageManager);
         if (manager is null)

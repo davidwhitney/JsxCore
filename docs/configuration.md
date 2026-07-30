@@ -214,6 +214,7 @@ Full reference in [package management](package-management.md#on-the-command-line
 | `JSX0004` | Warning | Packages in `package.json` could not be installed |
 | `JSX0005` | Error | Packages are missing and `JsxCoreAutoInstallDependencies` is `false` |
 | `JSX0006` | Warning | The build tool could not be found, so views were not compiled |
+| `JSX0007` | Error | The application calls `UsePreact()` but `JsxCoreRuntime` is not `preact` |
 
 ---
 

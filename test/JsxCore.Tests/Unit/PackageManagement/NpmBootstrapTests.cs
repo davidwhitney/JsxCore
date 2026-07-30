@@ -113,9 +113,12 @@ public class NpmBootstrapTests : IDisposable
     }
 
     [Fact]
-    public void EnsureDependencies_NoPackageManagerAvailable_ReportsWhy()
+    public void EnsureDependencies_NamedManagerCannotRun_ReportsWhy()
     {
-        var options = new JsxCoreOptions { NpmPath = "/definitely/not/npm" };
+        // Startup offers the same strategies the build does, so there is always one that can run:
+        // the native client needs nothing installed. Asking for npm by name when npm is not there
+        // is now the only way to have none, and it is reported rather than quietly substituted.
+        var options = new JsxCoreOptions { NpmPath = "/definitely/not/npm", PackageManager = "npm" };
 
         var result = new NpmBootstrapper(_ => { }, TimeSpan.FromSeconds(5), options.NpmPath)
             .EnsureDependencies(options, TempDirectory());

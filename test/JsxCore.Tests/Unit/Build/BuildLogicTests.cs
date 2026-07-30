@@ -158,13 +158,14 @@ public class BuildLogicTests : IDisposable
     }
 
     [Fact]
-    public void Nearest_ManifestIsAboveTheDirectory_FindsIt()
+    public void Nearest_ManifestIsAboveTheDirectory_IsNotUsed()
     {
+        // A project's manifest is the one beside it. Searching upwards found whatever was there,
+        // which for a project a few directories under a home folder meant somebody else's.
         Write("package.json", """{"dependencies":{"marked":"^18.0.0"}}""");
         Directory.CreateDirectory(Path.Combine(_root, "src", "app"));
 
-        PackageManifest.Nearest(Path.Combine(_root, "src", "app"))
-            .ShouldNotBeNull().Dependencies.Single().Name.ShouldBe("marked");
+        PackageManifest.Nearest(Path.Combine(_root, "src", "app")).ShouldBeNull();
     }
 
     [Fact]

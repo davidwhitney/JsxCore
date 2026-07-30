@@ -38,7 +38,8 @@ builder.AddJsxCore(options => options.UsePreact());
 
 That is the whole switch. The packages are installed for you on the next build, provided
 `<JsxCoreRuntime>preact</JsxCoreRuntime>` is set so the build knows which runtime to compile
-against. To add them yourself:
+against. It is not optional: a build that finds `UsePreact()` in your code without it fails with
+`JSX0007` rather than producing output that only breaks once deployed. To add them yourself:
 
 ```bash
 dotnet npm add preact preact-render-to-string   # or: npm install preact preact-render-to-string

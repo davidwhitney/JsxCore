@@ -57,8 +57,8 @@ as `<1.1.0` rather than `<2.0.0`.
 
 **Tree layout.** *(built)* A package is hoisted to the top level unless something incompatible is
 already visible from where it is needed, in which case it goes to the shallowest scope that is free.
-Trees are identical to npm's for eslint, webpack and jest: same packages, same paths, same versions,
-325 of them in jest's case.
+Trees were matched against npm's for eslint, webpack and jest until they were identical: same
+packages, same paths, same versions, 325 of them in jest's case.
 
 Matching npm meant matching its order, because ordering is the whole of the hoisting policy:
 whichever dependent asks first claims the top level slot. Three rules turned out to decide it.
@@ -117,9 +117,13 @@ The bar is not "it installed something", it is "npm agrees with what we did".
   nesting. npm accepts both and installs from them.
 - Soundness: *(done)* every dependency of every placed package resolves to a satisfying version from
   where it sits. Asserted for eslint and jest, and enforced before anything is written.
-- Parity: *(done)* the tree is compared against one npm generates at the time of the test, for three
-  graphs of increasing size. npm's answer is not checked in, because these graphs float and a
-  recorded one describes a tree that stops existing as soon as any of 300 packages publishes.
+- Parity: *(done once, not guarded)* whole trees were compared against ones npm generated at the
+  time, for three graphs of increasing size, and matched. It is no longer run on every build: npm's
+  answer is not checked in, because these graphs float and a recorded one describes a tree that
+  stops existing as soon as any of 300 packages publishes, so the comparison eventually fails on
+  somebody else's release rather than on a change here. The last difference it found was three
+  packages nested under an optional platform binding that cannot run on the test machine, which
+  npm prunes and we expand.
 - Corpus: for a set of real dependency sets, compare our resolution against `npm install --dry-run
   --json` and diff the chosen versions.
 - Determinism: the same inputs produce a byte-identical lock file, twice, on each platform.

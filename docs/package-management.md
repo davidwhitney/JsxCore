@@ -260,9 +260,14 @@ npm's own semver package, which is how the one disagreement was found: `^1` was 
 `<1.1.0` rather than `<2.0.0`.
 
 **Tree layout.** A package is hoisted to the top level unless something incompatible is already
-visible from where it is needed, in which case it goes to the shallowest free scope. Trees are
-identical to npm's for eslint, webpack and jest: same packages, same paths, same versions, 325 of
-them in jest's case.
+visible from where it is needed, in which case it goes to the shallowest free scope. This was
+developed by comparing whole trees against npm's for eslint, webpack and jest until they matched
+exactly: same packages, same paths, same versions, 325 of them in jest's case.
+
+That comparison is not run continuously, because it compares against whatever npm resolves today
+and every publish upstream can change the answer. What is asserted on every run is what does not
+age: that every dependency of every placed package resolves from where it sits, and that real
+`npm ci` accepts and installs from the lock file we write.
 
 **Platform packages.** The TypeScript compiler ships as 20 optional dependencies, one per platform,
 selected by `os` and `cpu`. They are listed in both `dependencies` and `optionalDependencies`, and

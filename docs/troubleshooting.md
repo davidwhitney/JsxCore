@@ -56,6 +56,20 @@ The check exists because the alternative is worse. A missing package does not fa
 without it the build succeeds and the view fails to render later with an error about a module,
 which reads as a JsxCore fault rather than a missing install.
 
+### `error JSX0007: this application calls UsePreact()`
+
+The runtime is set in two places and they disagree: `options.UsePreact()` in code, and
+`JsxCoreRuntime` in the project file, which is what the build reads. Left alone the build would
+install the wrong packages and compile views against the wrong JSX runtime, and only a machine
+serving precompiled output would find out. Add the property:
+
+```xml
+<JsxCoreRuntime>preact</JsxCoreRuntime>
+```
+
+or drop the `UsePreact()` call. Development hides this, because startup recompiles views with
+whatever the application configured; a build server does not.
+
 ### `warning JSX0006: JsxCore could not find its build tool`
 
 The tool the targets invoke, normally at `tools/net8.0/JsxCore.Tool.dll` inside the package, is not

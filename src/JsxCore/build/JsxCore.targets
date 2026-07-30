@@ -148,7 +148,9 @@
       <Output TaskParameter="Result" PropertyName="JsxCoreResolvedCompilerPath" />
     </XmlPeek>
 
-    <XmlPeek Condition="Exists('$(JsxCoreGeneratedProps)')" XmlInputPath="$(JsxCoreGeneratedProps)"
+    <!-- Only when the project has not named one itself, which is how a solution shares a manifest. -->
+    <XmlPeek Condition="Exists('$(JsxCoreGeneratedProps)') And '$(JsxCoreManifestDirectory)' == ''"
+             XmlInputPath="$(JsxCoreGeneratedProps)"
              Query="/Project/PropertyGroup/JsxCoreManifestDirectory/text()">
       <Output TaskParameter="Result" PropertyName="JsxCoreManifestDirectory" />
     </XmlPeek>
@@ -314,7 +316,7 @@
           Condition="Exists('$(MSBuildProjectDirectory)/$(JsxCoreViewsDirectory)')">
 
     <Exec Condition="Exists('$(JsxCoreToolPath)')"
-          Command="$(JsxCoreToolCommand) provision --project-dir &quot;$(MSBuildProjectDirectory)&quot; --manifest-dir &quot;$(_JsxCoreManifestDir)&quot; --runtime &quot;$(JsxCoreRuntime)&quot; --auto-install &quot;$(JsxCoreAutoInstallDependencies)&quot; --npm-path &quot;$(JsxCoreNpm)&quot; --package-manager &quot;$(JsxCorePackageManager)&quot;"
+          Command="$(JsxCoreToolCommand) provision --project-dir &quot;$(MSBuildProjectDirectory)&quot; --manifest-dir &quot;$(_JsxCoreManifestDir)&quot; --runtime &quot;$(JsxCoreRuntime)&quot; --auto-install &quot;$(JsxCoreAutoInstallDependencies)&quot; --npm-path &quot;$(JsxCoreNpm)&quot; --package-manager &quot;$(JsxCorePackageManager)&quot; --assembly &quot;$(TargetPath)&quot;"
           ContinueOnError="true"
           IgnoreExitCode="true"
           StandardOutputImportance="high"
@@ -325,6 +327,11 @@
 
     <Error Condition="'$(_JsxCoreRestoreExit)' == '4'"
            Code="JSX0005"
+           Text="@(_JsxCoreRestoreOutput, ' ')" />
+
+    <!-- Configured for Preact in code but not in the project file, which only fails at run time. -->
+    <Error Condition="'$(_JsxCoreRestoreExit)' == '6'"
+           Code="JSX0007"
            Text="@(_JsxCoreRestoreOutput, ' ')" />
 
     <Warning Condition="'$(_JsxCoreRestoreExit)' == '3' Or '$(_JsxCoreRestoreExit)' == '5'"
