@@ -1,5 +1,6 @@
 using JsxCore;
 using JsxCore.Compilation;
+using JsxCore.Compilation.Provisioning;
 using JsxCore.Compilation.Assets;
 
 namespace JsxCore.Tool;
@@ -32,7 +33,8 @@ public static class TsConfigCommand
         options.GenerateEditorTsConfig = arguments.Flag("editor-config");
 
         Directory.CreateDirectory(layout.WorkingDirectory);
-        TsConfigWriter.WriteIfChanged(options, layout);
+        TsConfigWriter.WriteIfChanged(options, layout, null,
+            ConfiguredFramework.Parse(arguments.Optional("framework")) ?? JsFramework.Preact);
 
         // Only rewritten while it still carries JsxCore's marker, so a hand-edited one is left be.
         if (options.GenerateEditorTsConfig)

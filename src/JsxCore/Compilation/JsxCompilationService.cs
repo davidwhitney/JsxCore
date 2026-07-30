@@ -20,7 +20,9 @@ public sealed class JsxCompilationService(
     CompilationLayout layout,
     TypeScriptToolchain? toolchain,
     ILogger<JsxCompilationService> logger,
-    PreactVendorStager? preact = null)
+    PreactVendorStager? preact = null,
+    ReactEntryStager? react = null,
+    JsFramework framework = JsFramework.Preact)
     : IDisposable
 {
     private readonly JsxCoreOptions _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -46,8 +48,9 @@ public sealed class JsxCompilationService(
         new CheckDeclaredPackages(),
         new ExtractRuntimeAssets(),
         new StagePreactRuntime(preact),
+        new StageReactRuntime(react),
         new GenerateModelTypes(),
-        new WriteCompilerConfig(),
+        new WriteCompilerConfig(framework),
         new CreateOutputDirectory(),
         new CompileViews(async (fingerprint, token) =>
         {

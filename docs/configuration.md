@@ -148,7 +148,7 @@ Set these in your `.csproj`. They control [build-time compilation](build-and-dep
 |---|---|---|
 | `JsxCoreCompileOnBuild` | `true` | Compile views during `dotnet build` and `dotnet publish` |
 | `JsxCoreTypeChecking` | `warn` | `error`, `warn` or `off` |
-| `JsxCoreFramework` | `preact` | The framework views compile against. `preact` is the only value implemented |
+| `JsxCoreFramework` | `preact` | `preact` ships inside JsxCore; `react` is restored from npm by the build |
 | `JsxCoreViewsDirectory` | `Views` | Where views live |
 | `JsxCoreWorkingDirectory` | `$(BaseIntermediateOutputPath)JsxCore\` | Compiler output |
 | `JsxCoreAutoInstallDependencies` | `true` | Install missing npm packages during the build |
@@ -212,7 +212,7 @@ Full reference in [package management](package-management.md#on-the-command-line
 | `JSX0004` | Warning | Packages in `package.json` could not be installed |
 | `JSX0005` | Error | Packages are missing and `JsxCoreAutoInstallDependencies` is `false` |
 | `JSX0006` | Warning | The build tool could not be found, so views were not compiled |
-| `JSX0007` | Error | `JsxCoreFramework` names a framework JsxCore cannot compile against |
+| `JSX0007` | Error | `JsxCoreFramework` names a framework JsxCore does not know |
 
 ---
 

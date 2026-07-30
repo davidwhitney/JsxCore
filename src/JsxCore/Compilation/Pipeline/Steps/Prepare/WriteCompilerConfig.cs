@@ -1,6 +1,6 @@
 namespace JsxCore.Compilation.Pipeline.Steps.Prepare;
 
-public sealed class WriteCompilerConfig : IBuildStep
+public sealed class WriteCompilerConfig(JsFramework framework = JsFramework.Preact) : IBuildStep
 {
     public string Name => "write compiler configuration";
 
@@ -8,7 +8,7 @@ public sealed class WriteCompilerConfig : IBuildStep
 
     public ValueTask<StepResult> RunAsync(BuildContext context, CancellationToken cancellationToken)
     {
-        TsConfigWriter.WriteIfChanged(context.Options, context.Layout, context.Inputs.NodeModules);
+        TsConfigWriter.WriteIfChanged(context.Options, context.Layout, context.Inputs.NodeModules, framework);
 
         // Only rewritten while it still carries JsxCore's marker, so a hand-edited one is left be.
         if (context.Options.GenerateEditorTsConfig)

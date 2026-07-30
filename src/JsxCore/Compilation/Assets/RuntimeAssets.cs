@@ -15,6 +15,7 @@ public static class RuntimeAssets
     ];
 
     private const string PreactResourcePrefix = "JsxCore.Assets.preact.";
+    private const string ReactResourcePrefix = "JsxCore.Assets.react.";
     private static readonly ConcurrentDictionary<string, byte[]> Cache = new(StringComparer.Ordinal);
 
     private static readonly Lazy<IReadOnlyList<string>> PreactFileNames = new(() =>
@@ -26,6 +27,34 @@ public static class RuntimeAssets
             .ToList());
 
     public static IReadOnlyList<string> PreactSourceFiles => PreactFileNames.Value;
+
+    private static readonly Lazy<IReadOnlyList<string>> ReactFileNames = new(() =>
+        typeof(RuntimeAssets).Assembly
+            .GetManifestResourceNames()
+            .Where(name => name.StartsWith(ReactResourcePrefix, StringComparison.Ordinal))
+            .Select(name => name[ReactResourcePrefix.Length..])
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToList());
+
+    /// <summary>JsxCore's own mount and render entry points for React.</summary>
+    public static IReadOnlyList<string> ReactSourceFiles => ReactFileNames.Value;
+
+    public static string? TryGetReactSource(string fileName)
+    {
+        if (string.IsNullOrEmpty(fileName) || !ReactSourceFiles.Contains(fileName))
+        {
+            return null;
+        }
+
+        using var stream = typeof(RuntimeAssets).Assembly.GetManifestResourceStream(ReactResourcePrefix + fileName);
+        if (stream is null)
+        {
+            return null;
+        }
+
+        using var reader = new StreamReader(stream);
+        return reader.ReadToEnd();
+    }
 
     public static IReadOnlyList<string> AllFileNames => AllFiles;
 
@@ -55,6 +84,16 @@ public static class RuntimeAssets
             .ToList());
 
     public static IReadOnlyList<string> AllFiles => FileNames.Value;
+
+    /// <summary>
+    /// Globals evaluated into a server rendering engine before any module loads.
+    /// </summary>
+    /// <remarks>
+    /// Packages built for a browser or for Node reach for these while their own module body runs,
+    /// so providing them afterwards is too late.
+    /// </remarks>
+    public static string HostShims => TryGetText("host-shims.js")
+        ?? throw new JsxCoreException("Embedded runtime resource 'host-shims.js' could not be opened.");
     
     public static byte[]? TryGetContent(string fileName)
     {

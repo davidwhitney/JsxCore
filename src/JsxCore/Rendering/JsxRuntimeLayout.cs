@@ -29,7 +29,44 @@ public sealed class JsxRuntimeLayout
     }
 
     public string? Directory { get; private init; }
+
+    /// <summary>
+    /// Bare specifiers this framework's entry points need from npm.
+    /// </summary>
+    /// <remarks>
+    /// The browser import map is built by walking the compiled views, which never mention these:
+    /// they are imported by JsxCore's own entry points, which are not views. React needs them
+    /// because it is not staged; Preact needs none, being staged in full.
+    /// </remarks>
+    public IReadOnlyList<string> ClientDependencies { get; private init; } = [];
     public required string AssetSegment { get; init; }
+
+    /// <summary>
+    /// React, resolved out of node_modules like any other package.
+    /// </summary>
+    /// <remarks>
+    /// Nothing of React is mapped here. It publishes CommonJS, so it is served through the npm
+    /// pipeline that wraps and serves packages generally, and the import map entries for it come
+    /// from there rather than from this layout.
+    /// </remarks>
+    public static JsxRuntimeLayout React(ReactEntryStager stager)
+    {
+        ArgumentNullException.ThrowIfNull(stager);
+
+        return new JsxRuntimeLayout
+        {
+            ClientSpecifier = "@jsxcore/react/client",
+            ServerEntrySpecifier = "@jsxcore/react/server",
+            AssetSegment = "react",
+            Directory = stager.Directory,
+            ClientDependencies = ["react", "react-dom/client"],
+            Modules = new Dictionary<string, string>(StringComparer.Ordinal)
+            {
+                ["@jsxcore/react/client"] = "client.js",
+                ["@jsxcore/react/server"] = "server.js"
+            }
+        };
+    }
 
     public static JsxRuntimeLayout Preact(PreactVendorStager stager, bool reactCompatibility)
     {

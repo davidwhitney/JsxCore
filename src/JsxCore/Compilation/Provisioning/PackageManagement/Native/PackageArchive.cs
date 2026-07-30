@@ -44,14 +44,10 @@ public static class PackageArchive
                 continue;
             }
 
-            // npm tarballs put everything under a single root directory, conventionally "package/".
-            var relative = entry.Name.Replace('\\', '/');
-            var slash = relative.IndexOf('/');
-            if (slash < 0)
+            if (RelativePathOf(entry.Name) is not { } relative)
             {
                 continue;
             }
-            relative = relative[(slash + 1)..];
 
             var path = Path.GetFullPath(Path.Combine(destination, relative.Replace('/', Path.DirectorySeparatorChar)));
 
@@ -108,9 +104,7 @@ public static class PackageArchive
 
         while (await reader.GetNextEntryAsync(cancellationToken: token).ConfigureAwait(false) is { } entry)
         {
-            var relative = entry.Name.Replace('\\', '/');
-            var slash = relative.IndexOf('/');
-            if (slash < 0 || relative[(slash + 1)..] != "package.json" || entry.DataStream is not { } data)
+            if (RelativePathOf(entry.Name) != "package.json" || entry.DataStream is not { } data)
             {
                 continue;
             }
@@ -128,6 +122,41 @@ public static class PackageArchive
         }
 
         throw new JsxCoreException($"The archive at '{url}' has no package.json in it.");
+    }
+
+    /// <summary>
+    /// Where an entry belongs inside the package, or null when there is nothing left of it.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// npm tarballs put everything under a single root directory, conventionally "package/" but
+    /// not always: DefinitelyTyped roots its archives at the package's own short name. npm strips
+    /// whichever it is, so one leading component always goes.
+    /// </para>
+    /// <para>
+    /// Components that cannot be a file name go first. .NET 8's TarReader joins the ustar prefix
+    /// field onto the name for GNU-format archives, and GNU keeps access and change times in that
+    /// field, so an entry arrives as "\0\0...\0 15232743476 15232743476/react/LICENSE": NUL padding,
+    /// then two timestamps. That is not a path component, and no npm package has one containing a
+    /// space or a control character, so discarding it costs nothing and stops the real root
+    /// surviving into the extracted tree as a duplicate directory. .NET 10 reads the same archive
+    /// correctly, which is why this only ever went wrong in the build tool.
+    /// </para>
+    /// </remarks>
+    public static string? RelativePathOf(string entryName)
+    {
+        if (string.IsNullOrEmpty(entryName))
+        {
+            return null;
+        }
+
+        var segments = entryName.Replace('\\', '/')
+            .Split('/', StringSplitOptions.RemoveEmptyEntries)
+            .SkipWhile(segment => segment.Any(c => char.IsWhiteSpace(c) || char.IsControl(c)))
+            .Skip(1)
+            .ToArray();
+
+        return segments.Length == 0 ? null : string.Join('/', segments);
     }
 
     // Subresource integrity, as npm records it: "sha512-<base64>", possibly several space separated.

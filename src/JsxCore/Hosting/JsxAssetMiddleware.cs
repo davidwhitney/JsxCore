@@ -124,7 +124,8 @@ public sealed class JsxAssetMiddleware(
                 _compilation.BuildId,
                 _compilation.Layout.OutputDirectory,
                 assetBase,
-                _runtime.BuildImportMap(assetBase).Keys.ToList());
+                _runtime.BuildImportMap(assetBase).Keys.ToList(),
+                _runtime.ClientDependencies);
 
             return manifest is not null && manifest.Assets.TryGetValue(relative, out var package)
                 ? new ResolvedAsset(relative, null, Encoding.UTF8.GetBytes(package.Content))

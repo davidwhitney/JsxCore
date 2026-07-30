@@ -6,6 +6,7 @@ using Jint.Native.Object;
 using Jint.Runtime;
 using Jint.Runtime.Interop;
 using JsxCore.Compilation;
+using JsxCore.Compilation.Assets;
 using JsxCore.Compilation.Modules;
 
 namespace JsxCore.Rendering;
@@ -195,7 +196,7 @@ public sealed class JsxServerRenderer(
         var loader = new JsxModuleLoader(_compilation.Layout, _runtime, _options.AllowNodeModules ? _npm : null);
         var settings = _options.ServerRendering;
 
-        return new Engine(options =>
+        var engine = new Engine(options =>
         {
             options.EnableModules(loader);
             options.TimeoutInterval(settings.Timeout);
@@ -211,6 +212,12 @@ public sealed class JsxServerRenderer(
                 };
             }
         });
+
+        // Before anything is imported: a package that expects a browser or Node global reads it
+        // while its own module body runs, so there is no later point at which this would work.
+        engine.Execute(RuntimeAssets.HostShims);
+
+        return engine;
     }
 
     private static IEnumerable<string> MemberNames(System.Reflection.MemberInfo member)

@@ -41,6 +41,8 @@ public static partial class ModuleTransform
             case NodeModuleKind.CommonJs:
             {
                 var resolved = new Dictionary<string, string>(StringComparer.Ordinal);
+                var required = new Dictionary<string, string>(StringComparer.Ordinal);
+
                 foreach (var specifier in CommonJsInterop.FindRequires(source))
                 {
                     if (rewriter.Rewrite(specifier, path, ModuleReference.Require) is not { } target)
@@ -49,10 +51,19 @@ public static partial class ModuleTransform
                     }
 
                     resolved[specifier] = target.Replacement;
+                    required[specifier] = target.ResolvedPath;
                     dependencies.Add(target.ResolvedPath);
                 }
 
-                return new ShapedModule(CommonJsInterop.Wrap(source, resolved), dependencies);
+                // An entry that is only a re-export names nothing itself, so the names have to come
+                // from what it points at. Reading it is why the resolved path is kept alongside the
+                // replacement the wrapper imports from.
+                return new ShapedModule(
+                    CommonJsInterop.Wrap(source, resolved, specifier =>
+                        required.TryGetValue(specifier, out var file) && File.Exists(file)
+                            ? File.ReadAllText(file)
+                            : null),
+                    dependencies);
             }
 
             default:

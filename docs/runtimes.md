@@ -6,18 +6,20 @@ Views compile and render against **Preact**, which ships inside JsxCore.
 
 ---
 
-## Nothing to choose
+## Which framework
 
-There is one framework and it is already there. `dotnet add package JsxCore` gives you a full
-component model: context, error boundaries, refs, portals, memo, the complete hook set, true
-DOM-preserving hydration, and most of the React ecosystem through `preact/compat`.
+| | **Preact** *(default)* | **React** |
+|---|---|---|
+| Where it comes from | inside the JsxCore package | npm, restored by the build |
+| To install | nothing | nothing: the build does it |
+| In the publish output | nothing | `react`, `react-dom` |
+| Type declarations | shipped with it | `@types/react`, restored by the build |
+| React ecosystem | most of it, via `preact/compat` | all of it |
+| Server render, per view | ~0.25 ms | ~0.53 ms |
 
-Nothing is installed, nothing is added to `package.json`, and nothing extra appears in the publish
-output. There is no setting to get wrong.
-
-JsxCore used to carry a small runtime of its own so that the package alone was enough to render
-something. Vendoring Preact made that redundant: the same "install nothing" promise now comes with
-a real component model rather than a reduced one, so the built-in runtime is gone.
+**Preact unless something needs the real React.** It is the default, it needs nothing installed, and
+`preact/compat` covers most of the ecosystem. Choose React when a dependency will not tolerate the
+substitute, or when you want React's exact semantics.
 
 ---
 
@@ -27,29 +29,38 @@ One property, in the project file:
 
 ```xml
 <PropertyGroup>
-  <JsxCoreFramework>preact</JsxCoreFramework>
+  <JsxCoreFramework>react</JsxCoreFramework>
 </PropertyGroup>
 ```
 
-`preact` is the default and can be omitted; it is the only value implemented today.
+`preact` is the default and can be omitted. Naming `react` makes the build restore `react`,
+`react-dom`, `@types/react` and `@types/react-dom`, compile views against React's JSX runtime, and
+serve React to the browser. Nothing else changes: render modes, `head` exports, .NET interop,
+generated model types and hot reload all behave identically.
 
 It lives in the project file rather than in `AddJsxCore` because the build acts on it: it decides
-which packages are restored and which JSX runtime views are compiled against, all of which happens
-before a line of your code runs. A setting the build has to obey belongs where the build can see it.
+which packages are restored and which JSX runtime views compile against, all of which happens before
+a line of your code runs. A setting the build has to obey belongs where the build can see it. The
+build records the choice on the application's assembly, so the application knows at startup which
+runtime to serve without being told twice.
 
-Asking for a framework that is not implemented fails the build rather than quietly rendering with
-another one:
+Naming a framework JsxCore does not know fails the build rather than guessing:
 
 ```
-error JSX0007: JsxCore cannot compile against React yet.
-<JsxCoreFramework>react</JsxCoreFramework> is recognised but not implemented.
+error JSX0007: JsxCore does not know the framework 'vue'.
+<JsxCoreFramework> takes 'preact' or 'react'.
 ```
 
-React itself is the intended second value. It is not wired up: React publishes no ES modules and no
-type declarations of its own, so it needs both to go through the CommonJS interop and two more
-packages installed, which is a piece of work rather than a flag.
+### What React costs
 
----
+React publishes CommonJS and no type declarations, so both are worked around rather than avoided:
+its modules are wrapped for the browser by the same interop that serves any other CommonJS package,
+and its types come from DefinitelyTyped. Server rendering also needs a few browser globals that an
+embedded engine has no reason to provide, which JsxCore supplies.
+
+None of that needs configuring. It is why React is the option rather than the default: it is more
+moving parts, a slower render, and two more packages in the publish output, in exchange for being
+the real thing.
 
 ## Writing views
 
@@ -119,7 +130,7 @@ options.EnableReactCompatibility = false;
 
 ---
 
-## Why Preact and not React
+## Why Preact is the default
 
 React is still published as CommonJS, so it cannot be served as ES modules without a bundling step,
 and `react-dom/server` references `MessageChannel` and `TextEncoder` at module scope, neither of
@@ -137,9 +148,9 @@ the server:
 | **Per render** | 0.53 ms | **0.248 ms** |
 
 Preact gives the same programming model, keeps the no-bundler design intact, and via
-`preact/compat` keeps the ecosystem. That trade is one-sided enough to make it the framework JsxCore
-ships, and it is why `<JsxCoreFramework>react</JsxCoreFramework>` is a recognised value rather than
-a working one: supporting React properly means solving both problems above, not setting a flag.
+`preact/compat` keeps the ecosystem. That trade is one-sided enough to make it what JsxCore ships
+and what you get by default. React remains a property away when you need it, with both problems
+above handled for you rather than avoided.
 
 ---
 

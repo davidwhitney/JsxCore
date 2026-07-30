@@ -137,7 +137,8 @@ public sealed class JsxViewRenderer(
             if (_npmGraph is not null)
             {
                 var manifest = _npmGraph.ForBuild(
-                    buildId, _compilation.Layout.OutputDirectory, assetBase, map.Keys.ToList());
+                    buildId, _compilation.Layout.OutputDirectory, assetBase, map.Keys.ToList(),
+                    _runtime.ClientDependencies);
 
                 foreach (var (specifier, url) in manifest.ImportMap)
                 {

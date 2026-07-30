@@ -78,9 +78,24 @@ public static class JsxCoreServiceCollectionExtensions
 
         services.TryAddSingleton<JsxServerRendererReset>();
 
-        // Preact is staged into the working directory from the copy JsxCore ships, or from the
-        // application's own if it installed one. Either way they are real ES modules, so there is
-        // nothing to bundle and no extra toolchain to verify.
+        // What the build compiled these views against, read off the application's own assembly.
+        // Guessing would mean serving one framework's runtime for another's elements, which renders
+        // nothing at all rather than failing.
+        var framework = ConfiguredFramework.Read(options.TypeDefinitions.ApplicationAssembly)
+                        ?? JsFramework.Preact;
+
+        // React is resolved from node_modules, so its compat aliases must not be in play: with
+        // them, a view importing "react" gets preact/compat and hands Preact elements to React's
+        // renderer, which rejects them.
+        if (framework == JsFramework.React)
+        {
+            options.EnableReactCompatibility = false;
+        }
+
+        services.TryAddSingleton(provider => new ReactEntryStager(layout));
+
+        // Preact is staged from the copy JsxCore ships, or from the application's own if it
+        // installed one. Either way they are real ES modules with nothing to bundle.
         services.TryAddSingleton(provider => new PreactVendorStager(
             layout,
             nodeModules,
@@ -91,11 +106,15 @@ public static class JsxCoreServiceCollectionExtensions
             layout,
             toolchain,
             provider.GetRequiredService<ILogger<JsxCompilationService>>(),
-            provider.GetRequiredService<PreactVendorStager>()));
+            framework == JsFramework.React ? null : provider.GetRequiredService<PreactVendorStager>(),
+            framework == JsFramework.React ? provider.GetRequiredService<ReactEntryStager>() : null,
+            framework));
 
-        services.TryAddSingleton(provider => JsxRuntimeLayout.Preact(
-            provider.GetRequiredService<PreactVendorStager>(),
-            options.EnableReactCompatibility));
+        services.TryAddSingleton(provider => framework == JsFramework.React
+            ? JsxRuntimeLayout.React(provider.GetRequiredService<ReactEntryStager>())
+            : JsxRuntimeLayout.Preact(
+                provider.GetRequiredService<PreactVendorStager>(),
+                options.EnableReactCompatibility));
 
 
         services.TryAddSingleton(provider => new ViewLocator(options, layout, contentRoot));

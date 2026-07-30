@@ -21,13 +21,19 @@ public sealed class NpmClientGraph(NodeModuleResolver npm)
         string buildId,
         string outputDirectory,
         string assetBase,
-        IReadOnlyCollection<string>? reserved = null) =>
-        _cache.Get(buildId, () => Build(outputDirectory, assetBase, reserved));
+        IReadOnlyCollection<string>? reserved = null,
+        IReadOnlyCollection<string>? seed = null) =>
+        _cache.Get(buildId, () => Build(outputDirectory, assetBase, reserved, seed));
 
+    /// <param name="seed">
+    /// Specifiers to include whether or not a view mentions them. A framework's own entry points
+    /// are not views, so nothing here would otherwise discover what they import.
+    /// </param>
     private NpmClientManifest Build(
         string outputDirectory,
         string assetBase,
-        IReadOnlyCollection<string>? reserved)
+        IReadOnlyCollection<string>? reserved,
+        IReadOnlyCollection<string>? seed = null)
     {
         var importMap = new Dictionary<string, string>(StringComparer.Ordinal);
         var assets = new Dictionary<string, NpmClientAsset>(StringComparer.Ordinal);
@@ -39,11 +45,16 @@ public sealed class NpmClientGraph(NodeModuleResolver npm)
             return new NpmClientManifest(importMap, assets);
         }
 
+        var discovered = Directory
+            .EnumerateFiles(outputDirectory, "*.js", SearchOption.AllDirectories)
+            .Select(ReadOrEmpty)
+            .SelectMany(ModuleTransform.FindSpecifiers);
+
         // The views themselves are served as compiled, so their bare specifiers have to be
         // satisfied by the import map rather than by rewriting.
-        foreach (var view in Directory.EnumerateFiles(outputDirectory, "*.js", SearchOption.AllDirectories))
+        foreach (var group in new[] { seed ?? [], discovered })
         {
-            foreach (var specifier in ModuleTransform.FindSpecifiers(ReadOrEmpty(view)))
+            foreach (var specifier in group)
             {
                 if (!NodeModuleResolver.IsBareSpecifier(specifier) || importMap.ContainsKey(specifier))
                 {

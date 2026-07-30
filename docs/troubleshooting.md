@@ -44,10 +44,9 @@ The check exists because the alternative is worse. A missing package does not fa
 without it the build succeeds and the view fails to render later with an error about a module,
 which reads as a JsxCore fault rather than a missing install.
 
-### `error JSX0007: JsxCore cannot compile against React yet`
+### `error JSX0007: JsxCore does not know the framework`
 
-`<JsxCoreFramework>` names a framework JsxCore does not implement. `preact` is the only value
-today, and it is the default, so removing the property is usually the fix. See
+`<JsxCoreFramework>` takes `preact` or `react`. `preact` is the default and can be omitted. See
 [Runtimes](runtimes.md#switching-frameworks).
 
 ### `warning JSX0006: JsxCore could not find its build tool`

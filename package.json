@@ -3,6 +3,8 @@
   "private": true,
   "description": "TypeScript toolchain used by the JsxCore test suite. JsxCore invokes the native tsc binary from this package directly.",
   "devDependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8",
     "typescript": "^7.0.2"
   },
   "dependencies": {

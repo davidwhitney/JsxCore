@@ -55,12 +55,16 @@ public static class TsConfigWriter
                ?? throw new JsxCoreException("The embedded tsconfig base is not a JSON object.");
     }
 
-    public static JsonObject Build(JsxCoreOptions options, CompilationLayout layout, NodeModulesLayout? nodeModules = null)
+    public static JsonObject Build(
+        JsxCoreOptions options,
+        CompilationLayout layout,
+        NodeModulesLayout? nodeModules = null,
+        JsFramework framework = JsFramework.Preact)
     {
         var config = ReadBaseConfig();
         var compilerOptions = config["compilerOptions"]!.AsObject();
 
-        ApplyRuntimeMode(options, compilerOptions, layout, layout.WorkingDirectory, nodeModules);
+        ApplyRuntimeMode(options, compilerOptions, layout, layout.WorkingDirectory, nodeModules, framework);
 
         compilerOptions["rootDir"] = Normalise(layout.ViewsDirectory);
         compilerOptions["outDir"] = Normalise(layout.OutputDirectory);
@@ -102,16 +106,51 @@ public static class TsConfigWriter
         JsonObject compilerOptions,
         CompilationLayout layout,
         string relativeTo,
-        NodeModulesLayout? nodeModules = null)
+        NodeModulesLayout? nodeModules = null,
+        JsFramework framework = JsFramework.Preact)
     {
         // Built once when the caller has not already done so: this looks up nine declaration files
         // and each lookup used to walk for node_modules from scratch.
         nodeModules ??= NodeModulesLayout.For(layout.ContentRoot, options.AdditionalToolchainSearchPaths);
 
+        compilerOptions.Remove("types");
+
+        if (framework == JsFramework.React)
+        {
+            compilerOptions["jsxImportSource"] = "react";
+
+            // React publishes no type declarations, so they come from DefinitelyTyped, which the
+            // build installs. Mapped explicitly for the same reason Preact's are: this config lives
+            // under obj/, and walking up from there for node_modules/@types finds nothing when the
+            // content root is somewhere else.
+            var reactPaths = new JsonObject();
+
+            void MapReactType(string specifier, string declarationPath)
+            {
+                if (nodeModules.FindFile(declarationPath) is not { } found)
+                {
+                    return;
+                }
+
+                var path = Normalise(Path.GetRelativePath(relativeTo, found));
+                reactPaths[specifier] = new JsonArray(
+                    !path.StartsWith('.') && !Path.IsPathRooted(path) ? "./" + path : path);
+            }
+
+            MapReactType("react", "@types/react/index.d.ts");
+            MapReactType("react/jsx-runtime", "@types/react/jsx-runtime.d.ts");
+            MapReactType("react/jsx-dev-runtime", "@types/react/jsx-dev-runtime.d.ts");
+            MapReactType("react-dom", "@types/react-dom/index.d.ts");
+            MapReactType("react-dom/client", "@types/react-dom/client.d.ts");
+            MapReactType("react-dom/server.browser", "@types/react-dom/server.browser.d.ts");
+
+            compilerOptions["preactPaths"] = reactPaths;
+            return;
+        }
+
         // Preact ships its own type declarations, so the JSX namespace and hook types come
         // straight from the application's installed version.
         compilerOptions["jsxImportSource"] = "preact";
-        compilerOptions.Remove("types");
 
         // Map the Preact packages explicitly rather than relying on the compiler walking up to
         // node_modules. The generated config lives under obj/, and an application whose content
@@ -251,10 +290,15 @@ public static class TsConfigWriter
         TypeInfoResolver = new System.Text.Json.Serialization.Metadata.DefaultJsonTypeInfoResolver()
     };
 
-    public static bool WriteIfChanged(JsxCoreOptions options, CompilationLayout layout, NodeModulesLayout? nodeModules = null)
+    public static bool WriteIfChanged(
+        JsxCoreOptions options,
+        CompilationLayout layout,
+        NodeModulesLayout? nodeModules = null,
+        JsFramework framework = JsFramework.Preact)
     {
         Directory.CreateDirectory(layout.WorkingDirectory);
-        return AssetStage.WriteFileIfChanged(layout.TsConfigPath, Build(options, layout, nodeModules).ToJsonString(Indented));
+        return AssetStage.WriteFileIfChanged(
+            layout.TsConfigPath, Build(options, layout, nodeModules, framework).ToJsonString(Indented));
     }
 
     /// <summary>

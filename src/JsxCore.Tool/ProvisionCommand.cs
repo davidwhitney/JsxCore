@@ -17,30 +17,15 @@ public static class ProvisionCommand
     {
         var projectDirectory = arguments.Required("project-dir");
 
-        var options = new JsxCoreOptions
+        var options = new JsxCoreOptions { NpmPath = arguments.Optional("npm-path") };
+
+        var framework = ConfiguredFramework.Parse(arguments.Optional("framework")) ?? JsFramework.Preact;
+
+        if (arguments.Optional("framework") is { Length: > 0 } named && ConfiguredFramework.Parse(named) is null)
         {
-            NpmPath = arguments.Optional("npm-path")
-        };
-
-        // React is a recognised value with nothing behind it yet. Refusing it here means a project
-        // that asks for it is told during the build, rather than quietly getting Preact and only
-        // finding out when a dependency needs the real React.
-        if (arguments.Optional("framework") is { } framework && !framework.Equals("preact", StringComparison.OrdinalIgnoreCase))
-        {
-            if (framework.Equals("react", StringComparison.OrdinalIgnoreCase))
-            {
-                Console.Error.WriteLine(
-                    "JsxCore cannot compile against React yet. <JsxCoreFramework>react</JsxCoreFramework> is " +
-                    "recognised but not implemented." + Environment.NewLine + Environment.NewLine +
-                    "Remove the property to use Preact, which ships inside JsxCore and covers most of " +
-                    "the React ecosystem through preact/compat.");
-
-                return UnsupportedFramework;
-            }
-
             Console.Error.WriteLine(
-                $"JsxCore does not know the framework '{framework}'. " +
-                $"<JsxCoreFramework> takes 'preact', which is the default and may be omitted.");
+                $"JsxCore does not know the framework '{named}'. " +
+                $"<JsxCoreFramework> takes 'preact' or 'react'.");
 
             return UnsupportedFramework;
         }
@@ -48,7 +33,7 @@ public static class ProvisionCommand
         var directory = arguments.Optional("manifest-dir")
             ?? NearestManifestDirectory(projectDirectory);
 
-        var required = RequiredPackages(options);
+        var required = RequiredPackages(options, framework);
         var outstanding = required
             .Where(package => !Installed(directory, package.Name))
             .Select(package => package.Name)
@@ -100,7 +85,7 @@ public static class ProvisionCommand
         return Satisfied;
     }
 
-    private static IReadOnlyList<PackageRequest> RequiredPackages(JsxCoreOptions options)
+    private static IReadOnlyList<PackageRequest> RequiredPackages(JsxCoreOptions options, JsFramework framework)
     {
         var packages = new List<PackageRequest>
         {
@@ -109,6 +94,18 @@ public static class ProvisionCommand
 
         // Preact is not here: it ships inside JsxCore, so an application never has to install it
         // and never publishes it. Installing one anyway is still honoured, and takes precedence.
+        //
+        // React is, because it does not ship with anything: it comes from npm, and it publishes no
+        // type declarations of its own, so the DefinitelyTyped packages are needed to compile a
+        // view at all.
+        if (framework == JsFramework.React)
+        {
+            packages.Add(new PackageRequest("react"));
+            packages.Add(new PackageRequest("react-dom"));
+            packages.Add(new PackageRequest("@types/react", string.Empty, Development: true));
+            packages.Add(new PackageRequest("@types/react-dom", string.Empty, Development: true));
+        }
+
         return packages;
     }
 

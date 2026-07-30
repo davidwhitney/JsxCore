@@ -40,7 +40,14 @@ public static partial class CommonJsInterop
         return names;
     }
 
-    public static string Wrap(string source, IReadOnlyDictionary<string, string> resolved)
+    /// <param name="readRequired">
+    /// Reads the source of a required module, by the specifier it was required with. Used to follow
+    /// a re-export: see <see cref="ReExportedNames"/>.
+    /// </param>
+    public static string Wrap(
+        string source,
+        IReadOnlyDictionary<string, string> resolved,
+        Func<string, string?>? readRequired = null)
     {
         ArgumentNullException.ThrowIfNull(source);
         ArgumentNullException.ThrowIfNull(resolved);
@@ -81,7 +88,14 @@ public static partial class CommonJsInterop
         builder.AppendLine();
         builder.AppendLine("export default module.exports;");
 
-        foreach (var name in FindNamedExports(source))
+        // A module's own exports, plus those of whatever it re-exports wholesale. The values are
+        // read off module.exports at run time, so it does not matter which branch of the entry
+        // actually ran: only the list of names has to be known while the module is being linked.
+        var exported = FindNamedExports(source)
+            .Concat(ReExportedNames(source, readRequired))
+            .Distinct(StringComparer.Ordinal);
+
+        foreach (var name in exported)
         {
             // Valid identifiers only: anything else is still reachable through the default export.
             if (IdentifierPattern().IsMatch(name))
@@ -94,6 +108,44 @@ public static partial class CommonJsInterop
         return builder.ToString();
     }
 
+    /// <summary>
+    /// Names exported by whatever <c>module.exports = require(...)</c> points at.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// A CommonJS entry point is often nothing but a re-export, and React's are the shape that
+    /// forced this: a NODE_ENV branch choosing between a development and a production build. The
+    /// entry itself assigns no named exports, so a view importing <c>jsxs</c> from it found nothing
+    /// to bind to and the module failed to link.
+    /// </para>
+    /// <para>
+    /// Both branches are followed and their names combined. That is safe because nothing is being
+    /// re-exported statically: each name resolves through <c>module.exports</c> at run time, so a
+    /// name only one branch defines is simply undefined if that branch did not run, exactly as it
+    /// would be in Node.
+    /// </para>
+    /// </remarks>
+    public static IEnumerable<string> ReExportedNames(string source, Func<string, string?>? readRequired)
+    {
+        if (readRequired is null)
+        {
+            yield break;
+        }
+
+        foreach (Match match in ReExportPattern().Matches(source))
+        {
+            if (readRequired(match.Groups["specifier"].Value) is not { } required)
+            {
+                continue;
+            }
+
+            foreach (var name in FindNamedExports(required))
+            {
+                yield return name;
+            }
+        }
+    }
+
     private static string Quote(string value) =>
         "\"" + value.Replace("\\", "\\\\", StringComparison.Ordinal)
                     .Replace("\"", "\\\"", StringComparison.Ordinal) + "\"";
@@ -103,6 +155,9 @@ public static partial class CommonJsInterop
 
     [GeneratedRegex(@"(?<![\w$.])(?:module\.exports|exports)\s*\.\s*(?<name>[A-Za-z_$][\w$]*)\s*=(?!=)")]
     private static partial Regex NamedExportPattern();
+
+    [GeneratedRegex(@"module\s*\.\s*exports\s*=\s*require\(\s*[""'](?<specifier>[^""']+)[""']\s*\)")]
+    private static partial Regex ReExportPattern();
 
     [GeneratedRegex(@"^[A-Za-z_$][\w$]*$")]
     private static partial Regex IdentifierPattern();

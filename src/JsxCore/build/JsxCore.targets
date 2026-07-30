@@ -213,6 +213,25 @@
     before the names become items.
   -->
   <!--
+    The framework, stamped onto the application's own assembly.
+
+    The build knows which framework is in play; the application, running later, does not, and it
+    needs the same answer to serve the right runtime files. An assembly attribute is the one channel
+    that always travels with the code: it survives publishing, precompiled output and a content root
+    somewhere else entirely, with no file to find and nothing to keep in step.
+
+    AssemblyMetadata rather than a JsxCore type, so the attribute needs no reference to JsxCore and
+    a project that never touches the property still carries the default.
+  -->
+  <ItemGroup Condition="'$(GenerateAssemblyInfo)' != 'false'">
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>JsxCoreFramework</_Parameter1>
+      <_Parameter2 Condition="'$(JsxCoreFramework)' != ''">$(JsxCoreFramework)</_Parameter2>
+      <_Parameter2 Condition="'$(JsxCoreFramework)' == ''">preact</_Parameter2>
+    </AssemblyAttribute>
+  </ItemGroup>
+
+  <!--
     Search paths handed to the tool, so an application whose content root sits away from its npm
     project can still be analysed.
   -->
