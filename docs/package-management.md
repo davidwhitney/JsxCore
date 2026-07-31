@@ -290,6 +290,11 @@ no tree at all.
 
 - **Lifecycle scripts.** `preinstall`, `install` and `postinstall` are Node programs, and running
   them would reintroduce the dependency this removes. Packages with native builds need npm.
+
+  Packages that ship a binary per platform are fine without them, because npm selects the right one
+  through `os` and `cpu` rather than through a script. That is how both of the native tools JsxCore
+  uses arrive: the TypeScript compiler, and esbuild when
+  [minification](build-and-deploy.md#minification-and-compression) is on.
 - **`.npmrc` beyond the registry URL.** Scoped registries, auth tokens and proxies are not read.
   A private registry needing authentication needs npm.
 - **Pruning on remove.** `dotnet npm remove` deletes the named package and rewrites the lock file

@@ -143,6 +143,12 @@ cannot collide with the top-level one.
 Package assets carry the build id like every other JsxCore asset, so they are immutable and cached
 indefinitely.
 
+In a Release build they are also minified, which matters more here than anywhere else: packages are
+usually most of what a browser downloads, and they arrive as npm published them, unminified and
+comment-heavy. Each module is minified on its own, so the graph the browser walks is the same graph
+with the same URLs, only smaller. See
+[Build and deploy](build-and-deploy.md#minification-and-compression).
+
 ### Preferring a CDN
 
 Entries in `options.ImportMap` win over the generated ones, so a package can be pointed elsewhere

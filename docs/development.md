@@ -124,6 +124,7 @@ options.GenerateEditorTsConfig = false;
 | `obj/JsxCore/types/index.d.ts` | Types generated from your .NET models | No |
 | `obj/JsxCore/runtime/` | Runtime type declarations, for the compiler | No |
 | `obj/JsxCore/preact/` | Preact, staged from the JsxCore package or node_modules | No |
+| `obj/JsxCore/min/` | Scratch space for minification | No |
 | `obj/JsxCore/tsconfig.json` | The config the compiler actually uses | No |
 | `Views/tsconfig.json` | Editor support | **Yes** |
 | `package.json` | npm manifest, created by the bootstrap if absent | **Yes** |

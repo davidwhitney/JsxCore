@@ -14,26 +14,20 @@ which the build restores for you — running on the server for first paint, in t
 interactivity, or both, chosen per response. The model comes from your endpoint, and its TypeScript
 type is generated from your C#, so the two cannot drift.
 
-There is no bundler, no Node.js process and no toolchain to assemble. TypeScript 7 is a native
-binary JsxCore starts directly, imports are rewritten so the browser walks the module graph itself,
-and npm packages are restored by talking to the registry, so `dotnet build` is the entire build.
-Save a view and hot reload pushes it over a WebSocket: the browser re-imports that one module and
-re-renders in place, falling back to a page reload only when it cannot, and a type error arrives as
-an overlay instead of a broken page. `dotnet add package JsxCore` and `dotnet run` is the whole of
-the setup, on any machine with the .NET SDK.
+Key Features:
 
+- **Use React or Preact** as ASP.NET Core Views
+- **Zero configuration**: the package handles sourcing TypeScript compilers and esbuild minifiers automatically, so there is no setup step to forget.
 - **Views are components.** The same component renders on the server for first paint and SEO, in
   the browser for interactivity, or both, chosen per response.
 - **No bundler.** TypeScript rewrites `./Card.tsx` to `./Card.js`, so the browser resolves the
   module graph itself.
-- **No Node.js process.** TypeScript 7 ships as a native binary that JsxCore invokes directly, and
-  the build installs it for you, so there is no setup step to forget.
 - **Real .NET interop.** Server rendering runs in-process, so `.NET` objects exposed to a view are
   real objects, called synchronously with no bridge.
 - **npm packages work.** Install a package and import it; it resolves on the server and is served
   to the browser, with no bundler and no import map to write. `dotnet npm add marked` installs one
   without npm on the machine.
-- **Preact or React.** Preact ships inside the package, so nothing is installed to render a view.
+- **Idiomatic .NET** Preact ships inside the package, so nothing is installed to render a view.
   One project-file property switches to React, which the build restores for you.
 - **Types generated from your C#.** View models are described once, in .NET.
 - **Drops into MVC.** Registers as an `IViewEngine`, so `return View()` finds `Index.tsx`.
@@ -48,7 +42,9 @@ the setup, on any machine with the .NET SDK.
 dotnet add package JsxCore
 ```
 
-**The .NET SDK is the only prerequisite.** JsxCore restores the npm packages it needs itself, by
+**The .NET SDK is the only prerequisite.**
+
+JsxCore restores the npm packages it needs itself, by
 talking to the registry directly, so a clean checkout builds with `dotnet build` on a machine with
 no Node and no npm installed. It writes a `package-lock.json` that real `npm ci` accepts, and you
 can [switch back to npm](docs/package-management.md#using-npm-instead) with one property if you
@@ -58,9 +54,9 @@ reads what it installed.
 No Node process runs at build time or when serving a request either: the TypeScript compiler is a
 native binary JsxCore starts directly.
 
-**Prerequisites:** .NET 8, 9 or 10. A published application needs nothing else, though views that
+**Prerequisites:** .NET 8, 9 or 10. Views that
 import [npm packages](docs/npm-packages.md) still need those package files on the server, which
-publish can copy for you.
+publish will copy for you.
 
 ---
 

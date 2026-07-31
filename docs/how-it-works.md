@@ -19,24 +19,17 @@ from the C#, so the two cannot drift.
 
 ## The pipeline
 
-```
-Views/Home/Index.tsx
-        │
-        │  tsc (native Go binary)   tens of milliseconds for a whole view tree
-        ▼
-obj/JsxCore/js/Home/Index.js        ES module, imports rewritten to .js
-        │
-        ├─────────────────────────────────┐
-        ▼                                 ▼
-  Browser (client render)          Jint (server render)
-  fetches /_jsx/v{build}/...         loads the same files in-process
-  resolves imports natively        .NET globals injected as CLR objects
-```
+```mermaid
+flowchart TD
+    src["Views/Home/Index.tsx"]
+    js["obj/JsxCore/js/Home/Index.js<br/><i>ES module, imports rewritten to .js</i>"]
+    browser["Browser <i>(client render)</i><br/>fetches /_jsx/v{build}/...<br/>resolves imports natively"]
+    jint["Jint <i>(server render)</i><br/>loads the same files in-process<br/>.NET globals injected as CLR objects"]
 
-For a Release build there is one more stage: the compiled views, the framework and every npm
-package a view reaches are minified with esbuild, and what is served is compressed on the way out.
-Both are off for Debug. See
-[Build and deploy](build-and-deploy.md#minification-and-compression).
+    src -- "tsc (native Go binary)<br/>tens of milliseconds for a whole view tree" --> js
+    js --> browser
+    js --> jint
+```
 
 Both sides load **the same compiled files**. There is no separate server bundle and no separate
 client bundle, so a component cannot behave differently depending on which one ran.
@@ -78,6 +71,24 @@ That is a specifier the browser can fetch directly. The browser walks the import
 there is nothing to bundle. Bare specifiers (`@jsxcore/runtime`, `preact`, your own additions)
 are wired up with a generated [import map](extensibility.md#add-module-specifiers).
 
+### Minification is per module, not a bundle
+
+A Release build minifies what it serves, which is the one step that usually drags a bundler in. It
+does not here, because each module is minified **on its own**: same files, same URLs, same import
+graph, fewer bytes. Nothing is concatenated, nothing is tree-shaken across module boundaries, and
+the browser still walks the graph itself. Turn it off and the only difference is size.
+
+The tool is [esbuild](https://esbuild.github.io), which is the same shape of thing as the
+TypeScript compiler: a native binary published to npm per platform, restored by JsxCore, run as a
+process, needing no Node. That it can be restored without running install scripts is not luck —
+esbuild's binary lives in a platform-specific package that npm selects with `os` and `cpu`, so
+[the native client](package-management.md) fetching the right one is all that is required, and the
+`postinstall` step JsxCore does not run has nothing left to do.
+
+Views are minified in both places they are compiled: by the build, for a deployment where nothing
+recompiles them, and at startup for an application that compiles then. Packages and the framework
+are minified once per build as they are prepared for the browser.
+
 ### Server rendering is in-process
 
 Compiled modules are executed by [Jint][jint], a JavaScript engine written in .NET, inside your
@@ -108,6 +119,10 @@ three useful things:
    same versioned prefix, so re-importing one view pulls fresh copies of everything it depends on
    without cache-busting a single import statement.
 3. **Hot reload is trivial.** The reload client just re-imports the view from the new prefix.
+
+Whether assets were minified is folded in as well, for the same reason the JsxCore version is: the
+same view minified and unminified is two different responses, and they must not share a URL that a
+browser has been told to keep for a year.
 
 Identical sources produce an identical build id across restarts, so caches survive a redeploy that
 did not change anything. The build of JsxCore is folded in alongside them, because the same view and
@@ -142,6 +157,12 @@ though its `head` export is still evaluated so the document gets a title.
 
 **Server mode.** The component runs in Jint and its markup is written into the response. No
 JavaScript is sent at all.
+
+Whatever is sent is compressed on the way out when compression is on: Brotli where the client takes
+it, gzip otherwise. That happens at request time rather than during the build, because assets come
+from three places — disk, the assembly manifest, and the npm graph held in memory — and this is the
+one point they all pass through. The result is held until the build id moves, so each asset is
+compressed once rather than once per request.
 
 **ServerAndClient.** Both. The markup is produced on the server for first paint, and the same
 component is then mounted in the browser, hydrating the existing DOM rather than replacing it.

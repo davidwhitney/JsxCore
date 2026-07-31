@@ -32,7 +32,7 @@ A TSX/JSX view engine for ASP.NET Core. To get running, start with
 | | |
 |---|---|
 | **[Development](development.md)** | Hot reload, editor support, and the framework diagnostic header |
-| **[Build and deploy](build-and-deploy.md)** | The three build modes, type-checking strictness, publishing without npm |
+| **[Build and deploy](build-and-deploy.md)** | The three build modes, type-checking strictness, minification and compression, publishing without npm |
 | **[Testing](testing.md)** | `WebApplicationFactory`, `TestServer`, and the content-root gotcha |
 
 ## Reference

@@ -100,9 +100,10 @@ builder.AddJsxCore(options => options.AutoInstallDependencies = DependencyInstal
 Other settings: `PackageManager` to name a strategy, `NpmPath`, `DependencyInstallTimeout`, and
 `OnBootstrapMessage` to route progress somewhere other than the console.
 
-Both paths install `typescript` as a dev dependency. Preact needs nothing installed, because it
-ships inside the JsxCore package; [React mode](runtimes.md) adds `react` and `react-dom` as regular
-dependencies, and their `@types` packages as dev ones. Packages go in the `package.json` beside the
+Both paths install `typescript` as a dev dependency, and a Release build adds `esbuild`, which
+[minifies what is served](build-and-deploy.md#minification-and-compression). Preact needs nothing
+installed, because it ships inside the JsxCore package; [React mode](runtimes.md) adds `react` and
+`react-dom` as regular dependencies, and their `@types` packages as dev ones. Packages go in the `package.json` beside the
 project file, and one is created there if it does not exist. That directory is not searched upwards
 from — an unrelated manifest in a parent or home directory is not adopted — so a solution sharing a
 single manifest says so with `<JsxCoreManifestDirectory>`.
@@ -170,7 +171,7 @@ MyApp/
 │   ├── js/                    ← compiled views
 │   ├── types/index.d.ts       ← types generated from your .NET models
 │   └── tsconfig.json          ← the config the compiler actually uses
-├── package.json               ← typescript, and React if you selected it
+├── package.json               ← typescript, esbuild, and React if you selected it
 └── Program.cs
 ```
 
