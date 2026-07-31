@@ -10,7 +10,7 @@
 |---|---|---|
 | **.NET** | 8.0, 9.0 or 10.0 | The package targets all three |
 | **TypeScript 7+** | installed for you on first run | Compiles views |
-| **Preact** *(optional)* | installed for you when Preact mode is on | Only for [Preact mode](runtimes.md) |
+| **A JS framework** | Preact ships inside JsxCore; React is restored for you | See [Runtimes](runtimes.md) |
 
 **Node and npm are not required.** JsxCore restores those packages itself, talking to the npm
 registry directly, and writes a `package-lock.json` that real npm accepts. See
@@ -18,8 +18,8 @@ registry directly, and writes a `package-lock.json` that real npm accepts. See
 use npm instead if you would rather.
 
 No JavaScript tooling runs on Node either: the TypeScript compiler is a standalone native executable
-that JsxCore starts directly, and Preact is a set of files it copies. There is no Node process at
-build time or when serving a request.
+that JsxCore starts directly, and Preact is a set of files carried inside the JsxCore package. There
+is no Node process at build time or when serving a request.
 
 Restoring is checked on every build, not just the first. Each build checks that everything
 `package.json` declares is actually in `node_modules` and restores what is not, because a declared
@@ -38,7 +38,9 @@ That is all you have to run. The build installs the packages JsxCore needs, and 
 `package.json` if there is not one already:
 
 ```
-JsxCore: the TypeScript compiler is not installed. Fetching it with npm into /src/MyApp/
+JsxCore: no package.json found, creating one in /src/MyApp.
+JsxCore: restoring with native: typescript
+JsxCore: fetching @typescript/typescript-linux-x64@7.0.2
 ```
 
 This happens during `dotnet build`, `dotnet publish` and `dotnet run` alike, so a clean checkout
@@ -98,10 +100,12 @@ builder.AddJsxCore(options => options.AutoInstallDependencies = DependencyInstal
 Other settings: `PackageManager` to name a strategy, `NpmPath`, `DependencyInstallTimeout`, and
 `OnBootstrapMessage` to route progress somewhere other than the console.
 
-Both paths install `typescript` as a dev dependency, and in [Preact mode](runtimes.md) add `preact`
-and `preact-render-to-string` as regular dependencies, because those ship in the publish output. If
-a `package.json` already exists in the project or any parent directory, packages are added there
-rather than a second manifest being created beside it.
+Both paths install `typescript` as a dev dependency. Preact needs nothing installed, because it
+ships inside the JsxCore package; [React mode](runtimes.md) adds `react` and `react-dom` as regular
+dependencies, and their `@types` packages as dev ones. Packages go in the `package.json` beside the
+project file, and one is created there if it does not exist. That directory is not searched upwards
+from — an unrelated manifest in a parent or home directory is not adopted — so a solution sharing a
+single manifest says so with `<JsxCoreManifestDirectory>`.
 
 Commit the generated `package.json` and `package-lock.json`: they pin your versions, and they let
 the build restore exactly what is pinned rather than resolving afresh. The lock file is a standard
@@ -166,7 +170,7 @@ MyApp/
 │   ├── js/                    ← compiled views
 │   ├── types/index.d.ts       ← types generated from your .NET models
 │   └── tsconfig.json          ← the config the compiler actually uses
-├── package.json               ← typescript, and preact if you use it
+├── package.json               ← typescript, and React if you selected it
 └── Program.cs
 ```
 
@@ -183,8 +187,8 @@ is worth committing. See [Development](development.md#editor-support).
 is an app that starts cleanly and then 500s on the first view request, with far less context.
 
 It checks that a TypeScript compiler is present and new enough, that the views directory exists,
-that the working directory is writable, and, in Preact mode, that Preact is installed. A failure
-tells you what is missing, every path it looked in, and the command that fixes it:
+and that the working directory is writable. A failure tells you what is missing, every path it
+looked in, and the command that fixes it:
 
 ```
 JsxCore could not find the TypeScript compiler, which it needs to compile .tsx and .jsx views.
@@ -205,7 +209,7 @@ Paths searched:
 ## Where to go next
 
 - [Package management](package-management.md): adding npm packages with `dotnet npm add`
-- [Runtimes](runtimes.md): Preact ships inside JsxCore, and how to upgrade it
+- [Runtimes](runtimes.md): Preact ships inside JsxCore, how to upgrade it, and switching to React
 - [Render modes](render-modes.md): client, server, or both
 - [Model types](model-types.md): stop hand-writing TypeScript interfaces for your view models
 - [How it works](how-it-works.md): why there is no bundler

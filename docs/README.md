@@ -18,7 +18,7 @@ A TSX/JSX view engine for ASP.NET Core. To get running, start with
 
 | | |
 |---|---|
-| **[Runtimes](runtimes.md)** | Preact, which ships inside JsxCore, upgrading it, and React compatibility |
+| **[Runtimes](runtimes.md)** | Preact, which ships inside JsxCore, upgrading it, switching to React, and React compatibility |
 | **[Render modes](render-modes.md)** | Client, server, or both, and what changes in each |
 | **[Writing views](writing-views.md)** | The view contract, component imports, `head`, hooks, the JSX dialect |
 | **[Returning views](returning-views.md)** | Minimal APIs, MVC controllers, per-response document settings |
@@ -31,7 +31,7 @@ A TSX/JSX view engine for ASP.NET Core. To get running, start with
 
 | | |
 |---|---|
-| **[Development](development.md)** | Hot reload and editor support |
+| **[Development](development.md)** | Hot reload, editor support, and the framework diagnostic header |
 | **[Build and deploy](build-and-deploy.md)** | The three build modes, type-checking strictness, publishing without npm |
 | **[Testing](testing.md)** | `WebApplicationFactory`, `TestServer`, and the content-root gotcha |
 

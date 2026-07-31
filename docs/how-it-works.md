@@ -48,9 +48,9 @@ TypeScript 7 is the Go port of the compiler, published as platform-specific nati
 under `node_modules/@typescript/typescript-{os}-{arch}/lib/tsc`. JsxCore locates that binary and
 runs it as a process.
 
-npm downloads that package, and npm runs on Node, so Node has to exist on a development or build
-machine. **Nothing runs on Node afterwards**: not the compilation, not the rendering, not a request.
-There is no Node process to supervise, and a production server needs neither npm nor Node.
+JsxCore fetches that package from the registry itself, so **Node is not needed to obtain it and
+nothing runs on Node afterwards**: not the compilation, not the rendering, not a request. There is
+no Node process to supervise at any point, and a production server needs neither npm nor Node.
 
 A whole view tree compiles in tens of milliseconds, which is what makes compiling on startup and
 on every file change practical.
@@ -122,9 +122,10 @@ drift from the library version.
 The only files written to disk are the TypeScript declarations, because the compiler is a separate
 process that has to read them, and those go into `obj/JsxCore/runtime/`.
 
-In [Preact mode](runtimes.md), Preact's own `.mjs` files are copied verbatim out of your
-`node_modules` into `obj/JsxCore/preact/` and served from there. The version you install is
-the version that runs.
+Preact is handled the same way, one step removed: its `.mjs` files ship inside the JsxCore package
+and are staged into `obj/JsxCore/preact/` to be served, so nothing is installed to render a view.
+Install Preact yourself and the installed copy is staged instead. [React](runtimes.md), when it is
+selected, comes from npm like any other package.
 
 ---
 
@@ -138,6 +139,6 @@ though its `head` export is still evaluated so the document gets a title.
 JavaScript is sent at all.
 
 **ServerAndClient.** Both. The markup is produced on the server for first paint, and the same
-component is then mounted in the browser, hydrating the existing DOM in Preact mode.
+component is then mounted in the browser, hydrating the existing DOM rather than replacing it.
 
 See [Render modes](render-modes.md) for the details.

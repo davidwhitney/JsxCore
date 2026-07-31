@@ -251,13 +251,13 @@ Commit both.
 
 ## How close to npm is it
 
-Close enough that the tests check it against npm rather than against a reading of the
+Close enough that it was built against npm's answers rather than against a reading of the
 specification.
 
 **Version ranges.** `^`, `~`, `x`, hyphen ranges, `||`, and the prerelease rules, which are the
-subtle ones: `1.0.0-beta` satisfies `^1.0.0-alpha` but not `^1.0.0`. Every form is checked against
-npm's own semver package, which is how the one disagreement was found: `^1` was being read as
-`<1.1.0` rather than `<2.0.0`.
+subtle ones: `1.0.0-beta` satisfies `^1.0.0-alpha` but not `^1.0.0`. Every form was put to npm's own
+semver package and its answers recorded as a fixture the suite still runs on every build, which is
+how the one disagreement was found: `^1` was being read as `<1.1.0` rather than `<2.0.0`.
 
 **Tree layout.** A package is hoisted to the top level unless something incompatible is already
 visible from where it is needed, in which case it goes to the shallowest free scope. This was

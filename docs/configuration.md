@@ -45,7 +45,7 @@ builder.AddJsxCore(options =>
 | `PrecompiledOnly` | `false` | Serve prebuilt output with no toolchain |
 | `WatchForChanges` | dev only | Recompile when sources change |
 | `HotReload` | dev only | Serve the hot reload client and endpoint |
-| `AutoInstallDependencies` | `Development` | `Never`, `Development` or `Always`: when JsxCore may run npm for you |
+| `AutoInstallDependencies` | `Development` | `Never`, `Development` or `Always`: when *startup* may restore packages. The build restores in any configuration |
 | `NpmPath` | auto | Explicit path to npm |
 | `DependencyInstallTimeout` | 5 minutes | Limit for a single npm command |
 | `OnBootstrapMessage` | console | Where install progress is reported |
@@ -63,7 +63,7 @@ builder.AddJsxCore(options =>
 |---|---|---|
 | `ImportMap` | empty | Extra bare specifier mappings for the browser, which win over generated ones |
 | `AllowNodeModules` | `true` | Let views import [npm packages](npm-packages.md), server and browser |
-| `PackageManager` | `native` | `native` needs nothing installed; `npm` runs the npm on the machine |
+| `PackageManager` | unset (native) | Name a client: `native` needs nothing installed, `npm` runs the npm on the machine |
 | `Globals` | empty | .NET objects exposed to server-rendered views |
 | `ContextValues` | empty | Values added to every view's `context` prop |
 | `AutoExport` | convention | Which .NET types get TypeScript declarations |
@@ -150,6 +150,7 @@ Set these in your `.csproj`. They control [build-time compilation](build-and-dep
 | `JsxCoreTypeChecking` | `warn` | `error`, `warn` or `off` |
 | `JsxCoreFramework` | `preact` | `preact` ships inside JsxCore; `react` is restored from npm by the build |
 | `JsxCoreViewsDirectory` | `Views` | Where views live |
+| `JsxCoreManifestDirectory` | beside the project | Directory holding the `package.json` to use, for a solution sharing one |
 | `JsxCoreWorkingDirectory` | `$(BaseIntermediateOutputPath)JsxCore\` | Compiler output |
 | `JsxCoreAutoInstallDependencies` | `true` | Install missing npm packages during the build |
 | `JsxCoreNpm` | probed | Path to npm, if it is not on PATH |
@@ -158,6 +159,7 @@ Set these in your `.csproj`. They control [build-time compilation](build-and-dep
 | `JsxCoreGenerateModelTypes` | `true` | Generate TypeScript declarations from .NET models during the build |
 | `JsxCoreEmitViewLocationAnnotations` | `true` | Emit the annotations that let an IDE resolve `View()` calls |
 | `JsxCoreViewExtensions` | `.tsx;.jsx` | Extensions those annotations describe |
+| `JsxCoreAdditionalSearchPaths` | empty | Extra roots to search for `node_modules`, as pnpm needs |
 | `JsxCoreCompilerPath` | auto | Explicit path to the TypeScript binary |
 | `JsxCoreGenerateEditorTsConfig` | `true` | Write the editor tsconfig at build time |
 | `JsxCoreToolPath` | in the package | The build tool the targets invoke, under `tools/net8.0/` |
@@ -220,7 +222,7 @@ Full reference in [package management](package-management.md#on-the-command-line
 
 | Type | Thrown when |
 |---|---|
-| `JsxCoreEnvironmentException` | A dependency is missing at registration: the toolchain, the views directory, Preact, or a runtime mismatch in precompiled output |
+| `JsxCoreEnvironmentException` | Something needed is missing at registration: the toolchain, the views directory, a writable working directory, or compiled output when `PrecompiledOnly` is set |
 | `JsxCompilationException` | Compilation failed and `TypeChecking` is `Error` |
 | `JsxViewNotFoundException` | A view could not be located; carries every path probed |
 | `JsxRenderException` | Server-side rendering threw; carries the JavaScript stack trace |

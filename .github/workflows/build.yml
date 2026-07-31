@@ -42,10 +42,10 @@ jobs:
             10.0.x
 
       # JsxCore restores npm packages itself, so a build needs no Node at all. npm is installed
-      # anyway because part of the test suite compares what JsxCore resolves against what npm
-      # resolves, and skips itself when npm is absent. Without this the comparison would pass by
-      # not running, which is the failure mode worth avoiding on the machine meant to catch it.
-      - name: Set up Node, for the tests that compare against npm
+      # anyway because a couple of tests hand a lock file JsxCore wrote to real npm and check that
+      # npm ci accepts it. They skip themselves when npm is absent, and a check that passes by not
+      # running is worth nothing on the machine meant to catch the difference.
+      - name: Set up Node, for the tests that check npm accepts our lock file
         uses: actions/setup-node@v4
         with:
           node-version: 22

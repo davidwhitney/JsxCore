@@ -50,10 +50,6 @@ public static class EnvironmentVerifier
     }
 
     /// <summary>
-    /// Preact mode needs the application's own Preact packages. Checking here means a missing
-    /// dependency is reported at registration rather than on the first request for a view.
-    /// </summary>
-    /// <summary>
     /// Explains that JsxCore already tried to install the dependency, so the reader does not assume
     /// automatic installation would have fixed it.
     /// </summary>
@@ -90,7 +86,7 @@ public static class EnvironmentVerifier
             $"Build the project to install them, or install them yourself:{Environment.NewLine}{Environment.NewLine}" +
             $"    npm install preact preact-render-to-string{Environment.NewLine}{Environment.NewLine}" +
             $"Searched node_modules upwards from '{contentRoot}'.{Environment.NewLine}" +
-            $"To use the runtime built into JsxCore instead, remove the UsePreact() call." +
+            $"Uninstalling them is also a fix: JsxCore falls back to the copy inside the package." +
             BootstrapNote(bootstrapFailure));
     }
 

@@ -2,7 +2,8 @@
 
 ← [Documentation index](README.md)
 
-Views compile and render against **Preact**, which ships inside JsxCore.
+Views compile and render against **Preact**, which ships inside JsxCore, or against **React**,
+which the build restores for you. One property in the project file decides.
 
 ---
 
@@ -55,8 +56,9 @@ error JSX0007: JsxCore does not know the framework 'vue'.
 
 React publishes CommonJS and no type declarations, so both are worked around rather than avoided:
 its modules are wrapped for the browser by the same interop that serves any other CommonJS package,
-and its types come from DefinitelyTyped. Server rendering also needs a few browser globals that an
-embedded engine has no reason to provide, which JsxCore supplies.
+and its types come from DefinitelyTyped. Both sides also need globals their environment does not
+have — `MessageChannel` and `TextEncoder` in the server engine, `process.env.NODE_ENV` in a browser
+— which JsxCore supplies.
 
 None of that needs configuring. It is why React is the option rather than the default: it is more
 moving parts, a slower render, and two more packages in the publish output, in exchange for being
@@ -132,16 +134,17 @@ options.EnableReactCompatibility = false;
 
 ## Why Preact is the default
 
-React is still published as CommonJS, so it cannot be served as ES modules without a bundling step,
-and `react-dom/server` references `MessageChannel` and `TextEncoder` at module scope, neither of
-which an embedded engine provides, so it needs host shims before it will even evaluate.
+React is still published as CommonJS, so it cannot be served to a browser without being converted
+into ES modules first, and `react-dom/server` references `MessageChannel` and `TextEncoder` at
+module scope, neither of which an embedded engine provides, so it needs host shims before it will
+even evaluate.
 
 Both are surmountable. The result is a heavier dependency that renders roughly **half as fast** on
 the server:
 
 | | React 19 | Preact 10 |
 |---|---|---|
-| Module format | CommonJS → needs a bundler | real ESM |
+| Module format | CommonJS → wrapped by JsxCore | real ESM |
 | Runs in an embedded engine | only with host shims | unmodified |
 | JavaScript the engine must parse | 536 KB | 15 KB |
 | First module load | 126 ms | 76 ms |

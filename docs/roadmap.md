@@ -19,7 +19,8 @@ work can be judged before it is started.
 **This is now the default.** `NativePackageManager` creates a package.json, installs a dependency
 graph into node_modules, and writes a lock file that real `npm ci` accepts, with nothing installed
 but the .NET SDK. Version resolution is checked against npm's own semver package rather than against
-a reading of the specification, and the trees it produces are compared against npm's. npm remains
+a reading of the specification, and the trees it produces were compared against npm's while it was
+being built. npm remains
 available behind `JsxCoreUseNpm`.
 
 That closes the last external tool JsxCore required. No Node process ran during a build or a request

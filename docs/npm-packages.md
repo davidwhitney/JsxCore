@@ -1,5 +1,7 @@
 # Using npm packages
 
+← [Documentation index](README.md)
+
 Views can import packages from `node_modules`. Install one and it works in both render modes:
 
 ```bash
@@ -91,13 +93,18 @@ import classNames from "classnames";
 ```
 
 Named imports are the one thing wrapping cannot do in general, because a CommonJS module's exports
-only exist once it has run. Assignments of the form `exports.name = ...` are detected and re-exported,
-which covers most packages, but the reliable form is a default import:
+only exist once it has run. Assignments of the form `exports.name = ...` are detected and
+re-exported, and an entry point that is nothing but `module.exports = require("./cjs/thing.js")` is
+followed to the module it names, which is how packages that pick a build at load time still offer
+named imports. That covers most packages, but the reliable form is a default import:
 
 ```tsx
 import pkg from "some-commonjs-package";
 const { thing } = pkg;
 ```
+
+Packages branching on `process.env.NODE_ENV` get a `process` of their own, scoped to the module, so
+the branch resolves in a browser that has no such global. It reports `production`.
 
 ---
 

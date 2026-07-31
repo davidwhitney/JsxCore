@@ -90,7 +90,8 @@ need to.
 ## Hooks
 
 The full set, from `preact/hooks`: `useState`, `useEffect`, `useRef`, `useMemo`, `useCallback`,
-`useReducer`, `useContext` and the rest.
+`useReducer`, `useContext` and the rest. In [React mode](runtimes.md) they come from `react`
+instead; nothing else about a view changes.
 
 ```tsx
 import { useState } from "preact/hooks";

@@ -95,8 +95,8 @@ export default function Page({ model }: ViewProps<Model>) {
 }
 ```
 
-If the two passes produce different markup, the client render wins, but in Preact mode a
-mismatch means hydration has to repair the DOM, which costs more than getting it right. Keep the
+If the two passes produce different markup, the client render wins, but a mismatch means hydration
+has to repair the DOM, which costs more than getting it right. Keep the
 first render deterministic: no `Date.now()`, no `Math.random()`, no reading `window`.
 
 ---

@@ -52,7 +52,8 @@ A clean checkout needs no npm step of its own. When the compiler is missing, the
 before compiling:
 
 ```
-JsxCore: the TypeScript compiler is not installed. Fetching it with npm into /src/MyApp/
+JsxCore: restoring with native: typescript
+JsxCore: fetching @typescript/typescript-linux-x64@7.0.2
 ```
 
 So a pipeline is just:
@@ -153,14 +154,20 @@ application needs **no `node_modules`, no TypeScript and no Node.js**.
 If you would rather compile at startup in production, leave `PrecompiledOnly` off and make sure the
 TypeScript package is present on the server.
 
-### What Preact needs
+### What the framework needs
 
-The build target publishes Preact's ES modules under `node_modules/` in the output, because the
-view engine stages them at startup. Only the `.mjs` files and package manifests are taken, a few
-tens of kilobytes rather than the whole package, and the running application resolves them the same
-way it does in development.
+**Preact needs nothing.** It ships inside the JsxCore package, and the view engine stages it out of
+the assembly at startup, so there is nothing to publish and nothing to install. If you have
+installed your own Preact, the build publishes its `.mjs` files and manifests under `node_modules/`
+— a few tens of kilobytes rather than the whole package — and the running application resolves them
+the same way it does in development.
 
-You do not need npm on the server. You do need it on the **build** machine.
+**React is restored from npm**, like any other dependency, and `react` and `react-dom` are carried
+into the publish output because they are regular `dependencies`. Their `@types` packages are dev
+dependencies and are left out.
+
+You need npm on neither the server nor the **build** machine: JsxCore restores from the registry
+itself.
 
 ### Containers
 
@@ -179,7 +186,8 @@ COPY --from=build /app .
 ENTRYPOINT ["dotnet", "MyApp.dll"]
 ```
 
-npm exists only in the build stage, to fetch the compiler binary.
+No npm and no Node appear in either stage. The SDK image is enough, because JsxCore fetches the
+compiler binary from the registry itself.
 
 ### Caching and CDNs
 
@@ -212,7 +220,7 @@ options.TypeDefinitions.OutputPath = "Views/generated";
 publish/
 ├── MyApp.dll
 ├── obj/JsxCore/js/          ← compiled views
-├── node_modules/preact/...    ← only the .mjs files, if you use Preact mode
+├── node_modules/react/...      ← only in React mode, or if you installed your own Preact
 ├── wwwroot/
 └── ...
 ```

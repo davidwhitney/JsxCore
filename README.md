@@ -23,6 +23,8 @@ browser, on the server, or both.
 - **npm packages work.** Install a package and import it; it resolves on the server and is served
   to the browser, with no bundler and no import map to write. `dotnet npm add marked` installs one
   without npm on the machine.
+- **Preact or React.** Preact ships inside the package, so nothing is installed to render a view.
+  One project-file property switches to React, which the build restores for you.
 - **Types generated from your C#.** View models are described once, in .NET.
 - **Drops into MVC.** Registers as an `IViewEngine`, so `return View()` finds `Index.tsx`.
 
@@ -139,7 +141,7 @@ migrate a page at a time.
 | | |
 |---|---|
 | **[Getting started](docs/getting-started.md)** | Prerequisites, installation, project layout |
-| **[Runtimes](docs/runtimes.md)** | Preact, which ships inside JsxCore, and how to upgrade it |
+| **[Runtimes](docs/runtimes.md)** | Preact, which ships inside JsxCore, upgrading it, and switching to React |
 | **[Render modes](docs/render-modes.md)** | Client, server, or both |
 | **[Writing views](docs/writing-views.md)** | The view contract, `head`, hooks, the JSX dialect |
 | **[npm packages](docs/npm-packages.md)** | Importing from `node_modules`, on the server and in the browser |

@@ -223,8 +223,17 @@ explicitly.
 
 ### Stale JavaScript after a deploy
 
-Should not happen, because asset URLs contain a content hash, so a change produces a new URL. If you see
-it, check that a proxy is not rewriting `/_jsx/...` paths or stripping the version segment.
+Should not happen, because asset URLs contain a content hash, so a change produces a new URL. The
+build of JsxCore is part of that hash too, so upgrading the package moves every URL even when your
+own sources are untouched. If you do see it, check that a proxy is not rewriting `/_jsx/...` paths
+or stripping the version segment.
+
+### The wrong framework appears to be running
+
+In Development every response carries `X-JsxCore-Framework`, naming what is actually being served.
+The framework is chosen by the build, so if that disagrees with `<JsxCoreFramework>` in the project
+file, the running output was built from something else: rebuild, and check you are not running
+publish output from a different configuration. See [Runtimes](runtimes.md#switching-frameworks).
 
 ---
 
@@ -246,12 +255,11 @@ Things to know before you commit to this:
 - **The render container is owned by JsxCore.** Nodes placed inside it by other scripts may be moved
   or removed.
 
-- **Generated model types need one application run** before a fresh clone type-checks, unless you
-  commit them.
-
-- **The build-time runtime setting is separate** from the application's, so the two can be
-  configured to disagree. JsxCore detects this at startup and refuses to start, but it cannot fix
-  it for you.
+- **Generated model types are only as good as the build can make them.** They are generated during
+  the build, so a fresh clone type-checks after `dotnet build`, but the build cannot see what
+  `Program.cs` configures. Customise `AutoExport`, the naming policy or `EnumsAsStrings` and the
+  build's answer is an approximation until the application runs. See
+  [Model types](model-types.md#when-generation-happens).
 
 ---
 

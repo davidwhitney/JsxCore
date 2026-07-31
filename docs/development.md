@@ -50,6 +50,22 @@ new code. There is no in-place hot update for server rendering. The page reloads
 
 ---
 
+## Which framework is being served
+
+Every response carries a header in Development, so the answer is in the network tab rather than in
+the project file:
+
+```
+X-JsxCore-Framework: preact
+```
+
+It reports what the running application is actually serving, which is the point: the framework is
+chosen by the build, so a project file edited without a rebuild, or output published from a
+different configuration, shows up here as a disagreement with what you expected. The header is not
+written outside Development.
+
+---
+
 ## Editor support
 
 TypeScript-aware editors resolve imports using the nearest `tsconfig.json` to the file being
@@ -107,7 +123,7 @@ options.GenerateEditorTsConfig = false;
 | `obj/JsxCore/js/` | Compiled views | No |
 | `obj/JsxCore/types/index.d.ts` | Types generated from your .NET models | No |
 | `obj/JsxCore/runtime/` | Runtime type declarations, for the compiler | No |
-| `obj/JsxCore/preact/` | Preact, copied from node_modules | No |
+| `obj/JsxCore/preact/` | Preact, staged from the JsxCore package or node_modules | No |
 | `obj/JsxCore/tsconfig.json` | The config the compiler actually uses | No |
 | `Views/tsconfig.json` | Editor support | **Yes** |
 | `package.json` | npm manifest, created by the bootstrap if absent | **Yes** |
@@ -140,9 +156,9 @@ runs from what it just packed.
 
 The suite needs nothing but the .NET SDK. It restores the repository's npm packages with JsxCore's
 own client before the first test, so a clean checkout runs green on a machine with no Node at all.
-CI installs Node anyway, because the tests that compare JsxCore's resolution against npm's skip
-themselves when npm is absent, and a comparison that passes by not running is worth nothing on the
-machine meant to catch a difference.
+CI installs Node anyway, because a couple of tests hand a lock file JsxCore wrote to real `npm ci`
+and check that npm accepts it and installs from it. Those skip themselves when npm is absent, and a
+check that passes by not running is worth nothing on the machine meant to catch the difference.
 
 `.github/workflows/release.yml` publishes to NuGet when a GitHub release is published. The release
 creates the tag, and the tag is the version: `1.4.0` or `v1.4.0` publishes 1.4.0, and a tag that is
