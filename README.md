@@ -160,6 +160,13 @@ integration, generated model types and Preact features:
 dotnet run --project samples/SampleApp
 ```
 
+[`samples/SampleApp.React`](samples/SampleApp.React) is the smallest thing that works: a minimal
+API, one view, and `<JsxCoreFramework>react</JsxCoreFramework>`. The build restores React for it.
+
+```bash
+dotnet run --project samples/SampleApp.React
+```
+
 ---
 
 ## Licence

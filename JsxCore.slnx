@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/samples/">
     <Project Path="samples/SampleApp/SampleApp.csproj" />
+    <Project Path="samples/SampleApp.React/SampleApp.React.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/JsxCore/JsxCore.csproj" />

@@ -105,7 +105,8 @@ three useful things:
 3. **Hot reload is trivial.** The reload client just re-imports the view from the new prefix.
 
 Identical sources produce an identical build id across restarts, so caches survive a redeploy that
-did not change anything.
+did not change anything. The build of JsxCore is folded in alongside them, because the same view and
+the same package can compile to different output under a different version.
 
 ---
 

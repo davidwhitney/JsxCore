@@ -34,6 +34,8 @@ public sealed class JsxAssetMiddleware(
     private const string RuntimeSegment = "runtime";
     private const string NpmSegment = "npm";
 
+    // Development only: it describes the build rather than the request, so a public server has no
+    // reason to volunteer it.
     private const string FrameworkHeader = "X-JsxCore-Framework";
 
     private readonly NpmClientGraph? _npmGraph = npmGraph;
@@ -48,6 +50,13 @@ public sealed class JsxAssetMiddleware(
 
     public async Task InvokeAsync(HttpContext context)
     {
+        // On every response, not just on assets: the question this answers is "what is this
+        // application rendering with", and the request people ask it of is the page.
+        if (_development)
+        {
+            context.Response.Headers[FrameworkHeader] = _runtime.Name;
+        }
+
         if (!context.Request.Path.StartsWithSegments(_options.RequestPath, out var remainder))
         {
             await _next(context).ConfigureAwait(false);
@@ -169,14 +178,6 @@ public sealed class JsxAssetMiddleware(
     private async Task ServeAsync(HttpContext context, ResolvedAsset asset)
     {
         context.Response.ContentType = ContentTypeFor(asset.Name);
-
-        // Which framework produced this, for anyone looking at a response and wondering. Only in
-        // development: it describes the build rather than the request, so it is a detail about the
-        // application that a public server has no reason to volunteer.
-        if (_development)
-        {
-            context.Response.Headers[FrameworkHeader] = _runtime.Name;
-        }
 
         // Build-id-scoped URLs never change contents, so they can be cached indefinitely. In
         // development the id changes on every edit, which is what makes that safe.

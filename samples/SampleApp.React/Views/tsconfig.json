@@ -1,0 +1,55 @@
+{
+  "compilerOptions": {
+    "target": "es2022",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "lib": [
+      "es2022",
+      "dom",
+      "dom.iterable"
+    ],
+    "jsx": "react-jsx",
+    "jsxImportSource": "preact",
+    "rewriteRelativeImportExtensions": true,
+    "allowImportingTsExtensions": true,
+    "allowJs": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+    "isolatedModules": true,
+    "noEmitOnError": false,
+    "noEmit": true,
+    "paths": {
+      "@jsxcore/runtime": [
+        "../obj/JsxCore/runtime/index.d.ts"
+      ],
+      "@jsxcore/runtime/*": [
+        "../obj/JsxCore/runtime/*"
+      ],
+      "preact": [
+        "../../../node_modules/preact/src/index.d.ts"
+      ],
+      "preact/hooks": [
+        "../../../node_modules/preact/hooks/src/index.d.ts"
+      ],
+      "preact/jsx-runtime": [
+        "../../../node_modules/preact/jsx-runtime/src/index.d.ts"
+      ],
+      "preact/jsx-dev-runtime": [
+        "../../../node_modules/preact/jsx-runtime/src/index.d.ts"
+      ],
+      "preact/compat": [
+        "../../../node_modules/preact/compat/src/index.d.ts"
+      ],
+      "preact-render-to-string": [
+        "../../../node_modules/preact-render-to-string/dist/index.d.ts"
+      ]
+    }
+  },
+  "//": "jsxcore-generated: written by JsxCore so editors can resolve '@jsxcore/runtime'. Delete or edit this file freely; JsxCore only overwrites a file that still contains the marker above. Compilation itself uses the config in the intermediate output directory, not this one.",
+  "include": [
+    "**/*",
+    "../obj/JsxCore/types/pending.d.ts"
+  ]
+}

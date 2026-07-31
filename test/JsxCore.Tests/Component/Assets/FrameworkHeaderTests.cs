@@ -15,6 +15,9 @@ public class FrameworkHeaderTests
         return project;
     }
 
+    private static string? Header(HttpResponseMessage response) =>
+        response.Headers.TryGetValues("X-JsxCore-Framework", out var values) ? values.First() : null;
+
     private static async Task<string?> HeaderFor(JsFramework framework, string environment)
     {
         using var project = Project(framework);
@@ -28,8 +31,7 @@ public class FrameworkHeaderTests
         var html = await host.GetStringAsync("/client/Index");
         var module = html.Split('"').First(part => part.EndsWith("/views/Home/Index.js", StringComparison.Ordinal));
 
-        var response = await host.Client.GetAsync(module);
-        return response.Headers.TryGetValues("X-JsxCore-Framework", out var values) ? values.First() : null;
+        return Header(await host.Client.GetAsync(module));
     }
 
     [Theory]
@@ -37,6 +39,21 @@ public class FrameworkHeaderTests
     [InlineData(JsFramework.React, "react")]
     public async Task Assets_InDevelopment_SayWhichFrameworkServedThem(JsFramework framework, string expected) =>
         (await HeaderFor(framework, "Development")).ShouldBe(expected);
+
+    [Fact]
+    public async Task Pages_InDevelopment_SayItToo()
+    {
+        // The page is the request people actually look at, so an assets-only header is invisible
+        // to anyone checking in a browser.
+        using var project = Project(JsFramework.Preact);
+        await project.CompileAsync();
+
+        await using var host = await JsxTestHost.StartAsync(
+            project,
+            options => options.TypeDefinitions.ApplicationAssembly = FrameworkAssembly.For(JsFramework.Preact));
+
+        Header(await host.Client.GetAsync("/client/Index")).ShouldBe("preact");
+    }
 
     [Fact]
     public async Task Assets_OutsideDevelopment_SayNothing() =>

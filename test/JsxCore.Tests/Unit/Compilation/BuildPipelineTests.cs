@@ -71,7 +71,7 @@ public class BuildPipelineTests
             new RecordingStep("b", null, true, log),
             new RecordingStep("c", "ccc", true, log));
 
-        (await pipeline.RunAsync(Context())).ShouldBe("aaaccc");
+        (await pipeline.RunAsync(Context())).ShouldBe(LibraryIdentity.Value + "aaaccc");
     }
 
     [Fact]
@@ -82,7 +82,7 @@ public class BuildPipelineTests
             new RecordingStep("a", "aaa", true, log),
             new RecordingStep("b", "bbb", false, log));
 
-        (await pipeline.RunAsync(Context())).ShouldBe("aaa");
+        (await pipeline.RunAsync(Context())).ShouldBe(LibraryIdentity.Value + "aaa");
     }
 
     [Fact]
@@ -181,7 +181,7 @@ public class BuildPipelineTests
         var fingerprint = await new BuildPipeline(
             new GatherProjectInputs(), new CheckDeclaredPackages()).RunAsync(Context());
 
-        fingerprint.ShouldBeEmpty();
+        fingerprint.ShouldBe(LibraryIdentity.Value);
     }
 
     [Fact]
@@ -231,5 +231,16 @@ public class BuildPipelineTests
         cache.Get("build-1", () => { built++; return "one again"; });
 
         built.ShouldBe(1);
+    }
+
+    [Fact]
+    public async Task Run_Always_FoldsTheLibraryBuildIntoTheFingerprint()
+    {
+        // Asset URLs carry this and are cached for a year. Upgrading JsxCore can change what a
+        // package is wrapped into without changing any input, so a build id assembled only from
+        // inputs leaves browsers serving what the previous version produced.
+        var fingerprint = await new BuildPipeline().RunAsync(Context());
+
+        fingerprint.ShouldContain(LibraryIdentity.Value);
     }
 }

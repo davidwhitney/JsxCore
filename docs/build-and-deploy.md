@@ -187,7 +187,9 @@ Compiled modules are served from `/_jsx/v{buildId}/...` with a one-year immutabl
 The build id is a content hash, so it is safe to put a CDN in front of that path with a long TTL:
 a deployment that changes a view changes the URL.
 
-A deployment that changes *nothing* produces the same build id, so caches survive it.
+A deployment that changes *nothing* produces the same build id, so caches survive it. Upgrading
+JsxCore itself always changes it: the version that transformed the assets is part of the hash, so a
+new release cannot serve different content at a URL a browser already holds for a year.
 
 ### Generated model types in CI
 

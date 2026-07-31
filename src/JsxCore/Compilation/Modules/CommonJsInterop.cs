@@ -73,6 +73,12 @@ public static partial class CommonJsInterop
         }
         builder.AppendLine("]);");
         builder.AppendLine();
+        // Supplied like module, exports and require: CommonJS packages branch on NODE_ENV while
+        // their own body runs, and a browser has no process to read. Scoped to the module rather
+        // than defined globally, so nothing else in the page sees it.
+        builder.AppendLine(
+            "const process = globalThis.process ?? " +
+            "{ env: { NODE_ENV: \"production\" }, platform: \"browser\", argv: [] };");
         builder.AppendLine("const module = { exports: {} };");
         builder.AppendLine("let exports = module.exports;");
         builder.AppendLine("function require(id) {");
@@ -82,9 +88,9 @@ public static partial class CommonJsInterop
         builder.AppendLine("        \"Node built-in modules are not available in the embedded engine.\");");
         builder.AppendLine("}");
         builder.AppendLine();
-        builder.AppendLine("(function (module, exports, require) {");
+        builder.AppendLine("(function (module, exports, require, process) {");
         builder.AppendLine(source);
-        builder.AppendLine("})(module, exports, require);");
+        builder.AppendLine("})(module, exports, require, process);");
         builder.AppendLine();
         builder.AppendLine("export default module.exports;");
 

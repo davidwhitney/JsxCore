@@ -1,3 +1,4 @@
+using JsxCore.Compilation.Assets;
 using Microsoft.Extensions.Logging;
 
 namespace JsxCore.Compilation.Pipeline;
@@ -9,6 +10,10 @@ public sealed class BuildPipeline(params IBuildStep[] steps)
     public async ValueTask<string> RunAsync(BuildContext context, CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(context);
+
+        // Before anything the steps contribute: which build of JsxCore did the transforming is as
+        // much a part of what gets served as the files that went in.
+        context.Contribute(LibraryIdentity.Value);
 
         // Order is load bearing: the compiler cannot resolve the runtime types until they are
         // on disk, nor a model type until it has been generated.

@@ -77,4 +77,16 @@ public class CommonJsReExportTests
         wrapped.ShouldContain("export const extra =");
         wrapped.ShouldContain("export const jsxs =");
     }
+
+    [Fact]
+    public void Wrap_SourceReadsProcessEnv_GetsItsOwnRatherThanTheHosts()
+    {
+        // A browser has no process, and React's entry points read NODE_ENV while their own body
+        // runs, so without this the module throws before the client can mount anything.
+        var wrapped = Wrap(BranchedReExport);
+
+        wrapped.ShouldContain("const process = globalThis.process ??");
+        wrapped.ShouldContain("NODE_ENV");
+        wrapped.ShouldContain("(function (module, exports, require, process) {");
+    }
 }

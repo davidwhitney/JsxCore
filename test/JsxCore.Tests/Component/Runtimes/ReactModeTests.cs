@@ -216,6 +216,29 @@ public class ReactModeTests
         served.ShouldContain("export const createElement =");
     }
 
+    [Fact]
+    public async Task Assets_WrappedPackage_DoesNotDependOnAGlobalProcess()
+    {
+        // React's entries read NODE_ENV while their own body runs. The server engine is shimmed, but
+        // a browser has no process at all, so a wrapped module that reaches for the global one throws
+        // before it exports anything and the page never becomes interactive.
+        using var project = ReactProject();
+        project.AddView("Home/Index.tsx", """
+            export default function Index() { return <p>hi</p>; }
+            """);
+
+        await project.CompileAsync();
+
+        await using var host = await JsxTestHost.StartAsync(project, options =>
+            options.TypeDefinitions.ApplicationAssembly = FrameworkAssembly.For(JsFramework.React));
+
+        var html = await host.GetStringAsync("/client/Index");
+        var served = await host.GetStringAsync(ExtractUrl(html, "/npm/0/react/index.js"));
+
+        served.ShouldContain("process.env");
+        served.ShouldContain("const process = globalThis.process ??");
+    }
+
     private static string ExtractUrl(string html, string ending)
     {
         var quoted = html.Split('"').FirstOrDefault(part => part.EndsWith(ending, StringComparison.Ordinal));
