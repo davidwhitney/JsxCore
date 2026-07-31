@@ -6,11 +6,21 @@
 [![NuGet](https://img.shields.io/nuget/v/JsxCore.svg)](https://www.nuget.org/packages/JsxCore)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Write your views as `.tsx` or `.jsx` files and return them from controllers or minimal APIs. They
-are compiled by the native TypeScript compiler and served as native ES modules. They render in the
-browser, on the server, or both.
+Native JSX, React and Preact support for ASP.NET MVC, WebAPI and Minimal APIs. JsxCore provides a "vite like" developer experience to the .NET ecosystem.
 
-**No bundler. No Node.js process. No hand-written model interfaces.**
+Write your views as `.tsx` files and return them from a controller or a minimal API. They are real
+components — real JSX, rendered by **Preact**, which ships inside the package, or by **React**,
+which the build restores for you — running on the server for first paint, in the browser for
+interactivity, or both, chosen per response. The model comes from your endpoint, and its TypeScript
+type is generated from your C#, so the two cannot drift.
+
+There is no bundler, no Node.js process and no toolchain to assemble. TypeScript 7 is a native
+binary JsxCore starts directly, imports are rewritten so the browser walks the module graph itself,
+and npm packages are restored by talking to the registry, so `dotnet build` is the entire build.
+Save a view and hot reload pushes it over a WebSocket: the browser re-imports that one module and
+re-renders in place, falling back to a page reload only when it cannot, and a type error arrives as
+an overlay instead of a broken page. `dotnet add package JsxCore` and `dotnet run` is the whole of
+the setup, on any machine with the .NET SDK.
 
 - **Views are components.** The same component renders on the server for first paint and SEO, in
   the browser for interactivity, or both, chosen per response.
