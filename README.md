@@ -6,7 +6,7 @@
 [![NuGet](https://img.shields.io/nuget/v/JsxCore.svg)](https://www.nuget.org/packages/JsxCore)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-Native JSX, React and Preact support for ASP.NET MVC, WebAPI and Minimal APIs. JsxCore provides a "vite like" developer experience to the .NET ecosystem.
+Native JSX, React, Preact and TypeScript support for ASP.NET MVC, WebAPI and Minimal APIs. JsxCore provides a "vite-like" developer experience to the .NET ecosystem.
 
 Write your views as `.tsx` files and return them from a controller or a minimal API. They are real
 components — real JSX, rendered by **Preact**, which ships inside the package, or by **React**,
