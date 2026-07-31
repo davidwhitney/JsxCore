@@ -70,6 +70,16 @@ A restore ran and some packages are still absent. Usual causes:
 
 Views importing the listed packages will fail to render.
 
+### "configured to minify assets but esbuild was not found"
+
+Minification is on and the esbuild binary is not in `node_modules`. Assets are served unminified,
+which is why this is a warning. Build the project to restore it, or add it yourself with
+`dotnet npm add esbuild --dev`. It only appears where minification is enabled, which by default
+means Release builds. See [Build and deploy](build-and-deploy.md#minification-and-compression).
+
+If the machine is one esbuild publishes no binary for, set `JsxCoreMinify` to `false` rather than
+carrying the warning.
+
 ### `warning JSX0001` during build, and no compiled views
 
 The build could not find the TypeScript compiler and could not install it either. Usual causes:
@@ -220,6 +230,13 @@ Relative imports must include the real extension (`./Card.tsx`) so TypeScript ca
 `UseJsxCore()` must be in the pipeline, and must run **before** `UseRouting()` so asset requests
 short-circuit early. Check that the environment is Development, or set `options.HotReload = true`
 explicitly.
+
+### Assets arrive compressed when something in front already compresses them
+
+Turn JsxCore's own off with `<JsxCoreCompressAssets>false</JsxCoreCompressAssets>`. Compressing
+twice costs CPU and saves nothing. JsxCore sets `Vary: Accept-Encoding` on every asset response
+whenever compression is on, including uncompressed ones, so a shared cache cannot hand a compressed
+body to a client that asked for neither.
 
 ### Stale JavaScript after a deploy
 

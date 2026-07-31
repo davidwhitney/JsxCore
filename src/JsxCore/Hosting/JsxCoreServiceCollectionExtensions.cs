@@ -92,6 +92,19 @@ public static class JsxCoreServiceCollectionExtensions
             options.EnableReactCompatibility = false;
         }
 
+        // Minification and compression follow the build unless the application overrides them, so
+        // that turning either off in the project file is honoured by an application that compiles
+        // at startup as well as by one serving what the build produced.
+        var assembly = options.TypeDefinitions.ApplicationAssembly;
+        var minify = ConfiguredOptimisation.Resolve(
+            options.Minify, ConfiguredOptimisation.Minify(assembly), environment.IsDevelopment());
+
+        var compress = ConfiguredOptimisation.Resolve(
+            options.CompressAssets, ConfiguredOptimisation.Compress(assembly), environment.IsDevelopment());
+
+        services.TryAddSingleton(new AssetCompressionSettings(compress));
+        services.TryAddSingleton(new AssetCompressionCache());
+
         services.TryAddSingleton(provider => new ReactEntryStager(layout));
 
         // Preact is staged from the copy JsxCore ships, or from the application's own if it
@@ -108,7 +121,8 @@ public static class JsxCoreServiceCollectionExtensions
             provider.GetRequiredService<ILogger<JsxCompilationService>>(),
             framework == JsFramework.React ? null : provider.GetRequiredService<PreactVendorStager>(),
             framework == JsFramework.React ? provider.GetRequiredService<ReactEntryStager>() : null,
-            framework));
+            framework,
+            minify ? LocateMinifier(options, contentRoot, provider) : null));
 
         services.TryAddSingleton(provider => framework == JsFramework.React
             ? JsxRuntimeLayout.React(provider.GetRequiredService<ReactEntryStager>())
@@ -127,7 +141,18 @@ public static class JsxCoreServiceCollectionExtensions
         if (options.AllowNodeModules)
         {
             services.TryAddSingleton(provider =>
-                new NpmClientGraph(provider.GetRequiredService<NodeModuleResolver>()));
+            {
+                // Packages are the bulk of what a browser downloads, so they are the bytes
+                // minification is really for: the views are usually a rounding error beside them.
+                var minifier = minify ? LocateMinifier(options, contentRoot, provider) : null;
+
+                return new NpmClientGraph(
+                    provider.GetRequiredService<NodeModuleResolver>(),
+                    minifier is null
+                        ? null
+                        : sources => minifier.MinifySources(
+                            sources, Path.Combine(layout.WorkingDirectory, "min", "npm")));
+            });
         }
 
         services.TryAddSingleton(provider =>
@@ -198,6 +223,34 @@ public static class JsxCoreServiceCollectionExtensions
         {
             return ex.Message;
         }
+    }
+
+    /// <summary>
+    /// The minifier, or null with a warning when esbuild is not there.
+    /// </summary>
+    /// <remarks>
+    /// Resolved once and shared, because probing runs the binary. Not finding it is not fatal: the
+    /// application serves what it would have served anyway, only larger, and the warning names the
+    /// command that fixes it.
+    /// </remarks>
+    private static JsMinifier? LocateMinifier(
+        JsxCoreOptions options, string contentRoot, IServiceProvider provider)
+    {
+        var logger = provider.GetRequiredService<ILoggerFactory>().CreateLogger("JsxCore");
+
+        var toolchain = EsbuildToolchainLocator.Locate(
+            contentRoot, options.MinifierPath, options.AdditionalToolchainSearchPaths);
+
+        if (toolchain is not null)
+        {
+            return new JsMinifier(toolchain, logger);
+        }
+
+        logger.LogWarning(
+            "JsxCore is configured to minify assets but esbuild was not found, so they are served " +
+            "unminified. Build the project to install it, or run: dotnet npm add esbuild --dev");
+
+        return null;
     }
 
     private static Assembly? ResolveApplicationAssembly(IWebHostEnvironment environment)

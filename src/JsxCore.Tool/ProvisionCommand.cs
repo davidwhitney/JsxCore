@@ -1,5 +1,6 @@
 using JsxCore;
 using JsxCore.Compilation;
+using JsxCore.Compilation.Assets;
 using JsxCore.Compilation.Provisioning;
 using JsxCore.Compilation.Provisioning.PackageManagement;
 
@@ -33,7 +34,7 @@ public static class ProvisionCommand
         var directory = arguments.Optional("manifest-dir")
             ?? NearestManifestDirectory(projectDirectory);
 
-        var required = RequiredPackages(options, framework);
+        var required = RequiredPackages(options, framework, arguments.Flag("minify"));
         var outstanding = required
             .Where(package => !Installed(directory, package.Name))
             .Select(package => package.Name)
@@ -85,7 +86,8 @@ public static class ProvisionCommand
         return Satisfied;
     }
 
-    private static IReadOnlyList<PackageRequest> RequiredPackages(JsxCoreOptions options, JsFramework framework)
+    private static IReadOnlyList<PackageRequest> RequiredPackages(
+        JsxCoreOptions options, JsFramework framework, bool minify)
     {
         var packages = new List<PackageRequest>
         {
@@ -106,11 +108,29 @@ public static class ProvisionCommand
             packages.Add(new PackageRequest("@types/react-dom", string.Empty, Development: true));
         }
 
+        // esbuild minifies what is served. A development dependency, because it runs during the
+        // build and never on the server: what reaches production is its output.
+        if (minify)
+        {
+            packages.Add(new PackageRequest(
+                EsbuildToolchainLocator.PackageName, string.Empty, Development: true));
+        }
+
         return packages;
     }
 
-    private static bool Installed(string directory, string name) =>
-        File.Exists(Path.Combine(directory, "node_modules", name, "package.json"));
+    private static bool Installed(string directory, string name)
+    {
+        // esbuild is a stub package whose binary lives in a platform-specific dependency, and only
+        // the binary is any use here. Checking the manifest alone would call a half-installed tree
+        // complete, which is exactly the state an interrupted install leaves behind.
+        if (name == EsbuildToolchainLocator.PackageName)
+        {
+            return EsbuildToolchainLocator.Locate(directory) is not null;
+        }
+
+        return File.Exists(Path.Combine(directory, "node_modules", name, "package.json"));
+    }
 
     private static string NearestManifestDirectory(string start)
     {

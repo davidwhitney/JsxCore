@@ -189,6 +189,50 @@ ENTRYPOINT ["dotnet", "MyApp.dll"]
 No npm and no Node appear in either stage. The SDK image is enough, because JsxCore fetches the
 compiler binary from the registry itself.
 
+## Minification and compression
+
+Both are on for Release builds and off for Debug, because they cost build time and obscure the
+source, which is the wrong trade while developing. Either can be turned off:
+
+```xml
+<PropertyGroup>
+  <JsxCoreMinify>false</JsxCoreMinify>
+  <JsxCoreCompressAssets>false</JsxCoreCompressAssets>
+</PropertyGroup>
+```
+
+The settings are stamped onto your assembly, so an application that compiles views at startup obeys
+the same answer as one serving what the build produced. `options.Minify` and
+`options.CompressAssets` override it from application code if you need to decide at run time.
+
+**Minification is esbuild**, restored as a dev dependency alongside the TypeScript compiler when it
+is switched on, and run the same way: a native binary, no Node, nothing on the server. It never
+fails a build. If the binary is missing, or a package is written in something it refuses, the
+original is served and a warning says so — a larger payload is a worse outcome than a smaller one,
+and a better outcome than an application that will not start.
+
+It covers everything the browser downloads: your compiled views, the framework, and the npm
+packages, which are usually the bulk of it. Views are minified both by the build, for a
+`PrecompiledOnly` deployment where nothing recompiles them later, and at startup for an application
+that compiles then.
+
+**Compression** is Brotli where the client takes it and gzip otherwise, computed once per build and
+held in memory rather than repeated per request. Turn it off if a reverse proxy or CDN in front of
+the application already compresses, since doing it twice costs CPU and saves nothing.
+
+On the React sample, the whole client payload:
+
+| | bytes | |
+|---|---|---|
+| as published by npm | 1,762,890 | |
+| minified | 606,756 | 66% smaller |
+| minified, gzipped | 190,964 | |
+| minified, Brotli | 161,547 | **91% smaller than the first row** |
+
+Minified and unminified assets never share a URL: the setting is part of the build id, so turning
+minification on moves every URL rather than serving different bytes from one a browser has already
+cached for a year.
+
 ### Caching and CDNs
 
 Compiled modules are served from `/_jsx/v{buildId}/...` with a one-year immutable `Cache-Control`.

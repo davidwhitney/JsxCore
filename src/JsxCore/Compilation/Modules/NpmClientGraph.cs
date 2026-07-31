@@ -7,7 +7,13 @@ public sealed record NpmClientManifest(
     IReadOnlyDictionary<string, string> ImportMap,
     IReadOnlyDictionary<string, NpmClientAsset> Assets);
 
-public sealed class NpmClientGraph(NodeModuleResolver npm)
+/// <param name="transform">
+/// Applied to every asset once the graph is closed, keyed by URL. Batching the whole graph is what
+/// makes minification affordable: one pass over hundreds of modules rather than one per module.
+/// </param>
+public sealed class NpmClientGraph(
+    NodeModuleResolver npm,
+    Func<IReadOnlyDictionary<string, string>, IReadOnlyDictionary<string, string>>? transform = null)
 {
     private const string JavaScriptContentType = "text/javascript; charset=utf-8";
 
@@ -101,7 +107,27 @@ public sealed class NpmClientGraph(NodeModuleResolver npm)
             }
         }
 
-        return new NpmClientManifest(importMap, assets);
+        return new NpmClientManifest(importMap, Transformed(assets));
+    }
+
+    /// <summary>
+    /// Hands every asset to the transform at once and takes back what it returns. A key it does not
+    /// answer for keeps its original content, so a partial result is still a working graph.
+    /// </summary>
+    private IReadOnlyDictionary<string, NpmClientAsset> Transformed(
+        IReadOnlyDictionary<string, NpmClientAsset> assets)
+    {
+        if (transform is null || assets.Count == 0)
+        {
+            return assets;
+        }
+
+        var replaced = transform(assets.ToDictionary(pair => pair.Key, pair => pair.Value.Content, StringComparer.Ordinal));
+
+        return assets.ToDictionary(
+            pair => pair.Key,
+            pair => replaced.TryGetValue(pair.Key, out var content) ? pair.Value with { Content = content } : pair.Value,
+            StringComparer.Ordinal);
     }
 
     private NpmClientAsset Prepare(string path, string assetBase, out List<string> dependencies)

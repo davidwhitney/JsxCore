@@ -156,6 +156,31 @@ public sealed class JsxCoreOptions
     public string? NpmPath { get; set; }
 
     /// <summary>
+    /// Whether JavaScript served to the browser is minified. Null follows the build, which minifies
+    /// for Release and not for Debug.
+    /// </summary>
+    /// <remarks>
+    /// Minification needs esbuild, which the build restores alongside the TypeScript compiler when
+    /// this is on. If it is not there, assets are served unminified and a warning says so: a larger
+    /// payload is a worse outcome than a smaller one, and a better outcome than not starting.
+    /// </remarks>
+    public bool? Minify { get; set; }
+
+    /// <summary>Explicit path to the esbuild binary, skipping discovery.</summary>
+    public string? MinifierPath { get; set; }
+
+    /// <summary>
+    /// Whether assets are compressed before they are sent. Null follows the build, which compresses
+    /// for Release and not for Debug.
+    /// </summary>
+    /// <remarks>
+    /// Brotli where the client takes it, gzip otherwise, computed once per build and held. Turn it
+    /// off if something in front of the application already compresses, since doing it twice costs
+    /// CPU and saves nothing.
+    /// </remarks>
+    public bool? CompressAssets { get; set; }
+
+    /// <summary>
     /// Which package manager restores packages. Null picks the first that can run, which is
     /// <c>native</c>.
     /// </summary>

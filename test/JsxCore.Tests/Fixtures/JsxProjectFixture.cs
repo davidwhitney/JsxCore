@@ -157,6 +157,13 @@ public sealed class JsxProjectFixture : IDisposable
 
         _reactStager = new ReactEntryStager(layout);
 
+        // Minification is opt-in here as it is in an application: a test asks for it by setting
+        // the option, and gets nothing if esbuild is not on the machine.
+        var minifier = Options.Minify == true
+                       && EsbuildToolchainLocator.Locate(Root, Options.MinifierPath) is { } esbuild
+            ? new JsMinifier(esbuild, NullLogger.Instance)
+            : null;
+
         var service = new JsxCompilationService(
             Options,
             layout,
@@ -164,7 +171,8 @@ public sealed class JsxProjectFixture : IDisposable
             NullLogger<JsxCompilationService>.Instance,
             Framework == JsFramework.React ? null : _stager,
             Framework == JsFramework.React ? _reactStager : null,
-            Framework);
+            Framework,
+            minifier);
         _disposables.Add(service);
         return service;
     }

@@ -44,6 +44,15 @@
       ],
       "preact-render-to-string": [
         "../../../node_modules/preact-render-to-string/dist/index.d.ts"
+      ],
+      "react": [
+        "../../../node_modules/preact/compat/src/index.d.ts"
+      ],
+      "react-dom": [
+        "../../../node_modules/preact/compat/src/index.d.ts"
+      ],
+      "react-dom/client": [
+        "../../../node_modules/preact/compat/src/index.d.ts"
       ]
     }
   },

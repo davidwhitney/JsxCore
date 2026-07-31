@@ -3,7 +3,8 @@
   "private": true,
   "description": "TypeScript toolchain for the JsxCore sample app. JsxCore invokes the native tsc binary from this package directly; Node itself is never required at runtime.",
   "devDependencies": {
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "esbuild": "^0.28.1"
   },
   "dependencies": {
     "marked": "^18.0.7",

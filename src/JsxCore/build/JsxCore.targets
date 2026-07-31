@@ -30,16 +30,24 @@
     <JsxCoreTypeChecking Condition="'$(JsxCoreTypeChecking)' == ''">warn</JsxCoreTypeChecking>
 
     <!--
-      builtin | preact. Must match the runtime the application configures. Views are compiled
-      against this runtime's JSX factory, and elements built by one runtime cannot be rendered by
-      the other. The view engine verifies the two agree at startup and fails loudly if they do not.
+      Optional: preact (the default) or react. Views are compiled against this framework's JSX
+      factory, and elements built by one cannot be rendered by the other, so the build stamps the
+      choice onto the assembly for the application to read back.
     -->
+
     <!--
-      Optional. The framework normally comes from the UseFramework call in the application, read
-      back out of the compiled assembly, so nothing has to be set here. Naming one overrides that,
-      which is the answer when the call lives in an assembly the generator does not compile.
-      Values: preact, react.
+      Minify what is served, and compress it on the way out. Both default to Release only: they
+      cost build time and obscure the source, which is the wrong trade while developing.
+
+      Minification needs esbuild, restored alongside the compiler when this is on. Both settings
+      are stamped onto the assembly below, so turning one off here also turns it off for an
+      application that compiles at startup.
     -->
+    <JsxCoreMinify Condition="'$(JsxCoreMinify)' == '' And '$(Configuration)' == 'Release'">true</JsxCoreMinify>
+    <JsxCoreMinify Condition="'$(JsxCoreMinify)' == ''">false</JsxCoreMinify>
+
+    <JsxCoreCompressAssets Condition="'$(JsxCoreCompressAssets)' == '' And '$(Configuration)' == 'Release'">true</JsxCoreCompressAssets>
+    <JsxCoreCompressAssets Condition="'$(JsxCoreCompressAssets)' == ''">false</JsxCoreCompressAssets>
 
     <!--
       Install missing npm packages as part of the build. This is what makes a clean checkout work:
@@ -229,6 +237,17 @@
       <_Parameter2 Condition="'$(JsxCoreFramework)' != ''">$(JsxCoreFramework)</_Parameter2>
       <_Parameter2 Condition="'$(JsxCoreFramework)' == ''">preact</_Parameter2>
     </AssemblyAttribute>
+
+    <!-- Travels for the same reason: the project file decides, the application has to obey. -->
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>JsxCoreMinify</_Parameter1>
+      <_Parameter2>$(JsxCoreMinify)</_Parameter2>
+    </AssemblyAttribute>
+
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>JsxCoreCompressAssets</_Parameter1>
+      <_Parameter2>$(JsxCoreCompressAssets)</_Parameter2>
+    </AssemblyAttribute>
   </ItemGroup>
 
   <!--
@@ -340,7 +359,7 @@
           Condition="Exists('$(MSBuildProjectDirectory)/$(JsxCoreViewsDirectory)')">
 
     <Exec Condition="Exists('$(JsxCoreToolPath)')"
-          Command="$(JsxCoreToolCommand) provision --project-dir &quot;$(MSBuildProjectDirectory)&quot; --manifest-dir &quot;$(_JsxCoreManifestDir)&quot; --framework &quot;$(JsxCoreFramework)&quot; --auto-install &quot;$(JsxCoreAutoInstallDependencies)&quot; --npm-path &quot;$(JsxCoreNpm)&quot; --package-manager &quot;$(JsxCorePackageManager)&quot; --assembly &quot;$(TargetPath)&quot;"
+          Command="$(JsxCoreToolCommand) provision --project-dir &quot;$(MSBuildProjectDirectory)&quot; --manifest-dir &quot;$(_JsxCoreManifestDir)&quot; --framework &quot;$(JsxCoreFramework)&quot; --auto-install &quot;$(JsxCoreAutoInstallDependencies)&quot; --npm-path &quot;$(JsxCoreNpm)&quot; --package-manager &quot;$(JsxCorePackageManager)&quot; --minify &quot;$(JsxCoreMinify)&quot; --assembly &quot;$(TargetPath)&quot;"
           ContinueOnError="true"
           IgnoreExitCode="true"
           StandardOutputImportance="high"
@@ -441,6 +460,17 @@
     <Warning Condition="'$(JsxCoreExitCode)' != '0' And '$(JsxCoreTypeChecking)' != 'error'"
              Code="JSX0003"
              Text="JsxCore: TypeScript reported errors in your views. See the output above." />
+
+    <!--
+      After the compiler, before anything is published or hashed. Views compiled here are what a
+      PrecompiledOnly application serves, and nothing recompiles them later, so if they are not
+      minified now they never will be.
+    -->
+    <Exec Condition="'$(JsxCoreMinify)' == 'true'"
+          Command="$(JsxCoreToolCommand) minify --project-dir &quot;$(MSBuildProjectDirectory)&quot; --working &quot;$(_JsxCoreWorkingArg)&quot; --esbuild &quot;$(JsxCoreMinifierPath)&quot;"
+          WorkingDirectory="$(MSBuildProjectDirectory)"
+          ContinueOnError="true"
+          StandardOutputImportance="high" />
 
     <Touch Files="$(JsxCoreWorkingDirectory)build.stamp" AlwaysCreate="true" />
   </Target>

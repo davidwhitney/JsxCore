@@ -46,6 +46,9 @@ builder.AddJsxCore(options =>
 | `WatchForChanges` | dev only | Recompile when sources change |
 | `HotReload` | dev only | Serve the hot reload client and endpoint |
 | `AutoInstallDependencies` | `Development` | `Never`, `Development` or `Always`: when *startup* may restore packages. The build restores in any configuration |
+| `Minify` | follows the build | Minify served JavaScript. Null takes the project file's answer |
+| `MinifierPath` | auto | Explicit path to the esbuild binary |
+| `CompressAssets` | follows the build | Compress asset responses. Null takes the project file's answer |
 | `NpmPath` | auto | Explicit path to npm |
 | `DependencyInstallTimeout` | 5 minutes | Limit for a single npm command |
 | `OnBootstrapMessage` | console | Where install progress is reported |
@@ -153,6 +156,9 @@ Set these in your `.csproj`. They control [build-time compilation](build-and-dep
 | `JsxCoreManifestDirectory` | beside the project | Directory holding the `package.json` to use, for a solution sharing one |
 | `JsxCoreWorkingDirectory` | `$(BaseIntermediateOutputPath)JsxCore\` | Compiler output |
 | `JsxCoreAutoInstallDependencies` | `true` | Install missing npm packages during the build |
+| `JsxCoreMinify` | Release only | Minify what is served to the browser, with esbuild |
+| `JsxCoreCompressAssets` | Release only | Compress assets on the way out: Brotli, or gzip |
+| `JsxCoreMinifierPath` | auto | Explicit path to the esbuild binary |
 | `JsxCoreNpm` | probed | Path to npm, if it is not on PATH |
 | `JsxCorePackageManager` | `native` | `native` talks to the registry directly; `npm` shells out to npm |
 | `JsxCoreUseNpm` | `false` | Shorthand for `JsxCorePackageManager=npm` |

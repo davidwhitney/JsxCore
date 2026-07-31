@@ -33,6 +33,11 @@ obj/JsxCore/js/Home/Index.js        ES module, imports rewritten to .js
   resolves imports natively        .NET globals injected as CLR objects
 ```
 
+For a Release build there is one more stage: the compiled views, the framework and every npm
+package a view reaches are minified with esbuild, and what is served is compressed on the way out.
+Both are off for Debug. See
+[Build and deploy](build-and-deploy.md#minification-and-compression).
+
 Both sides load **the same compiled files**. There is no separate server bundle and no separate
 client bundle, so a component cannot behave differently depending on which one ran.
 

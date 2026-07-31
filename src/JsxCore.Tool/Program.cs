@@ -13,6 +13,7 @@ try
         ["tsconfig", .. var rest] => TsConfigCommand.Run(Arguments.Parse(rest)),
         ["provision", .. var rest] => ProvisionCommand.Run(Arguments.Parse(rest)),
         ["types", .. var rest] => TypesCommand.Run(Arguments.Parse(rest)),
+        ["minify", .. var rest] => MinifyCommand.Run(Arguments.Parse(rest)),
 
         // Typed by a person, as "dotnet npm add marked". npm's own short aliases are accepted
         // alongside the dotnet-shaped verbs, because muscle memory types "i" and "ls".

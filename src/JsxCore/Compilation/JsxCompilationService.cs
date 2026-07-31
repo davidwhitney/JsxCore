@@ -22,7 +22,8 @@ public sealed class JsxCompilationService(
     ILogger<JsxCompilationService> logger,
     PreactVendorStager? preact = null,
     ReactEntryStager? react = null,
-    JsFramework framework = JsFramework.Preact)
+    JsFramework framework = JsFramework.Preact,
+    JsMinifier? minifier = null)
     : IDisposable
 {
     private readonly JsxCoreOptions _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -52,6 +53,7 @@ public sealed class JsxCompilationService(
         new GenerateModelTypes(),
         new WriteCompilerConfig(framework),
         new CreateOutputDirectory(),
+        new MinifyStagedAssets(minifier, preact?.Directory, react?.Directory),
         new CompileViews(async (fingerprint, token) =>
         {
             // Recorded before compiling: the build id folds in what the earlier steps produced.
@@ -85,6 +87,20 @@ public sealed class JsxCompilationService(
         try
         {
             var result = await _compiler.CompileAsync(Layout, cancellationToken).ConfigureAwait(false);
+
+            // Between compiling and taking the build id, so the id covers what is served rather
+            // than what tsc emitted. Only on success: minifying broken output helps nobody.
+            if (minifier is not null && result.Succeeded)
+            {
+                var count = minifier.MinifyDirectory(Layout.OutputDirectory);
+                if (count > 0)
+                {
+                    _logger.LogInformation(
+                        "JsxCore minified {Count} compiled view(s) with esbuild {Version}.",
+                        count, minifier.Version);
+                }
+            }
+
             var state = new BuildState(NextBuildId(result), result);
 
             LogResult(result);

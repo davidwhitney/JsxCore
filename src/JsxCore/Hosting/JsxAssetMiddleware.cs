@@ -28,7 +28,9 @@ public sealed class JsxAssetMiddleware(
     JsxRuntimeLayout runtime,
     ILogger<JsxAssetMiddleware> logger,
     IHostEnvironment environment,
-    NpmClientGraph? npmGraph = null)
+    NpmClientGraph? npmGraph = null,
+    AssetCompressionSettings? compression = null,
+    AssetCompressionCache? compressionCache = null)
 {
     private const string ViewsSegment = "views";
     private const string RuntimeSegment = "runtime";
@@ -39,6 +41,8 @@ public sealed class JsxAssetMiddleware(
     private const string FrameworkHeader = "X-JsxCore-Framework";
 
     private readonly NpmClientGraph? _npmGraph = npmGraph;
+    private readonly bool _compress = compression?.Enabled ?? false;
+    private readonly AssetCompressionCache _compressionCache = compressionCache ?? new AssetCompressionCache();
     private readonly bool _development = environment?.IsDevelopment() ?? false;
 
     private readonly RequestDelegate _next = next ?? throw new ArgumentNullException(nameof(next));
@@ -187,6 +191,31 @@ public sealed class JsxAssetMiddleware(
             MaxAge = TimeSpan.FromDays(365),
             NoTransform = true
         };
+
+        var encoding = _compress
+            ? AssetCompressionCache.Negotiate(context.Request.Headers.AcceptEncoding)
+            : AssetEncoding.Identity;
+
+        if (encoding != AssetEncoding.Identity)
+        {
+            // Vary regardless of what this particular client accepted: a shared cache holding this
+            // response must not hand a compressed body to a client that asked for neither.
+            context.Response.Headers.Vary = HeaderNames.AcceptEncoding;
+            context.Response.Headers.ContentEncoding = AssetCompressionCache.HeaderValueFor(encoding);
+
+            var compressed = _compressionCache.Get(
+                _compilation.BuildId, asset.Name, encoding,
+                () => asset.Content ?? File.ReadAllBytes(asset.FilePath!));
+
+            context.Response.ContentLength = compressed.Length;
+            await context.Response.Body.WriteAsync(compressed, context.RequestAborted).ConfigureAwait(false);
+            return;
+        }
+
+        if (_compress)
+        {
+            context.Response.Headers.Vary = HeaderNames.AcceptEncoding;
+        }
 
         if (asset.Content is { } content)
         {
