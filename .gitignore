@@ -63,3 +63,6 @@ artifacts/
 # JetBrains Rider
 .idea/
 *.DotSettings.user
+
+# macOS finder metadata, which arrives whenever a folder is opened.
+.DS_Store

@@ -52,6 +52,7 @@
     <Description>Adds and restores npm packages from the command line with nothing installed but the .NET SDK. Resolves versions, verifies integrity, writes node_modules and a package-lock.json that real npm accepts. Ships the same client the JsxCore build uses.</Description>
     <PackageTags>npm;package-manager;dotnet-tool;node;jsxcore;javascript;typescript</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>icon.png</PackageIcon>
     <PackageProjectUrl>https://github.com/davidwhitney/JsxCore</PackageProjectUrl>
     <RepositoryUrl>https://github.com/davidwhitney/JsxCore</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -59,6 +60,9 @@
 
   <ItemGroup>
     <ProjectReference Include="..\JsxCore\JsxCore.csproj" />
+
+    <None Include="..\..\images\jsxcore-nuget-icon-128.png" Pack="true" PackagePath="icon.png"
+          Visible="false" Condition="Exists('..\..\images\jsxcore-nuget-icon-128.png')" />
   </ItemGroup>
 
 </Project>

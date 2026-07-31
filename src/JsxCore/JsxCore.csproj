@@ -26,6 +26,7 @@
     <PackageTags>aspnetcore;mvc;view-engine;tsx;jsx;typescript;preact;ssr;hydration;hmr;esm</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageIcon>icon.png</PackageIcon>
     <PackageProjectUrl>https://github.com/davidwhitney/JsxCore</PackageProjectUrl>
     <RepositoryUrl>https://github.com/davidwhitney/JsxCore</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -64,6 +65,10 @@
 
   <ItemGroup>
     <None Include="..\..\README.md" Pack="true" PackagePath="\" Condition="Exists('..\..\README.md')" />
+
+    <!-- Packed as icon.png so <PackageIcon> can name it without depending on the source file name. -->
+    <None Include="..\..\images\jsxcore-nuget-icon-128.png" Pack="true" PackagePath="icon.png"
+          Visible="false" Condition="Exists('..\..\images\jsxcore-nuget-icon-128.png')" />
   </ItemGroup>
 
   <ItemGroup>

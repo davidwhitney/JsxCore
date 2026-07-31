@@ -1,10 +1,34 @@
 name: Build
 
+# Documentation and images do not change what the build produces, so a change touching only those
+# does not need one. README.md is on the list even though it is packed into the NuGet package: the
+# release workflow builds from the released commit regardless of what this one skipped.
+#
+# Deliberately not listed: anything under .github, samples and test. A workflow change should
+# exercise itself, and a sample or a test is the part of the repository most likely to be wrong
+# about the library.
+#
+# The two lists are duplicated rather than shared through a YAML anchor, because GitHub Actions
+# does not expand anchors: an alias here would silently leave one trigger with no filter at all.
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'images/**'
+      - '**/*.md'
+      - 'LICENSE'
+      - '.gitignore'
+      - '.editorconfig'
   pull_request:
     branches: [main]
+    paths-ignore:
+      - 'docs/**'
+      - 'images/**'
+      - '**/*.md'
+      - 'LICENSE'
+      - '.gitignore'
+      - '.editorconfig'
   workflow_dispatch:
 
 permissions:

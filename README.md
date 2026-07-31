@@ -1,3 +1,6 @@
+<img src="https://raw.githubusercontent.com/davidwhitney/JsxCore/main/images/jsxcore-banner-final.png"
+     alt="JsxCore: JSX and React, natively in ASP.NET Core" width="820">
+
 # JsxCore
 
 **A TSX/JSX view engine for ASP.NET Core.**
@@ -33,6 +36,26 @@ Key Features:
 - **Drops into MVC.** Registers as an `IViewEngine`, so `return View()` finds `Index.tsx`.
 
 📖 **[Read the documentation](docs/README.md)**
+
+---
+
+## What it looks like
+
+The [sample application](#sample-application), rendering the same components three different ways.
+
+**A view mounted in the browser**, from a model serialised by your endpoint:
+
+<img src="https://raw.githubusercontent.com/davidwhitney/JsxCore/main/images/screenshots/sample-client.png" alt="A client-rendered JsxCore view, with a working counter" width="820">
+
+**Calling .NET from a server-rendered view.** No fetch, no API, no bridge: the component asked a C#
+service for the total during rendering, and the browser received markup:
+
+<img src="https://raw.githubusercontent.com/davidwhitney/JsxCore/main/images/screenshots/sample-dotnet-globals.png" alt="A server-rendered view reading values from a .NET service" width="820">
+
+**A type error while you work.** The watcher recompiles on save and pushes the diagnostics to the
+page, rather than serving a stale build or a blank screen:
+
+<img src="https://raw.githubusercontent.com/davidwhitney/JsxCore/main/images/screenshots/hot-reload-error.png" alt="The development overlay showing a TypeScript compilation error" width="820">
 
 ---
 

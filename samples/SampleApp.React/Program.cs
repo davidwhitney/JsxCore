@@ -7,6 +7,7 @@ builder.AddJsxCore(options => options.DefaultRenderMode = RenderMode.ServerAndCl
 
 var app = builder.Build();
 app.UseJsxCore();
+app.UseStaticFiles();   // serves wwwroot/favicon.ico
 
 app.MapGet("/", () => Results.Extensions.Jsx("Home/Index", new IndexModel("React", DateTimeOffset.Now)));
 app.Run();
