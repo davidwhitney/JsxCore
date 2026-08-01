@@ -2,6 +2,9 @@
 
 ← [Documentation index](README.md)
 
+For the import forms themselves, and everything else a view can import, see
+[Import syntax](import-syntax.md).
+
 Describing a view model twice, once as a C# record and once as a TypeScript interface, is the kind
 of duplication that goes stale. JsxCore generates the TypeScript from the .NET types.
 

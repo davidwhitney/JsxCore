@@ -173,9 +173,10 @@ migrate a page at a time.
 | **[Runtimes](docs/runtimes.md)** | Preact, which ships inside JsxCore, upgrading it, and switching to React |
 | **[Render modes](docs/render-modes.md)** | Client, server, or both |
 | **[Writing views](docs/writing-views.md)** | The view contract, `head`, hooks, the JSX dialect |
+| **[Import syntax](docs/import-syntax.md)** | Every import a view can write: components, npm, `dotnet:` |
+| **[Model types](docs/model-types.md)** | TypeScript generated from your .NET models |
 | **[npm packages](docs/npm-packages.md)** | Importing from `node_modules`, on the server and in the browser |
 | **[Package management](docs/package-management.md)** | Installing packages without npm, and the `dotnet npm` tool |
-| **[Model types](docs/model-types.md)** | TypeScript generated from your .NET models |
 | **[.NET interop](docs/dotnet-interop.md)** | Calling .NET directly from server-rendered views |
 | **[Build and deploy](docs/build-and-deploy.md)** | Build modes, and publishing without npm |
 | **[Full documentation](docs/README.md)** | Everything else |

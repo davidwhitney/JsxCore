@@ -21,10 +21,11 @@ A TSX/JSX view engine for ASP.NET Core. To get running, start with
 | **[Runtimes](runtimes.md)** | Preact, which ships inside JsxCore, upgrading it, switching to React, and React compatibility |
 | **[Render modes](render-modes.md)** | Client, server, or both, and what changes in each |
 | **[Writing views](writing-views.md)** | The view contract, component imports, `head`, hooks, the JSX dialect |
+| **[Import syntax](import-syntax.md)** | Every import a view can write, and what each one resolves to |
+| **[Model types](model-types.md)** | TypeScript types generated from your .NET models, and how to control what is exported |
 | **[Returning views](returning-views.md)** | Minimal APIs, MVC controllers, per-response document settings |
 | **[npm packages](npm-packages.md)** | Importing packages from `node_modules`, on the server and in the browser |
 | **[Package management](package-management.md)** | Installing packages without npm, and the `dotnet npm` tool |
-| **[Model types](model-types.md)** | TypeScript types generated from your .NET models, and how to control what is exported |
 | **[.NET interop](dotnet-interop.md)** | Calling .NET objects directly from server-rendered views |
 
 ## Operating it
