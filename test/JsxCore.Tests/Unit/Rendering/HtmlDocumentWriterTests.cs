@@ -16,10 +16,10 @@ public class HtmlDocumentWriterTests
         ModelJson = """{"a":1}""",
         ContextJson = """{"path":"/"}""",
         ModuleUrl = "/_jsx/vabc/views/Home/Index.js",
-        ImportMap = new Dictionary<string, string> { ["@jsxcore/runtime"] = "/_jsx/vabc/runtime/index.js" },
+        ImportMap = new Dictionary<string, string> { ["dotnet:rendering"] = "/_jsx/vabc/runtime/index.js" },
         Options = options ??= new JsxCoreOptions(),
         Document = options.Document,
-        ClientSpecifier = "@jsxcore/runtime/client"
+        ClientSpecifier = "@jsxcore/preact/client"
     };
 
     [Fact]

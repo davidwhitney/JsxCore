@@ -1,6 +1,6 @@
 import { useState } from "preact/hooks";
-import type { ViewProps } from "@jsxcore/runtime";
-import type { SampleApp } from "@jsxcore/generated"; // Auto-exported TypeScript defs for C# classes
+import type { ViewProps } from "dotnet:rendering";
+import type SampleApp from "dotnet:SampleApp"; // Auto-exported TypeScript defs for C# classes
 import { Page, Card } from "../Shared/Layout.tsx";
 
 // The default export is the view component. It receives the .NET model plus an ambient context.

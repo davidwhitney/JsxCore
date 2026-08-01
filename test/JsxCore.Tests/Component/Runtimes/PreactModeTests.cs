@@ -90,7 +90,7 @@ public class PreactModeTests
 
         var emitted = await File.ReadAllTextAsync(Path.Combine(project.Layout.OutputDirectory, "Home", "Index.js"));
         emitted.ShouldContain("preact/jsx-runtime");
-        emitted.ShouldNotContain("@jsxcore/runtime");
+        emitted.ShouldNotContain("dotnet:rendering");
     }
 
     [Fact]
@@ -195,7 +195,7 @@ public class PreactModeTests
         using var project = PreactProject();
         project.Options.Globals.Register("Greeter", new Greeter());
         project.AddView("Home/Index.tsx", """
-            import { dotnet } from "@jsxcore/runtime";
+            import { dotnet } from "dotnet:globals";
             export default function Index() {
                 const greeter = dotnet.Greeter as { greet(name: string): string };
                 return <p>{greeter.greet("Preact")}</p>;

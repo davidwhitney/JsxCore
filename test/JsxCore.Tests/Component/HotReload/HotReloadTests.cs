@@ -50,7 +50,7 @@ public class HotReloadTests
         // Change a view; the watcher recompiles and the service broadcasts the new build id.
         project.AddView("Home/Index.tsx", """
             import { Card } from "../Shared/Card.tsx";
-            import type { ViewProps } from "@jsxcore/runtime";
+            import type { ViewProps } from "dotnet:rendering";
             export default function Index({ model }: ViewProps<{ name: string }>) {
                 return <Card title={`Changed ${model.name}`} />;
             }

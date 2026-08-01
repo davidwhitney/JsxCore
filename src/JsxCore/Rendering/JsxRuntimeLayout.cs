@@ -1,3 +1,4 @@
+using JsxCore.TypeScript;
 using JsxCore.Compilation;
 using JsxCore.Compilation.Assets;
 
@@ -118,13 +119,17 @@ public sealed class JsxRuntimeLayout
             map[specifier] = $"{assetBase}/{AssetSegment}/{fileName}";
         }
 
-        // Trailing-slash entry so anything not listed still resolves within the runtime directory.
-        map[$"{RuntimeAssets.ModuleSpecifier}/"] = $"{assetBase}/runtime/";
-
         // The .NET interop helpers belong to JsxCore rather than to any framework, so they are
         // served from its own runtime directory whatever renders the view.
+        //
+        // An exact entry, and no trailing-slash one: a prefix mapping has to end in "/" to be a
+        // prefix, and "dotnet:" does not. Chrome, Firefox and WebKit all decline to map "dotnet:/",
+        // consistently, so every specifier this scheme serves is listed rather than implied.
         map[RuntimeAssets.ModuleSpecifier] = $"{assetBase}/runtime/dotnet.js";
-        map[$"{RuntimeAssets.ModuleSpecifier}/dotnet"] = $"{assetBase}/runtime/dotnet.js";
+
+        // Generated from what the application registered, and served from the same directory.
+        map[TypeDefinitionOptions.GlobalsSpecifier] =
+            $"{assetBase}/runtime/{GeneratedGlobalsModule.FileName}";
 
         return map;
     }

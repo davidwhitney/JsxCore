@@ -1,6 +1,6 @@
 import { useState } from "preact/hooks";
-import { isServerRender } from "@jsxcore/runtime";
-import type { ViewProps } from "@jsxcore/runtime";
+import { isServerRender } from "dotnet:rendering";
+import type { ViewProps } from "dotnet:rendering";
 import { Page, Card } from "../Shared/Layout.tsx";
 
 // Returned with RenderMode.ServerAndClient: the markup is produced on the server for first paint,

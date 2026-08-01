@@ -24,6 +24,9 @@ builder.AddJsxCore(options =>
 | `Register(name, instance)` | One shared instance, which must be thread-safe |
 | `Register(name, factory)` | Whatever your factory decides |
 
+The first two forms know what they registered, so the global arrives in TypeScript with its methods
+described. A factory returns `object`, so nothing can be said about it and a view sees `any`.
+
 `Register<T>()` defaults the name to the type name, so `Register<InventoryService>()` is exposed as
 `InventoryService`.
 
@@ -31,21 +34,17 @@ builder.AddJsxCore(options =>
 
 ## Calling them
 
-```tsx
-import { dotnet } from "@jsxcore/runtime";
+Each registered global is a named export of `dotnet:globals`, typed from the C# it was registered as:
 
-interface Inventory {
-    getTotalValue(): number;
-    getLowStock(threshold: number): Array<{ sku: string; name: string; quantity: number }>;
-}
+```tsx
+import { Inventory } from "dotnet:globals";
 
 export default function Dashboard() {
-    const inventory = dotnet.Inventory as Inventory;
-    const lowStock = inventory.getLowStock(20);
+    const lowStock = Inventory.getLowStock(20);
 
     return (
         <section>
-            <p>Total: {inventory.getTotalValue().toFixed(2)}</p>
+            <p>Total: {Inventory.getTotalValue().toFixed(2)}</p>
             <ul>{lowStock.map((i) => <li key={i.sku}>{i.name}: {i.quantity}</li>)}</ul>
         </section>
     );
@@ -90,10 +89,24 @@ If your service types live in a `Models` namespace they are already
 [generated for you](model-types.md), so you can often skip the hand-written interface:
 
 ```tsx
-import type { MyApp } from "@jsxcore/generated";
+import type MyApp from "dotnet:MyApp";
 
-const items = dotnet.Inventory.getLowStock(20) as MyApp.Models.StockItem[];
+const items = Inventory.getLowStock(20);   // already typed as MyApp.Models.StockItem[]
 ```
+
+### The escape hatch
+
+`dotnet` is exported from the same module and reaches any global by name. It is what to use for one
+registered under a name that is not a valid identifier, or registered after startup:
+
+```tsx
+import { dotnet } from "dotnet:globals";
+
+const service = dotnet["my service"];
+```
+
+It is untyped, which is the trade: the named exports are generated from what was registered, and
+this is not.
 
 ---
 
@@ -102,13 +115,14 @@ const items = dotnet.Inventory.getLowStock(20) as MyApp.Models.StockItem[];
 `.NET` globals exist **only during server rendering**: `RenderMode.Server`, or the server pass of
 `RenderMode.ServerAndClient`.
 
-Accessing `dotnet` on the client throws with an explanatory message rather than failing silently.
+Using one on the client throws with an explanatory message rather than failing silently.
 If a component runs in both modes, guard it:
 
 ```tsx
-import { dotnet, isServerRender } from "@jsxcore/runtime";
+import { Inventory } from "dotnet:globals";
+import { isServerRender } from "dotnet:rendering";
 
-const summary = isServerRender() ? dotnet.Inventory.getSummary() : null;
+const summary = isServerRender() ? Inventory.getSummary() : null;
 ```
 
 ---

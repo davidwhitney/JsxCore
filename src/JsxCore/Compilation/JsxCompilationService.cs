@@ -48,6 +48,7 @@ public sealed class JsxCompilationService(
         new GatherProjectInputs(),
         new CheckDeclaredPackages(),
         new ExtractRuntimeAssets(),
+        new WriteGlobalsModule(),
         new StagePreactRuntime(preact),
         new StageReactRuntime(react),
         new GenerateModelTypes(),

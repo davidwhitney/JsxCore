@@ -152,8 +152,8 @@ public sealed record IndexModel(string Name);
 
 ```tsx
 // Views/Home/Index.tsx
-import type { ViewProps } from "@jsxcore/runtime";
-import type { MyApp } from "@jsxcore/generated";
+import type { ViewProps } from "dotnet:rendering";
+import type MyApp from "dotnet:MyApp";
 
 export default function Index({ model }: ViewProps<MyApp.Models.IndexModel>) {
     return <h1>Hello {model.name}</h1>;

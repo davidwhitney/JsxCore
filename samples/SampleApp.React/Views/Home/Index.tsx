@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { ViewProps } from "@jsxcore/runtime";
+import type { ViewProps } from "dotnet:rendering";
 
 export const head = { title: "JsxCore with React" };
 

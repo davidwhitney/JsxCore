@@ -21,7 +21,7 @@ public class EditorTsConfigTests
 
         var contents = await File.ReadAllTextAsync(path);
         contents.ShouldContain(TsConfigWriter.GeneratedMarker);
-        contents.ShouldContain("@jsxcore/runtime");
+        contents.ShouldContain("dotnet:rendering");
 
         // The mapping must be relative to the views directory, not absolute.
         contents.ShouldContain("../obj/JsxCore/runtime/index.d.ts");

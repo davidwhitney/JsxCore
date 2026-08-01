@@ -120,7 +120,7 @@ Browser-oriented and pure-JavaScript packages are fine, which is most of what a 
 time cannot be server-rendered. Import it from a client-rendered view, or guard the use:
 
 ```tsx
-import { isServerRender } from "@jsxcore/runtime";
+import { isServerRender } from "dotnet:rendering";
 
 if (!isServerRender()) {
     const { default: chart } = await import("chart.js");

@@ -7,7 +7,20 @@ namespace JsxCore.Compilation.Assets;
 public static class RuntimeAssets
 {
     private const string ResourcePrefix = "JsxCore.Assets.runtime.";
-    public const string ModuleSpecifier = "@jsxcore/runtime";
+    /// <summary>
+    /// Rendering a view: which pass is running, what the view receives, and what it may contribute
+    /// to the document.
+    /// </summary>
+    /// <remarks>
+    /// A reserved name under the same scheme as the assemblies, rather than a scheme of its own.
+    /// One rule to hold: <c>dotnet:</c> is the .NET side of the application — an assembly by name,
+    /// or one of the two names JsxCore reserves, <c>globals</c> and <c>rendering</c>.
+    /// <para>
+    /// It is the contract with the .NET host that lives here, even though JavaScript implements it:
+    /// the server decides what a view is handed and which pass is running.
+    /// </para>
+    /// </remarks>
+    public const string ModuleSpecifier = "dotnet:rendering";
 
     public static readonly IReadOnlyList<string> PublicModules =
     [

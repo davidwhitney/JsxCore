@@ -130,7 +130,14 @@ public sealed class JsxAssetMiddleware(
         if (segments[1] == RuntimeSegment)
         {
             var content = RuntimeAssets.TryGetContent(relative);
-            return content is null ? null : new ResolvedAsset(relative, null, content);
+            if (content is not null)
+            {
+                return new ResolvedAsset(relative, null, content);
+            }
+
+            // Not everything in the runtime directory is embedded: dotnet:globals is generated from
+            // what the application registered, so it exists only on disk.
+            return ResolveUnder(_compilation.Layout.RuntimeDirectory, relative);
         }
 
         // npm packages are served only where a view actually reaches them, and in the form the

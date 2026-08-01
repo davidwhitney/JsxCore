@@ -3,8 +3,8 @@ using Microsoft.Extensions.DependencyInjection;
 namespace JsxCore.Interop;
 
 /// <summary>
-/// The set of .NET objects exposed to server-rendered views via
-/// <c>import { dotnet } from "@jsxcore/runtime/dotnet"</c>.
+/// The set of .NET objects exposed to server-rendered views, each importable by name from
+/// <c>dotnet:globals</c>.
 /// </summary>
 public sealed class JsxGlobalRegistry
 {
@@ -20,7 +20,7 @@ public sealed class JsxGlobalRegistry
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(instance);
 
-        _globals[name] = new GlobalRegistration(name, _ => instance);
+        _globals[name] = new GlobalRegistration(name, _ => instance, instance.GetType());
         return this;
     }
 
@@ -33,7 +33,9 @@ public sealed class JsxGlobalRegistry
         ArgumentException.ThrowIfNullOrWhiteSpace(name);
         ArgumentNullException.ThrowIfNull(factory);
 
-        _globals[name] = new GlobalRegistration(name, factory);
+        // No declared type: a factory returns object, so nothing here says what it produces and
+        // the generated declaration falls back to any. Register<TService>() is the typed form.
+        _globals[name] = new GlobalRegistration(name, factory, ServiceType: null);
         return this;
     }
 
@@ -43,10 +45,19 @@ public sealed class JsxGlobalRegistry
     public JsxGlobalRegistry Register<TService>(string? name = null) where TService : notnull
     {
         var resolvedName = name ?? typeof(TService).Name;
-        return Register(resolvedName, services => services.GetRequiredService<TService>());
+
+        _globals[resolvedName] = new GlobalRegistration(
+            resolvedName, services => services.GetRequiredService<TService>(), typeof(TService));
+
+        return this;
     }
 
     public bool Remove(string name) => _globals.Remove(name);
 }
 
-public sealed record GlobalRegistration(string Name, Func<IServiceProvider, object> Factory);
+/// <param name="ServiceType">
+/// What the global is, when that is knowable. Used to describe it in TypeScript; null means the
+/// registration was a factory, and a view sees the global as <c>any</c>.
+/// </param>
+public sealed record GlobalRegistration(
+    string Name, Func<IServiceProvider, object> Factory, Type? ServiceType = null);

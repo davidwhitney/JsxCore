@@ -33,14 +33,14 @@ public enum Availability { InStock, Backordered, Discontinued }
 No attributes. No registration. Import the root namespace in a view:
 
 ```tsx
-import type { MyApp } from "@jsxcore/generated";
+import type MyApp from "dotnet:MyApp";
 
 export default function Catalogue({ model }: ViewProps<MyApp.Models.CatalogueModel>) {
     return <h1>{model.heading}</h1>;
 }
 ```
 
-The specifier is explicit on purpose: `@jsxcore/generated` makes it obvious at the import site
+The scheme is explicit on purpose: `dotnet:` makes it obvious at the import site
 that these types come from .NET and that editing the declaration file is pointless.
 
 ---
@@ -251,7 +251,7 @@ options.TypeDefinitions.OutputPath = "Views/generated";
 ```
 
 If the assembly cannot be loaded at all, the compiler is given an ambient declaration for
-`@jsxcore/generated` instead, so imports from it type as `any` rather than failing to resolve.
+`dotnet:*` instead, so imports from it type as `any` rather than failing to resolve.
 Build-time generation can be turned off with
 `<JsxCoreGenerateModelTypes>false</JsxCoreGenerateModelTypes>`.
 

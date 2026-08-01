@@ -24,6 +24,29 @@ export function isServerRender() {
 // to one still reaches the current request's instance. Modules are evaluated once per engine and
 // engines are reused between requests, so `const svc = dotnet.Inventory` at module scope would
 // otherwise capture whichever instance existed when that module first ran.
+// Named exports of dotnet:globals are built from this, at module scope, on both the server and the
+// client. It must therefore never touch the bridge until a member is actually read: importing a
+// global into a client-rendered view is fine, and only using one is the mistake.
+export function dotnetGlobal(name) {
+    return new Proxy(Object.create(null), {
+        get(_t, member) {
+            const value = bridge()[name][member];
+            return typeof value === "function"
+                ? (...args) => bridge()[name][member](...args)
+                : value;
+        },
+        has(_t, member) {
+            return member in bridge()[name];
+        },
+        ownKeys() {
+            return Reflect.ownKeys(bridge()[name]);
+        },
+        getOwnPropertyDescriptor(_t, member) {
+            return { value: bridge()[name][member], enumerable: true, configurable: true };
+        }
+    });
+}
+
 function late(name) {
     const target = bridge()[name];
     if (target === null || typeof target !== "object") {

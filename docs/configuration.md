@@ -118,7 +118,24 @@ Controls the HTML wrapper. Every one of these can also be
 | `AutoExport` | `null` | A `TypeSource`; `null` means the built-in convention |
 | `ConventionalNamespaceNames` | `Models`, `ViewModels` | Namespace segments treated as holding view models |
 | `ApplicationAssembly` | from the environment | Assembly the convention scans |
-| `ModuleSpecifier` | `"@jsxcore/generated"` | What views import the types from |
+| *(the specifier)* | `dotnet:<AssemblyName>` | Not configurable: the module is named after the assembly it describes |
+
+### Module specifiers
+
+| Specifier | Holds |
+|---|---|
+| `dotnet:<AssemblyName>` | Types generated from that assembly, reached through their .NET namespace |
+| `dotnet:<AssemblyName>/<Namespace>` | The same types, imported by name from the namespace they live in |
+| `dotnet:globals` | The .NET objects registered with `options.Globals`, one named export each |
+| `dotnet:rendering` | `isServerRender`, and the types a view is handed: `ViewProps`, `HeadDescriptor` |
+
+One rule: `dotnet:` is the .NET side of your application — an assembly by name, or one of the two
+names JsxCore reserves, `globals` and `rendering`. It is not an npm package and does not resolve
+like one; the browser is told about it through the import map, and TypeScript through `paths`.
+
+`globals` and `rendering` are matched exactly and win over an assembly of the same name. .NET
+assemblies are conventionally PascalCase, so a real collision would need an assembly named
+literally `globals` or `rendering`.
 | `OutputPath` | `obj/JsxCore/types` | Where declarations are written |
 | `MirrorNamespaces` | `true` | One TypeScript namespace per .NET namespace |
 | `TrimNamespacePrefix` | `null` | Strip a root namespace from generated names |

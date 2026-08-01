@@ -1,4 +1,4 @@
-import type { ViewProps } from "@jsxcore/runtime";
+import type { ViewProps } from "dotnet:rendering";
 import { Page, Card } from "../Shared/Layout.tsx";
 
 // Reached through a plain MVC controller returning View(model). JsxCore registers itself as an

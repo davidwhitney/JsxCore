@@ -68,7 +68,7 @@ import { Card } from "../Shared/Card.js";
 ```
 
 That is a specifier the browser can fetch directly. The browser walks the import graph itself, so
-there is nothing to bundle. Bare specifiers (`@jsxcore/runtime`, `preact`, your own additions)
+there is nothing to bundle. Bare specifiers (`dotnet:rendering`, `preact`, your own additions)
 are wired up with a generated [import map](extensibility.md#add-module-specifiers).
 
 ### Minification is per module, not a bundle
@@ -132,7 +132,7 @@ the same package can compile to different output under a different version.
 
 ## The embedded runtime
 
-`@jsxcore/runtime` (the JSX factory, the client renderer, the server renderer, the hooks and the
+`dotnet:rendering` (the JSX factory, the client renderer, the server renderer, the hooks and the
 `.NET` bridge) is compiled into the JsxCore assembly as embedded resources.
 
 It is served to the browser and loaded by the server renderer **straight from the assembly

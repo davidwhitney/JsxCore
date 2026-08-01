@@ -70,8 +70,7 @@ public static class TsConfigWriter
         compilerOptions["outDir"] = Normalise(layout.OutputDirectory);
         var paths = new JsonObject
         {
-            [RuntimeAssets.ModuleSpecifier] = new JsonArray("./runtime/index.d.ts"),
-            [RuntimeAssets.ModuleSpecifier + "/*"] = new JsonArray("./runtime/*")
+            [RuntimeAssets.ModuleSpecifier] = new JsonArray("./runtime/index.d.ts")
         };
         var ambientTypes = AddGeneratedTypesPath(options, layout, paths, relativeTo: layout.WorkingDirectory);
         compilerOptions["paths"] = MergePaths(compilerOptions, paths);
@@ -222,8 +221,7 @@ public static class TsConfigWriter
         var runtime = Normalise(Path.GetRelativePath(layout.ViewsDirectory, layout.RuntimeDirectory));
         var paths = new JsonObject
         {
-            [RuntimeAssets.ModuleSpecifier] = new JsonArray($"{runtime}/index.d.ts"),
-            [RuntimeAssets.ModuleSpecifier + "/*"] = new JsonArray($"{runtime}/*")
+            [RuntimeAssets.ModuleSpecifier] = new JsonArray($"{runtime}/index.d.ts")
         };
         var ambientTypes = AddGeneratedTypesPath(options, layout, paths, relativeTo: layout.ViewsDirectory);
         compilerOptions["paths"] = MergePaths(compilerOptions, paths);
@@ -322,19 +320,36 @@ public static class TsConfigWriter
             relative = "./" + relative;
         }
 
+        var globalsGenerated = File.Exists(
+            Path.Combine(layout.GeneratedTypesDirectory, TypeDefinitionOptions.GlobalsFileName));
+
         // A path mapping to a file that is not there resolves to nothing, so the stand-in is
-        // reached the other way: no mapping at all, and an ambient declaration in the program.
-        if (!ModelTypeDeclarations.Exist(layout.GeneratedTypesDirectory))
+        // reached the other way: an ambient declaration in the program.
+        //
+        // The two are generated at different moments. A build can describe the models, because it
+        // has the assembly, but never the globals, because registering one is application code the
+        // build does not run. So the stand-in is needed whenever either is absent, not only on a
+        // first build.
+        if (!ModelTypeDeclarations.Exist(layout.GeneratedTypesDirectory) || !globalsGenerated)
         {
+            var modelsGenerated = ModelTypeDeclarations.Exist(layout.GeneratedTypesDirectory);
+
             ModelTypeDeclarations.WritePending(
-                layout.GeneratedTypesDirectory, options.TypeDefinitions.ModuleSpecifier);
+                layout.GeneratedTypesDirectory, models: !modelsGenerated, globals: !globalsGenerated);
+
+            if (modelsGenerated)
+            {
+                // Models are there; only the globals need standing in for, so keep the mapping.
+                paths[TypeDefinitionOptions.Scheme + "*"] = new JsonArray($"{relative}/*.d.ts");
+            }
 
             return $"{relative}/{ModelTypeDeclarations.PendingFileName}";
         }
 
-        // Everything generated lives in one file; namespaces inside it do the disambiguating.
-        paths[options.TypeDefinitions.ModuleSpecifier] =
-            new JsonArray($"{relative}/{ModelTypeDeclarations.FileName}");
+        // One wildcard rather than one entry per assembly: the name after "dotnet:" is the assembly's,
+        // and the file generated for it is named to match, so the mapping needs no list to keep in
+        // step with what was generated.
+        paths[TypeDefinitionOptions.Scheme + "*"] = new JsonArray($"{relative}/*.d.ts");
 
         return null;
     }

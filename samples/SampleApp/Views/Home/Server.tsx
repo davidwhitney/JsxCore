@@ -1,5 +1,5 @@
-import type { ViewProps } from "@jsxcore/runtime";
-import type { SampleApp } from "@jsxcore/generated";
+import type { ViewProps } from "dotnet:rendering";
+import type SampleApp from "dotnet:SampleApp";
 import { Page, Card } from "../Shared/Layout.tsx";
 
 // Returned with RenderMode.Server, so this component executes on the server and the response is

@@ -59,6 +59,13 @@ public static class JsxCoreServiceCollectionExtensions
         // entry assembly is the test runner.
         options.TypeDefinitions.ApplicationAssembly ??= ResolveApplicationAssembly(environment);
 
+        // What dotnet:globals describes. Read here rather than during generation because registration
+        // is application code, and this is the first point at which all of it has run.
+        options.TypeDefinitions.GlobalTypes = options.Globals.Registrations.ToDictionary(
+            registration => registration.Key,
+            registration => registration.Value.ServiceType,
+            StringComparer.Ordinal);
+
         // Install anything missing before checking, so a first run does not fail on a package the
         // developer had no way to know they needed.
         var bootstrapFailure = TryInstallDependencies(options, environment, contentRoot);

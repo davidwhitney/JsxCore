@@ -6,7 +6,7 @@
  * augmentation:
  *
  * ```tsx
- * import { dotnet } from "@jsxcore/runtime/dotnet";
+ * import { Inventory } from "dotnet:globals";
  * const greeting = (dotnet.Greeter as { greet(name: string): string }).greet("world");
  * ```
  */

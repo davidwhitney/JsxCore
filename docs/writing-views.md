@@ -10,7 +10,7 @@ A view is a module with a **default export** that is a component function. It re
 `context`:
 
 ```tsx
-import type { ViewProps } from "@jsxcore/runtime";
+import type { ViewProps } from "dotnet:rendering";
 
 interface Model { title: string; count: number }
 

@@ -45,7 +45,7 @@ The server emits an HTML shell: the document head, an import map, the serialised
 <script type="application/json" id="jsxcore-model">{"name":"World"}</script>
 <script type="module">
 import Component from "/_jsx/vabc123/views/Home/Index.js";
-import { mountView } from "@jsxcore/runtime/client";
+import { mountView } from "dotnet:rendering/client";
 window.__jsxcore_context = {"path":"/"};
 mountView(Component, {"containerId":"jsxcore-root","modelId":"jsxcore-model","hydrate":false});
 </script>
@@ -85,7 +85,7 @@ rather than the server's markup being thrown away and rebuilt.
 Once on the server, once on the client. Anything server-only has to be guarded:
 
 ```tsx
-import { isServerRender } from "@jsxcore/runtime";
+import { isServerRender } from "dotnet:rendering";
 
 export default function Page({ model }: ViewProps<Model>) {
     // Only exists during the server pass.

@@ -27,6 +27,13 @@ public class TypeGenerationTests
     private static string Generate(Action<TypeDefinitionOptions> configure, JsonSerializerOptions? json = null) =>
         string.Join(Environment.NewLine, GenerateFiles(configure, json).Files.Select(f => f.Contents));
 
+    /// <summary>
+    /// The module holding the declarations. The others are namespace facades that alias into it,
+    /// so anything asserting about a declaration is asserting about this one.
+    /// </summary>
+    private static bool IsRoot(GeneratedTypeScriptFile file) =>
+        !file.RelativePath.Contains(Path.DirectorySeparatorChar);
+
     private static string GenerateFor<T>(JsonSerializerOptions? json = null) =>
         Generate(o => o.Add<T>(), json);
 
@@ -192,7 +199,7 @@ public class TypeGenerationTests
         // A type is reachable at its namespace path and nowhere else, so there is exactly one way
         // to name it.
         var contents = GenerateFiles(o => o.Add(typeof(Outer), typeof(Wrapper)))
-            .Files.ShouldHaveSingleItem().Contents;
+            .Files.Single(IsRoot).Contents;
 
         contents.ShouldNotContain("export type {");
         contents.ShouldNotContain("export interface Outer");
@@ -202,7 +209,7 @@ public class TypeGenerationTests
     public void Generate_TypeHasNoNamespace_SitsAtTheTopLevel()
     {
         var contents = GenerateFiles(o => o.Add(typeof(GlobalNamespaceModel)))
-            .Files.ShouldHaveSingleItem().Contents;
+            .Files.Single(IsRoot).Contents;
 
         contents.ShouldContain("export interface GlobalNamespaceModel");
         contents.ShouldNotContain("declare namespace");
@@ -213,11 +220,11 @@ public class TypeGenerationTests
     {
         var file = GenerateFiles(o => o.Add<Outer>()).Files.ShouldHaveSingleItem();
 
-        file.RelativePath.ShouldBe("index.d.ts");
-        file.ModuleSpecifier.ShouldBe("@jsxcore/generated");
+        file.RelativePath.ShouldBe("JsxCore.Tests.d.ts");
+        file.ModuleSpecifier.ShouldBe("dotnet:JsxCore.Tests");
 
         // The test models live in JsxCore.Tests, so that is the namespace they mirror.
-        file.Contents.ShouldContain("export declare namespace JsxCore.Tests {");
+        file.Contents.ShouldContain("declare namespace JsxCore.Tests {");
         file.Contents.ShouldContain("interface Outer {");
     }
 
@@ -225,18 +232,18 @@ public class TypeGenerationTests
     public void Generate_SameNamedTypesInDifferentNamespaces_AreKeptApart()
     {
         var contents = GenerateFiles(o => o.Add(typeof(Inner), typeof(Wrapper)))
-            .Files.ShouldHaveSingleItem().Contents;
+            .Files.Single(IsRoot).Contents;
 
         // Same simple name, two namespaces, no aliasing needed.
-        contents.ShouldContain("export declare namespace JsxCore.Tests {");
-        contents.ShouldContain("export declare namespace JsxCore.Tests.Other {");
+        contents.ShouldContain("declare namespace JsxCore.Tests {");
+        contents.ShouldContain("declare namespace JsxCore.Tests.Other {");
         contents.Split("interface Inner ").Length.ShouldBe(3);
     }
 
     [Fact]
     public void Generate_ReferenceCrossesNamespaces_IsQualifiedRatherThanImported()
     {
-        var contents = GenerateFiles(o => o.Add<Wrapper>()).Files.ShouldHaveSingleItem().Contents;
+        var contents = GenerateFiles(o => o.Add<Wrapper>()).Files.Single(IsRoot).Contents;
 
         // Wrapper declares its own Inner and references the one from the parent namespace, so the
         // outsider has to be fully qualified or it would bind to the local declaration.
@@ -255,7 +262,7 @@ public class TypeGenerationTests
         {
             o.MirrorNamespaces = false;
             o.Add(typeof(Outer), typeof(Wrapper));
-        }).Files.ShouldHaveSingleItem().Contents;
+        }).Files.Single(IsRoot).Contents;
 
         contents.ShouldNotContain("declare namespace");
         contents.ShouldContain("export interface Outer");
@@ -268,9 +275,9 @@ public class TypeGenerationTests
         {
             o.TrimNamespacePrefix = "JsxCore.Tests";
             o.Add(typeof(Wrapper));
-        }).Files.ShouldHaveSingleItem().Contents;
+        }).Files.Single(IsRoot).Contents;
 
-        contents.ShouldContain("export declare namespace Other {");
+        contents.ShouldContain("declare namespace Other {");
         contents.ShouldNotContain("namespace JsxCore.Tests.Other");
     }
 
@@ -279,7 +286,7 @@ public class TypeGenerationTests
     {
         // Shadow declares its own GlobalNamespaceModel and also references the namespace-less one;
         // a bare reference would silently resolve to the local declaration.
-        var contents = GenerateFiles(o => o.Add<Shadow>()).Files.ShouldHaveSingleItem().Contents;
+        var contents = GenerateFiles(o => o.Add<Shadow>()).Files.Single(IsRoot).Contents;
 
         contents.ShouldContain("type GlobalNamespaceModel$Global = GlobalNamespaceModel;");
         contents.ShouldContain("global: GlobalNamespaceModel$Global;");
@@ -302,7 +309,7 @@ public class TypeGenerationTests
         project.Options.TypeChecking = TypeCheckingMode.Error;
 
         project.AddView("Home/Index.tsx", """
-            import type { JsxCore } from "@jsxcore/generated";
+            import type JsxCore from "dotnet:JsxCore.Tests";
             export default function Index({ model }: { model: JsxCore.Tests.Outer }) {
                 return <ul>{model.many.map((i) => <li key={i.label}>{i.label}: {i.value}</li>)}</ul>;
             }
@@ -311,7 +318,7 @@ public class TypeGenerationTests
         var build = await project.CompileAsync();
 
         build.Result.Succeeded.ShouldBeTrue(build.Result.FormatDiagnostics());
-        File.Exists(Path.Combine(project.Layout.GeneratedTypesDirectory, "index.d.ts")).ShouldBeTrue();
+        File.Exists(Path.Combine(project.Layout.GeneratedTypesDirectory, "JsxCore.Tests.d.ts")).ShouldBeTrue();
     }
 
     [Fact]
@@ -321,7 +328,7 @@ public class TypeGenerationTests
         project.Options.TypeDefinitions.Add<Outer>();
 
         project.AddView("Home/Index.tsx", """
-            import type { JsxCore } from "@jsxcore/generated";
+            import type JsxCore from "dotnet:JsxCore.Tests";
             export default function Index({ model }: { model: JsxCore.Tests.Outer }) {
                 return <p>{model.doesNotExist}</p>;
             }

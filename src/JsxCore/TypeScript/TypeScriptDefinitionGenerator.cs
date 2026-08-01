@@ -27,20 +27,77 @@ public sealed class TypeScriptDefinitionGenerator(TypeDefinitionOptions options,
         _declared.Clear();
         _globalAliases.Clear();
 
+        // Before any work: an assembly using one of the reserved names would be shadowed by it,
+        // and its types would silently resolve to the wrong module. Better to say so.
+        var assembly = _options.AssemblyName();
+        if (TypeDefinitionOptions.ReservedNames.Contains(assembly, StringComparer.Ordinal))
+        {
+            throw new JsxCoreException(
+                $"JsxCore cannot generate types for an assembly named '{assembly}': " +
+                $"'{TypeDefinitionOptions.Scheme}{assembly}' is reserved for JsxCore's own module, " +
+                $"so views could not import the assembly's types." +
+                $"{Environment.NewLine}{Environment.NewLine}" +
+                $"Reserved names are {string.Join(" and ", TypeDefinitionOptions.ReservedNames)}, " +
+                $"matched exactly; 'Rendering' and 'Globals' are fine. Rename the assembly with " +
+                $"<AssemblyName> in the project file, or point TypeDefinitions.ApplicationAssembly " +
+                $"at a different one.");
+        }
+
         foreach (var type in _options.ResolveTypes())
         {
             Collect(type);
         }
 
+        // Before anything is written: a type reachable only through a global still has to be
+        // declared in the assembly module, and that module is built below.
+        foreach (var type in _options.GlobalTypes.Values.Where(type => type is not null))
+        {
+            foreach (var method in CallableMethods(type!))
+            {
+                foreach (var parameter in method.GetParameters())
+                {
+                    CollectReferences(parameter.ParameterType);
+                }
+
+                if (method.ReturnType != typeof(void))
+                {
+                    CollectReferences(method.ReturnType);
+                }
+            }
+
+            foreach (var property in type!.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                         .Where(property => property.CanRead && property.GetIndexParameters().Length == 0))
+            {
+                CollectReferences(property.PropertyType);
+            }
+        }
+
         if (_declared.Count == 0)
         {
-            return new GeneratedTypeScript([]);
+            // Globals can still be worth describing when no model type is: one whose methods deal
+            // only in primitives declares nothing, and is still callable.
+            var only = GlobalsModule(_options.AssemblyName(), rootNamespace: null);
+            return new GeneratedTypeScript(only is null ? [] : [only]);
         }
 
         var namespaces = _declared.Values
             .GroupBy(declared => declared.Namespace, StringComparer.Ordinal)
             .OrderBy(group => group.Key, StringComparer.Ordinal)
             .ToList();
+
+        // One root namespace and nothing outside it is the ordinary case, and the one worth
+        // optimising for: the module can then export that root by assignment, which is what lets a
+        // view default-import the assembly and reach a type through its .NET namespace, as
+        // `MyApp.Models.Product`. Anything else falls back to exporting each root by name, because
+        // a module can have one export assignment or many named exports, never both.
+        var roots = namespaces
+            .Where(group => group.Key.Length > 0)
+            .Select(group => group.Key.Split('.')[0])
+            .Distinct(StringComparer.Ordinal)
+            .ToList();
+
+        var exportsByAssignment = roots.Count == 1 && namespaces.All(group => group.Key.Length > 0);
+        var namespaceModifier = exportsByAssignment ? string.Empty : "export ";
 
         var body = new StringBuilder();
 
@@ -59,7 +116,7 @@ public sealed class TypeScriptDefinitionGenerator(TypeDefinitionOptions options,
                 continue;
             }
 
-            body.Append("export declare namespace ").Append(group.Key).AppendLine(" {");
+            body.Append(namespaceModifier).Append("declare namespace ").Append(group.Key).AppendLine(" {");
             foreach (var declared in types)
             {
                 // Members of an ambient namespace are exported implicitly.
@@ -90,9 +147,89 @@ public sealed class TypeScriptDefinitionGenerator(TypeDefinitionOptions options,
 
         builder.Append(body.ToString().TrimEnd()).AppendLine();
 
-        return new GeneratedTypeScript([
-            new GeneratedTypeScriptFile("index.d.ts", _options.ModuleSpecifier, builder.ToString())
-        ]);
+        if (exportsByAssignment)
+        {
+            builder.AppendLine().Append("export = ").Append(roots[0]).AppendLine(";");
+        }
+
+        var assemblyName = _options.AssemblyName(_declared.Keys.Select(type => type.Assembly));
+
+        var files = new List<GeneratedTypeScriptFile>
+        {
+            new(assemblyName + ".d.ts", TypeDefinitionOptions.SpecifierFor(assemblyName), builder.ToString())
+        };
+
+        files.AddRange(NamespaceModules(assemblyName, namespaces, roots, exportsByAssignment));
+
+        if (GlobalsModule(assemblyName, exportsByAssignment ? roots[0] : null) is { } globals)
+        {
+            files.Add(globals);
+        }
+
+        return new GeneratedTypeScript(files);
+    }
+
+    /// <summary>
+    /// One module per .NET namespace, so a view can import from the namespace it means:
+    /// <c>import { Product } from "dotnet:MyApp/Models"</c>.
+    /// </summary>
+    /// <remarks>
+    /// Aliases onto the root module rather than re-declaring anything. Everything stays declared
+    /// once, in one file, which is what keeps references between namespaces resolving; these are
+    /// facades over it. They cost nothing at runtime either, being types, so no import map or
+    /// module loader ever sees them.
+    /// </remarks>
+    private static IEnumerable<GeneratedTypeScriptFile> NamespaceModules(
+        string assemblyName,
+        IEnumerable<IGrouping<string, DeclaredType>> namespaces,
+        IReadOnlyList<string> roots,
+        bool exportsByAssignment)
+    {
+        var rootSpecifier = TypeDefinitionOptions.SpecifierFor(assemblyName);
+
+        foreach (var group in namespaces.Where(group => group.Key.Length > 0))
+        {
+            var root = roots.First(candidate => group.Key == candidate || group.Key.StartsWith(candidate + ".", StringComparison.Ordinal));
+
+            // The path a view writes after the assembly. A namespace that repeats the assembly
+            // name sheds it, because "dotnet:MyApp/MyApp/Models" reads like a mistake.
+            var relative = group.Key == assemblyName
+                ? string.Empty
+                : group.Key.StartsWith(assemblyName + ".", StringComparison.Ordinal)
+                    ? group.Key[(assemblyName.Length + 1)..]
+                    : group.Key;
+
+            // Nothing left means the namespace is the assembly, which the root module already is.
+            if (relative.Length == 0)
+            {
+                continue;
+            }
+
+            var builder = new StringBuilder();
+            builder.AppendLine("// <auto-generated>");
+            builder.Append("//     Generated by JsxCore for the .NET namespace ").Append(group.Key).AppendLine(".");
+            builder.AppendLine("// </auto-generated>");
+            builder.AppendLine();
+
+            builder.Append("import type ").Append(exportsByAssignment ? root : "{ " + root + " }")
+                .Append(" from \"").Append(rootSpecifier).AppendLine("\";");
+            builder.AppendLine();
+
+            // The imported identifier is the root namespace, so the qualifier below it is whatever
+            // the .NET namespace adds on top.
+            var qualifier = group.Key == root ? string.Empty : group.Key[(root.Length + 1)..] + ".";
+
+            foreach (var declared in group.OrderBy(d => d.Name, StringComparer.Ordinal))
+            {
+                builder.Append("export type ").Append(declared.Name).Append(" = ")
+                    .Append(root).Append('.').Append(qualifier).Append(declared.Name).AppendLine(";");
+            }
+
+            yield return new GeneratedTypeScriptFile(
+                Path.Combine(assemblyName, relative.Replace('.', Path.DirectorySeparatorChar)) + ".d.ts",
+                rootSpecifier + "/" + relative.Replace('.', '/'),
+                builder.ToString());
+        }
     }
 
     private string Declare(DeclaredType declared, string modifier, string indent)
@@ -231,8 +368,12 @@ public sealed class TypeScriptDefinitionGenerator(TypeDefinitionOptions options,
         builder.AppendLine("// <auto-generated>");
         builder.AppendLine("//     Generated by JsxCore from .NET types. Edits are overwritten on the next run.");
         builder.AppendLine("//");
-        builder.Append("//     import type { SampleApp } from \"").Append(_options.ModuleSpecifier).AppendLine("\";");
-        builder.AppendLine("//     ...then reference a type by its .NET namespace, e.g. SampleApp.Models.Product.");
+        var name = _options.AssemblyName(_declared.Keys.Select(type => type.Assembly));
+        var specifier = TypeDefinitionOptions.SpecifierFor(name);
+
+        builder.Append("//     import type ").Append(name)
+            .Append(" from \"").Append(specifier).AppendLine("\";");
+        builder.AppendLine("//     ...then reference a type by its .NET namespace, e.g. MyApp.Models.Product.");
         builder.AppendLine("//");
         builder.AppendLine("//     These describe the model as it arrives in JavaScript, so they follow the");
         builder.AppendLine("//     application's JsonSerializerOptions rather than the .NET shape directly.");
@@ -569,4 +710,110 @@ public sealed class TypeScriptDefinitionGenerator(TypeDefinitionOptions options,
 
         return name;
     }
+
+    /// <summary>
+    /// The module naming every registered .NET global, so a view imports the one it wants rather
+    /// than reaching through a catch-all object.
+    /// </summary>
+    /// <remarks>
+    /// A service is described where it is used, as an inline object type, rather than being
+    /// declared alongside the models: a service is not a model, and putting it in the assembly
+    /// module would make it look like one. Its methods are what a view actually calls, so they are
+    /// what gets described; the types they mention are collected like any other reference.
+    /// </remarks>
+    private GeneratedTypeScriptFile? GlobalsModule(string assemblyName, string? rootNamespace)
+    {
+        if (_options.GlobalTypes.Count == 0)
+        {
+            return null;
+        }
+
+        // References are written from outside every namespace, because this is a different module:
+        // the qualifier that would be redundant inside a namespace block is required here.
+        _currentNamespace = string.Empty;
+
+        var builder = new StringBuilder();
+        builder.AppendLine("// <auto-generated>");
+        builder.AppendLine("//     Generated by JsxCore from the globals registered with options.Globals.");
+        builder.AppendLine("//");
+        builder.AppendLine("//     import { Inventory } from \"dotnet:globals\";");
+        builder.AppendLine("// </auto-generated>");
+        builder.AppendLine();
+
+        var body = new StringBuilder();
+        var referencesModels = false;
+
+        // The escape hatch: reaches any global by name, including ones that cannot be an export.
+        body.AppendLine("export declare const dotnet: Record<string, any>;");
+
+        foreach (var (name, type) in _options.GlobalTypes.OrderBy(pair => pair.Key, StringComparer.Ordinal))
+        {
+            if (type is null)
+            {
+                // Registered with a factory, which says nothing about what it returns.
+                body.Append("export declare const ").Append(name).AppendLine(": any;");
+                continue;
+            }
+
+            body.Append("export declare const ").Append(name).AppendLine(": {");
+
+            foreach (var method in CallableMethods(type))
+            {
+                var parameters = method.GetParameters().Select(parameter =>
+                {
+                    CollectReferences(parameter.ParameterType);
+                    referencesModels = true;
+                    return $"{JsonNamingPolicy.CamelCase.ConvertName(parameter.Name ?? "arg")}: {TypeReference(parameter.ParameterType)}";
+                });
+
+                if (method.ReturnType != typeof(void))
+                {
+                    CollectReferences(method.ReturnType);
+                    referencesModels = true;
+                }
+
+                var returns = method.ReturnType == typeof(void) ? "void" : TypeReference(method.ReturnType);
+
+                body.Append("    ").Append(JsonNamingPolicy.CamelCase.ConvertName(method.Name))
+                    .Append('(').Append(string.Join(", ", parameters)).Append("): ").Append(returns).AppendLine(";");
+            }
+
+            foreach (var property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
+                         .Where(property => property.CanRead && property.GetIndexParameters().Length == 0)
+                         .OrderBy(property => property.Name, StringComparer.Ordinal))
+            {
+                CollectReferences(property.PropertyType);
+                referencesModels = true;
+
+                body.Append("    ").Append(JsonNamingPolicy.CamelCase.ConvertName(property.Name))
+                    .Append(": ").Append(TypeReference(property.PropertyType)).AppendLine(";");
+            }
+
+            body.AppendLine("};");
+        }
+
+        // Only imported when something is actually referenced, so the module does not depend on an
+        // assembly module that may describe nothing.
+        if (referencesModels && rootNamespace is not null)
+        {
+            builder.Append("import type ").Append(rootNamespace).Append(" from \"")
+                .Append(TypeDefinitionOptions.SpecifierFor(assemblyName)).AppendLine("\";");
+            builder.AppendLine();
+        }
+
+        builder.Append(body);
+
+        return new GeneratedTypeScriptFile(
+            TypeDefinitionOptions.GlobalsFileName, TypeDefinitionOptions.GlobalsSpecifier, builder.ToString());
+    }
+
+    /// <summary>
+    /// What a view can call on a global: its own public instance methods, minus the plumbing every
+    /// object has and the accessors that belong to properties.
+    /// </summary>
+    private static IEnumerable<MethodInfo> CallableMethods(Type type) =>
+        type.GetMethods(BindingFlags.Public | BindingFlags.Instance)
+            .Where(method => !method.IsSpecialName && method.DeclaringType != typeof(object))
+            .Where(method => !method.IsGenericMethodDefinition)
+            .OrderBy(method => method.Name, StringComparer.Ordinal);
 }

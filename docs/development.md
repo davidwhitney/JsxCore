@@ -70,21 +70,21 @@ written outside Development.
 
 TypeScript-aware editors resolve imports using the nearest `tsconfig.json` to the file being
 edited. JsxCore's own compiler config lives under `obj/`, where editors will not find it, so
-without help Rider and VS Code flag every `@jsxcore/runtime` import as unresolved even though
+without help Rider and VS Code flag every `dotnet:rendering` import as unresolved even though
 compilation succeeds.
 
 JsxCore therefore writes a small `tsconfig.json` **beside your views**:
 
 ```jsonc
 {
-  "//": "jsxcore-generated: written by JsxCore so editors can resolve '@jsxcore/runtime'. ...",
+  "//": "jsxcore-generated: written by JsxCore so editors can resolve 'dotnet:rendering'. ...",
   "compilerOptions": {
     "jsx": "react-jsx",
     "jsxImportSource": "preact",
     "noEmit": true,
     "paths": {
-      "@jsxcore/runtime": ["../obj/JsxCore/runtime/index.d.ts"],
-      "@jsxcore/generated": ["../obj/JsxCore/types/index.d.ts"],
+      "dotnet:rendering": ["../obj/JsxCore/runtime/index.d.ts"],
+      "dotnet:*": ["../obj/JsxCore/types/*.d.ts"],
       "preact": ["../node_modules/preact/src/index.d.ts"],
       "react": ["../node_modules/preact/compat/src/index.d.ts"]
     }

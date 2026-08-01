@@ -1,3 +1,4 @@
+using JsxCore.Compilation.Assets;
 using JsxCore.Compilation;
 using Shouldly;
 
@@ -154,7 +155,10 @@ public class CompilationTests
         File.Exists(Path.Combine(runtimeDirectory, "jsx-runtime.d.ts")).ShouldBeTrue();
 
         // Runtime JavaScript is served from embedded resources, so it must never hit the disk of a
-        // consuming project.
-        Directory.GetFiles(runtimeDirectory, "*.js").ShouldBeEmpty();
+        // consuming project. The one exception is generated: dotnet:globals is built from what the
+        // application registered, so there is nothing to embed.
+        Directory.GetFiles(runtimeDirectory, "*.js")
+            .Select(Path.GetFileName)
+            .ShouldBe([GeneratedGlobalsModule.FileName]);
     }
 }

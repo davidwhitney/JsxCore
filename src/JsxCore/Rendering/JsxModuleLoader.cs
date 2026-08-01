@@ -1,3 +1,4 @@
+using JsxCore.TypeScript;
 using Jint;
 using Jint.Runtime.Modules;
 using JsxCore.Compilation;
@@ -12,7 +13,7 @@ namespace JsxCore.Rendering;
 /// <remarks>
 /// <para>
 /// Views resolve against the same compiled output the browser loads, so a component renders from
-/// identical bytes on both sides. The <c>@jsxcore/runtime</c> family resolves to paths under the
+/// identical bytes on both sides. The <c>dotnet:rendering</c> family resolves to paths under the
 /// runtime directory, but those files are never read from disk: <see cref="LoadModule"/> serves
 /// their source from resources embedded in this assembly, which keeps the runtime out of the
 /// consuming project. Using real paths rather than a synthetic URI scheme matters because the
@@ -50,6 +51,16 @@ public sealed class JsxModuleLoader : IModuleLoader
         if (_runtimeAssetDirectory is not null && _runtime.ResolveModule(specifier) is { } runtimeFile)
         {
             return Resolved(moduleRequest, Path.Combine(_runtimeAssetDirectory, runtimeFile), SpecifierType.Bare);
+        }
+
+        // Generated from the application's registrations, so it lives on disk rather than in the
+        // assembly manifest like the rest of the runtime.
+        if (specifier == TypeDefinitionOptions.GlobalsSpecifier)
+        {
+            return Resolved(
+                moduleRequest,
+                Path.Combine(_runtimeDirectory, GeneratedGlobalsModule.FileName),
+                SpecifierType.Bare);
         }
 
         // The built-in runtime is served from embedded resources rather than files.
@@ -148,7 +159,11 @@ public sealed class JsxModuleLoader : IModuleLoader
         if (IsUnder(path, _runtimeDirectory))
         {
             var fileName = Path.GetRelativePath(_runtimeDirectory, path).Replace(Path.DirectorySeparatorChar, '/');
+
+            // Embedded first, then disk: everything JsxCore ships is in the manifest, and what the
+            // application's own registrations generate is written beside it.
             return RuntimeAssets.TryGetText(fileName)
+                ?? (File.Exists(path) ? File.ReadAllText(path) : null)
                 ?? throw new JsxCoreException($"The JsxCore runtime does not contain a module named '{fileName}'.");
         }
 

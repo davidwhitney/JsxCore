@@ -42,7 +42,7 @@ public static class TsConfigCommand
             TsConfigWriter.WriteIdeConfigIfOwned(options, layout);
         }
 
-        // The compiler resolves @jsxcore/runtime from declarations on disk, so they have to be
+        // The compiler resolves dotnet:rendering from declarations on disk, so they have to be
         // beside the configuration that points at them.
         RuntimeAssets.ExtractTypeDefinitions(layout.RuntimeDirectory);
 

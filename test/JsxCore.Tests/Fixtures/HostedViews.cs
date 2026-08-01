@@ -10,14 +10,14 @@ public static partial class HostedViews
     {
         var project = JsxProjectFixture.Create();
         project.AddView("Shared/Card.tsx", """
-            import type { JsxNode } from "@jsxcore/runtime";
+            import type { JsxNode } from "dotnet:rendering";
             export function Card({ title, children }: { title: string; children?: JsxNode }) {
                 return <section class="card"><h2>{title}</h2>{children}</section>;
             }
             """);
         project.AddView("Home/Index.tsx", """
             import { Card } from "../Shared/Card.tsx";
-            import type { ViewProps } from "@jsxcore/runtime";
+            import type { ViewProps } from "dotnet:rendering";
             export const head = { title: "Index page" };
             export default function Index({ model }: ViewProps<{ name: string; items: string[] }>) {
                 return (

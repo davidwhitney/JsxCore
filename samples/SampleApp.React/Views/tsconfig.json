@@ -21,11 +21,8 @@
     "noEmitOnError": false,
     "noEmit": true,
     "paths": {
-      "@jsxcore/runtime": [
+      "dotnet:rendering": [
         "../obj/JsxCore/runtime/index.d.ts"
-      ],
-      "@jsxcore/runtime/*": [
-        "../obj/JsxCore/runtime/*"
       ],
       "preact": [
         "../../../node_modules/preact/src/index.d.ts"
@@ -47,7 +44,7 @@
       ]
     }
   },
-  "//": "jsxcore-generated: written by JsxCore so editors can resolve '@jsxcore/runtime'. Delete or edit this file freely; JsxCore only overwrites a file that still contains the marker above. Compilation itself uses the config in the intermediate output directory, not this one.",
+  "//": "jsxcore-generated: written by JsxCore so editors can resolve 'dotnet:rendering'. Delete or edit this file freely; JsxCore only overwrites a file that still contains the marker above. Compilation itself uses the config in the intermediate output directory, not this one.",
   "include": [
     "**/*",
     "../obj/JsxCore/types/pending.d.ts"

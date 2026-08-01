@@ -186,7 +186,7 @@ searched. See [Using npm packages](npm-packages.md).
 
 ## Type problems
 
-### `Cannot find module '@jsxcore/generated'`, or a namespace in it is missing
+### `Cannot find module 'dotnet:MyApp'`, or a namespace in it is missing
 
 Declarations are normally generated during the build, from the assembly it produced, so this means
 that did not happen. Either the assembly could not be loaded for inspection, in which case the
@@ -204,7 +204,7 @@ It is not being exported. The default convention covers `Models` and `ViewModels
 `[JsxModel]` types. Anything else needs `options.AutoExport` or an explicit
 `TypeDefinitions.Add<T>()`. See [Model types](model-types.md#choosing-what-gets-exported).
 
-### The editor flags `@jsxcore/runtime` as unresolved
+### The editor flags `dotnet:rendering` as unresolved
 
 `Views/tsconfig.json` is missing or stale. Delete it and rebuild; it is regenerated with the right
 mappings. See [Development](development.md#editor-support).

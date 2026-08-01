@@ -7,6 +7,10 @@ namespace JsxCore.Tests.Unit.TypeScript;
 
 public class BuildTimeModelTypesTests : IDisposable
 {
+    // The generated module is named after the assembly it describes, which is the one these types
+    // come from rather than the one the test lives in.
+    private static readonly string AssemblyName = typeof(Product).Assembly.GetName().Name!;
+
     private readonly string _root = Path.Combine(
         Path.GetTempPath(), "jsxcore-buildtypes-" + Guid.NewGuid().ToString("n")[..8]);
 
@@ -27,7 +31,7 @@ public class BuildTimeModelTypesTests : IDisposable
         result.Generated.ShouldBeTrue(result.Failure);
         result.TypeCount.ShouldBeGreaterThan(0);
 
-        var declarations = File.ReadAllText(Path.Combine(_root, ModelTypeDeclarations.FileName));
+        var declarations = File.ReadAllText(Path.Combine(_root, ModelTypeDeclarations.FileNameFor(AssemblyName)));
         declarations.ShouldContain("namespace SampleApp.Models");
         declarations.ShouldContain("interface Product");
     }
@@ -41,11 +45,13 @@ public class BuildTimeModelTypesTests : IDisposable
         options.TypeDefinitions.ApplicationAssembly = typeof(Product).Assembly;
 
         var atRuntime = new TypeScriptDefinitionGenerator(options.TypeDefinitions, options.JsonSerializerOptions)
-            .Generate().Files.Single().Contents;
+            .Generate().Files
+            .Single(file => file.RelativePath == ModelTypeDeclarations.FileNameFor(AssemblyName))
+            .Contents;
 
         BuildTimeModelTypes.Generate(typeof(Product).Assembly, _root);
 
-        File.ReadAllText(Path.Combine(_root, ModelTypeDeclarations.FileName)).ShouldBe(atRuntime);
+        File.ReadAllText(Path.Combine(_root, ModelTypeDeclarations.FileNameFor(AssemblyName))).ShouldBe(atRuntime);
     }
 
     [Fact]
@@ -56,7 +62,7 @@ public class BuildTimeModelTypesTests : IDisposable
         var result = BuildTimeModelTypes.Generate(typeof(string).Assembly, _root);
 
         result.Generated.ShouldBeFalse();
-        File.Exists(Path.Combine(_root, ModelTypeDeclarations.FileName)).ShouldBeFalse();
+        File.Exists(Path.Combine(_root, ModelTypeDeclarations.FileNameFor(AssemblyName))).ShouldBeFalse();
     }
 
     [Fact]
@@ -96,7 +102,7 @@ public class BuildTimeModelTypesTests : IDisposable
         var config = TsConfigWriter.Build(options, layout);
 
         var paths = config["compilerOptions"]!["paths"]!.AsObject();
-        paths.ContainsKey(options.TypeDefinitions.ModuleSpecifier).ShouldBeFalse();
+        paths.ContainsKey(TypeDefinitionOptions.Scheme + "*").ShouldBeFalse();
 
         // A mapping to a file that is not there resolves to nothing, so the stand-in has to be in
         // the program instead.
@@ -104,11 +110,11 @@ public class BuildTimeModelTypesTests : IDisposable
         included.ShouldContain(path => path.EndsWith(ModelTypeDeclarations.PendingFileName, StringComparison.Ordinal));
 
         var pending = File.ReadAllText(Path.Combine(layout.GeneratedTypesDirectory, ModelTypeDeclarations.PendingFileName));
-        pending.ShouldContain($"declare module \"{options.TypeDefinitions.ModuleSpecifier}\";");
+        pending.ShouldContain($"declare module \"{TypeDefinitionOptions.Scheme}*\";");
     }
 
     [Fact]
-    public void Build_DeclarationsGenerated_MapsThePathAndDropsTheAmbientModule()
+    public void Build_DeclarationsGenerated_MapsThePathAndStandsInOnlyForTheGlobals()
     {
         var options = new JsxCoreOptions { WorkingDirectory = _root };
         var layout = CompilationLayout.Create(options, _root);
@@ -117,10 +123,19 @@ public class BuildTimeModelTypesTests : IDisposable
         var config = TsConfigWriter.Build(options, layout);
 
         var paths = config["compilerOptions"]!["paths"]!.AsObject();
-        paths[options.TypeDefinitions.ModuleSpecifier].ShouldNotBeNull();
+        paths[TypeDefinitionOptions.Scheme + "*"].ShouldNotBeNull();
 
+        // The build can describe the models, because it has the assembly, but never the globals:
+        // registering one is application code the build does not run. So the stand-in remains, and
+        // covers only that.
         var included = config["include"]!.AsArray().Select(node => node!.GetValue<string>()).ToList();
-        included.ShouldNotContain(path => path.EndsWith(ModelTypeDeclarations.PendingFileName, StringComparison.Ordinal));
+        included.ShouldContain(path => path.EndsWith(ModelTypeDeclarations.PendingFileName, StringComparison.Ordinal));
+
+        var pending = File.ReadAllText(
+            Path.Combine(layout.GeneratedTypesDirectory, ModelTypeDeclarations.PendingFileName));
+
+        pending.ShouldContain($"declare module \"{TypeDefinitionOptions.GlobalsSpecifier}\";");
+        pending.ShouldNotContain($"declare module \"{TypeDefinitionOptions.Scheme}*\";");
     }
 
     [Fact]
@@ -128,7 +143,7 @@ public class BuildTimeModelTypesTests : IDisposable
     {
         // Both describe the same module, so leaving the stand-in behind would make the compiler
         // choose between two declarations of it.
-        ModelTypeDeclarations.WritePending(_root, "@jsxcore/generated");
+        ModelTypeDeclarations.WritePending(_root);
 
         BuildTimeModelTypes.Generate(typeof(Product).Assembly, _root);
 

@@ -204,13 +204,13 @@ public sealed class JsxCoreOptions
     public bool CompileOnStartup { get; set; } = true;
 
     /// <summary>
-    /// Write a tsconfig.json beside the views so editors can resolve <c>@jsxcore/runtime</c>.
+    /// Write a tsconfig.json beside the views so editors can resolve <c>dotnet:rendering</c>.
     /// Defaults to true.
     /// </summary>
     /// <remarks>
     /// Editors pick the nearest tsconfig.json to the file being edited, and the compiler's own
     /// config lives in the intermediate output directory where they will not find it. Without this
-    /// file, Rider and VS Code mark every <c>@jsxcore/runtime</c> import as unresolved even though
+    /// file, Rider and VS Code mark every <c>dotnet:rendering</c> import as unresolved even though
     /// compilation succeeds. A file that no longer carries JsxCore's marker comment is treated as
     /// hand-written and is never overwritten.
     /// </remarks>

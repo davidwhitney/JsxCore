@@ -45,7 +45,7 @@ public class ServerRenderingTests
     {
         using var project = JsxProjectFixture.Create();
         project.AddView("Shared/Card.tsx", """
-            import type { JsxNode } from "@jsxcore/runtime";
+            import type { JsxNode } from "dotnet:rendering";
             export function Card({ title, children }: { title: string; children?: JsxNode }) {
                 return <section><h2>{title}</h2>{children}</section>;
             }
@@ -127,7 +127,7 @@ public class ServerRenderingTests
         using var project = JsxProjectFixture.Create();
         project.Options.Globals.Register("Greeter", new Greeter());
         project.AddView("Home/Index.tsx", """
-            import { dotnet } from "@jsxcore/runtime";
+            import { dotnet } from "dotnet:globals";
             export default function Index({ model }: { model: { name: string } }) {
                 const greeter = dotnet.Greeter as { Greet(name: string): string };
                 return <p>{greeter.Greet(model.name)}</p>;
@@ -146,7 +146,7 @@ public class ServerRenderingTests
         using var project = JsxProjectFixture.Create();
         project.Options.Globals.Register("Greeter", new Greeter());
         project.AddView("Home/Index.tsx", """
-            import { dotnet } from "@jsxcore/runtime";
+            import { dotnet } from "dotnet:globals";
             export default function Index() {
                 const greeter = dotnet.Greeter as { greet(name: string): string };
                 return <p>{greeter.greet("world")}</p>;
@@ -170,7 +170,7 @@ public class ServerRenderingTests
             .BuildServiceProvider();
 
         project.AddView("Home/Index.tsx", """
-            import { dotnet } from "@jsxcore/runtime";
+            import { dotnet } from "dotnet:globals";
             export default function Index() {
                 const greeter = dotnet.Greeter as { greet(name: string): string };
                 return <p>{greeter.greet("scoped")}</p>;
@@ -300,7 +300,7 @@ public class ServerRenderingTests
         project.Options.Globals.Register("Scoped", _ => new PerRequestService { Id = "request-" + (++requests) });
 
         project.AddView("Home/Index.tsx", """
-            import { dotnet } from "@jsxcore/runtime";
+            import { dotnet } from "dotnet:globals";
             const captured = (dotnet as any).Scoped;
             export default function Index() { return <p>{captured.get()}</p>; }
             """);
@@ -327,7 +327,7 @@ public class ServerRenderingTests
         project.Options.Globals.Register("Scoped", _ => new PerRequestService { Id = "request-" + (++requests) });
 
         project.AddView("Home/Index.tsx", """
-            import { dotnet } from "@jsxcore/runtime";
+            import { dotnet } from "dotnet:globals";
             export default function Index() { return <p>{(dotnet as any).Scoped.get()}</p>; }
             """);
 

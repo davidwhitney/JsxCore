@@ -1,7 +1,7 @@
 export { Fragment, ELEMENT, jsx, jsxs, createElement, isElement, JSX } from "./jsx-runtime.js";
 export type { JsxNode, JsxElement, Component, CSSProperties, HTMLAttributes } from "./jsx-runtime.js";
 export { useState, useRef, useEffect, useMemo, useCallback } from "./hooks.js";
-export { dotnet, isServerRender } from "./dotnet.js";
+export { isServerRender } from "./dotnet.js";
 
 /** Props every JsxCore view receives. */
 export interface ViewProps<TModel = unknown> {

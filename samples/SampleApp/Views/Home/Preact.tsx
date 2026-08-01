@@ -1,5 +1,6 @@
 import { useState, useContext, createContext, useMemo } from "preact/compat";
-import type { SampleApp } from "@jsxcore/generated";
+import type { CatalogueModel } from "dotnet:SampleApp/Models";
+import type { Product } from "dotnet:SampleApp/Models/Catalogue";
 import { Page, Card } from "../Shared/Layout.tsx";
 
 // Rendered with real Preact. Context, the full hook set and error boundaries all work the way
@@ -15,7 +16,7 @@ function Price({ amount }: { amount: number }) {
     return <strong>{symbol}{amount.toFixed(2)}</strong>;
 }
 
-export default function PreactView({ model }: { model: SampleApp.Models.CatalogueModel; context: unknown }) {
+export default function PreactView({ model }: { model: CatalogueModel; context: unknown }) {
     const [query, setQuery] = useState("");
 
     const visible = useMemo(
@@ -26,7 +27,7 @@ export default function PreactView({ model }: { model: SampleApp.Models.Catalogu
     const total = useMemo(() => visible.reduce((sum, p) => sum + p.price, 0), [visible]);
 
     // Same simple name, different namespace; the generated modules keep them distinct.
-    const listing: SampleApp.Models.Catalogue.Product = { code: "CAT-1", description: "Catalogue entry", availability: "InStock" };
+    const listing: Product = { code: "CAT-1", description: "Catalogue entry", availability: "InStock" };
 
     return (
         <CurrencyContext.Provider value="£">

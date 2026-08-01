@@ -13,7 +13,7 @@
     "lib": ["es2022", "dom", "dom.iterable"],
 
     "jsx": "react-jsx",
-    "jsxImportSource": "@jsxcore/runtime",
+    "jsxImportSource": "preact",
 
     // This is what removes the need for a bundler: "./Card.tsx" is emitted as "./Card.js",
     // which the browser can resolve natively.
