@@ -17,6 +17,11 @@ public sealed class ReactEntryStager(CompilationLayout layout) : IAssetSource
 
     public IEnumerable<StagedFile> Enumerate()
     {
+        foreach (var shared in RuntimeAssets.SharedEntryFiles())
+        {
+            yield return shared;
+        }
+
         foreach (var fileName in RuntimeAssets.ReactSourceFiles)
         {
             yield return new StagedFile(fileName, Encoding.UTF8.GetBytes(

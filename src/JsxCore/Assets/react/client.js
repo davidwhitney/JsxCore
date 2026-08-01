@@ -1,43 +1,22 @@
-// Client entry for React.
+// Client entry for React. The framework-specific half of mounting a view; the rest is shared.
 
 import React from "react";
 import ReactDomClient from "react-dom/client";
+import { createMountView } from "./view-host.js";
 
 const { createElement } = React;
 const { createRoot, hydrateRoot } = ReactDomClient;
 
-export function mountView(Component, options) {
-    const settings = options || {};
-    const containerId = settings.containerId || "jsxcore-root";
-    const modelId = settings.modelId || "jsxcore-model";
-
-    const container = document.getElementById(containerId);
-    if (!container) {
-        throw new Error("JsxCore: no container element with id '" + containerId + "' was found.");
+// React decides hydration when the root is created, so the two cases build different roots. Both
+// already expose render, which is the shape the shared host expects.
+export const mountView = createMountView(createElement, (container, element, shouldHydrate) => {
+    if (shouldHydrate) {
+        return hydrateRoot(container, element);
     }
 
-    const modelScript = document.getElementById(modelId);
-    const model = modelScript && modelScript.textContent ? JSON.parse(modelScript.textContent) : null;
-    const context = window.__jsxcore_context || {};
-
-    const element = createElement(Component, { model, context });
-
-    // React decides hydration when the root is created, unlike Preact which decides per render, so
-    // the two cases build different roots rather than rendering differently.
-    const root = settings.hydrate
-        ? hydrateRoot(container, element)
-        : (() => { const created = createRoot(container); created.render(element); return created; })();
-
-    window.__jsxcore_root = {
-        model,
-        context,
-        createElement,
-        root,
-        // Built here so the reload client needs no knowledge of which framework is mounted.
-        update: (next) => root.render(createElement(next, { model, context }))
-    };
-
-    return window.__jsxcore_root;
-}
+    const root = createRoot(container);
+    root.render(element);
+    return root;
+});
 
 export { createElement };

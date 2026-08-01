@@ -14,6 +14,7 @@ public static class RuntimeAssets
         "index", "jsx-runtime", "jsx-dev-runtime", "client", "server", "hooks", "dotnet", "dom"
     ];
 
+    private const string SharedResourcePrefix = "JsxCore.Assets.shared.";
     private const string PreactResourcePrefix = "JsxCore.Assets.preact.";
     private const string ReactResourcePrefix = "JsxCore.Assets.react.";
     private static readonly ConcurrentDictionary<string, byte[]> Cache = new(StringComparer.Ordinal);
@@ -54,6 +55,36 @@ public static class RuntimeAssets
 
         using var reader = new StreamReader(stream);
         return reader.ReadToEnd();
+    }
+
+    private static readonly Lazy<IReadOnlyList<string>> SharedFileNames = new(() =>
+        typeof(RuntimeAssets).Assembly
+            .GetManifestResourceNames()
+            .Where(name => name.StartsWith(SharedResourcePrefix, StringComparison.Ordinal))
+            .Select(name => name[SharedResourcePrefix.Length..])
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToList());
+
+    /// <summary>
+    /// The parts of an entry point that are the same whatever renders the view, staged beside every
+    /// framework's own entries so they can import them relatively.
+    /// </summary>
+    /// <remarks>
+    /// One source file, staged into each framework directory. Serving a single copy from somewhere
+    /// central would mean teaching both the import map and the module loader about it, for a file
+    /// measured in single-digit kilobytes.
+    /// </remarks>
+    public static IEnumerable<StagedFile> SharedEntryFiles()
+    {
+        foreach (var fileName in SharedFileNames.Value)
+        {
+            using var stream = typeof(RuntimeAssets).Assembly.GetManifestResourceStream(SharedResourcePrefix + fileName)
+                ?? throw new JsxCoreException($"Embedded shared entry source '{fileName}' is missing.");
+
+            using var buffer = new MemoryStream();
+            stream.CopyTo(buffer);
+            yield return new StagedFile(fileName, buffer.ToArray());
+        }
     }
 
     public static IReadOnlyList<string> AllFileNames => AllFiles;

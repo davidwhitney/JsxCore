@@ -38,6 +38,11 @@ public sealed class VendoredPreactModules(PreactVendorStager stager) : IAssetSou
             _stager.LogOptionalModuleMissing(module);
         }
 
+        foreach (var shared in RuntimeAssets.SharedEntryFiles())
+        {
+            yield return shared;
+        }
+
         // JsxCore's own mount and render entry points sit alongside them and import bare "preact".
         foreach (var fileName in RuntimeAssets.PreactSourceFiles)
         {

@@ -1,3 +1,5 @@
+using System.Text.RegularExpressions;
+using System.Text;
 using JsxCore.Tests.Fixtures;
 using Shouldly;
 
@@ -28,13 +30,26 @@ public class HotUpdateTests
         var html = await host.GetStringAsync("/client/Index");
         var entry = System.Text.RegularExpressions.Regex.Match(html, @"""(/_jsx/[^""]*client[^""]*)""");
 
-        var clientModule = await host.GetStringAsync(entry.Success
+        var entryUrl = entry.Success
             ? entry.Groups[1].Value
-            : "/_jsx/v" + project.Compilation.BuildId + "/runtime/client.js");
+            : "/_jsx/v" + project.Compilation.BuildId + "/runtime/client.js";
+
+        var clientModule = await host.GetStringAsync(entryUrl);
+
+        // Follow what the entry imports: the update is supplied by the code shared between the
+        // frameworks rather than by either one's own entry point. What matters is that it reaches
+        // the browser, not which file it arrives in.
+        var served = new StringBuilder(clientModule);
+        var directory = entryUrl[..(entryUrl.LastIndexOf('/') + 1)];
+
+        foreach (Match import in Regex.Matches(clientModule, @"from\s+""\./([^""]+)"""))
+        {
+            served.Append(await host.GetStringAsync(directory + import.Groups[1].Value));
+        }
 
         // The contract the reload client depends on: the runtime supplies the update, because only
         // it knows how to build an element it can render.
-        clientModule.ShouldContain("update:");
+        served.ToString().ShouldContain("update:");
     }
 
     [Fact]
