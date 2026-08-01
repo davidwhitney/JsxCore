@@ -12,7 +12,7 @@ A TSX/JSX view engine for ASP.NET Core. To get running, start with
 | | |
 |---|---|
 | **[Getting started](getting-started.md)** | Prerequisites, installation, your first view, project layout |
-| **[How it works](how-it-works.md)** | The compilation pipeline, native ESM, build ids, the embedded runtime |
+| **[How it works](how-it-works.md)** | The compilation pipeline, native ESM, where the packages come from, build ids, the embedded runtime |
 
 ## Using it
 

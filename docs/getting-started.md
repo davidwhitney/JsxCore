@@ -21,11 +21,6 @@ No JavaScript tooling runs on Node either: the TypeScript compiler is a standalo
 that JsxCore starts directly, and Preact is a set of files carried inside the JsxCore package. There
 is no Node process at build time or when serving a request.
 
-Restoring is checked on every build, not just the first. Each build checks that everything
-`package.json` declares is actually in `node_modules` and restores what is not, because a declared
-but uninstalled package produces the worst kind of failure: the build succeeds and the view fails to
-render later. A build where nothing is missing does no work at all.
-
 ---
 
 ## Installation
@@ -46,71 +41,9 @@ JsxCore: fetching @typescript/typescript-linux-x64@7.0.2
 This happens during `dotnet build`, `dotnet publish` and `dotnet run` alike, so a clean checkout
 and a build agent are both covered. Nothing runs once the packages are present.
 
-If you would rather manage packages yourself:
-
-```bash
-dotnet npm add typescript --version ^7 --dev    # or: npm install --save-dev typescript@^7
-```
-
-See [package management](package-management.md#on-the-command-line) for that tool.
-
-JsxCore searches for the compiler in `node_modules` starting at the content root and walking
-upwards, so a solution-level install works too. If your content root sits outside the npm project
-(common under test hosts), point it at the right place:
-
-```csharp
-options.AdditionalToolchainSearchPaths.Add(repositoryRoot);
-// or
-options.TypeScriptCompilerPath = "/path/to/node_modules/@typescript/typescript-linux-x64/lib/tsc";
-```
-
-### Automatic dependency installation
-
-There are two places this can happen, with different rules.
-
-**During the build**, which is the one that normally fires, because `dotnet run` builds first:
-
-| | |
-|---|---|
-| Any configuration | Not restricted to Development; a build agent needs this to work |
-| Only when the compiler is missing | Nothing runs on a build where the packages are present |
-| The lock file when there is one | Restores exactly what is pinned and does not rewrite `package-lock.json` |
-| Resolving afresh only as a fallback | When there is no lock file, or restoring from it did not produce a compiler |
-| Never fails the build | It warns with `JSX0001` and leaves compilation to startup |
-
-Turn it off with `<JsxCoreAutoInstallDependencies>false</JsxCoreAutoInstallDependencies>`. Packages
-are restored by JsxCore itself; `<JsxCoreUseNpm>true</JsxCoreUseNpm>` hands the job to the npm on
-your machine instead, and `<JsxCoreNpm>` says which npm that is.
-
-**At application startup**, as a fallback for an application launched from prebuilt output where
-the package's build targets never ran:
-
-| | |
-|---|---|
-| Development only | The default is `DependencyInstallMode.Development`. A published application never installs anything |
-| Never when precompiled | `PrecompiledOnly` skips it entirely; there is nothing to install and no reason to write to a server's disk |
-| Only what is missing | Nothing runs on subsequent starts |
-| Reported as it happens | Every command is printed before it runs |
-| Never fatal on its own | If the install fails, startup still gives you the command to run by hand |
-
-```csharp
-builder.AddJsxCore(options => options.AutoInstallDependencies = DependencyInstallMode.Never);
-```
-
-Other settings: `PackageManager` to name a strategy, `NpmPath`, `DependencyInstallTimeout`, and
-`OnBootstrapMessage` to route progress somewhere other than the console.
-
-Both paths install `typescript` as a dev dependency, and a Release build adds `esbuild`, which
-[minifies what is served](build-and-deploy.md#minification-and-compression). Preact needs nothing
-installed, because it ships inside the JsxCore package; [React mode](runtimes.md) adds `react` and
-`react-dom` as regular dependencies, and their `@types` packages as dev ones. Packages go in the `package.json` beside the
-project file, and one is created there if it does not exist. That directory is not searched upwards
-from — an unrelated manifest in a parent or home directory is not adopted — so a solution sharing a
-single manifest says so with `<JsxCoreManifestDirectory>`.
-
-Commit the generated `package.json` and `package-lock.json`: they pin your versions, and they let
-the build restore exactly what is pinned rather than resolving afresh. The lock file is a standard
-`lockfileVersion` 3 file, so npm, Dependabot and Renovate all read it.
+You do not need any of that to write your first view.
+[How the packages get there](how-it-works.md#how-the-packages-get-there) covers the mechanics, and
+how to take them over, when you want them.
 
 ---
 

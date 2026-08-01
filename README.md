@@ -11,6 +11,12 @@
 
 Native JSX, React, Preact and TypeScript support for ASP.NET MVC, WebAPI and Minimal APIs. JsxCore provides a "vite-like" developer experience to the .NET ecosystem.
 
+**This makes ASP.NET Core a fully featured React and TypeScript developer experience, comparable and competitive with Node-based frameworks like Next.js, Remix, and Astro, but without the Node runtime or npm dependency.**
+
+Sold already? Go [get started](docs/getting-started.md) or [install the package](#install).
+
+## Want to know more?
+
 Write your views as `.tsx` files and return them from a controller or a minimal API. They are real
 components — real JSX, rendered by **Preact**, which ships inside the package, or by **React**,
 which the build restores for you — running on the server for first paint, in the browser for
@@ -35,29 +41,9 @@ Key Features:
 - **Types generated from your C#.** View models are described once, in .NET.
 - **Drops into MVC.** Registers as an `IViewEngine`, so `return View()` finds `Index.tsx`.
 
+## Comprehensive Documentation
+
 📖 **[Read the documentation](docs/README.md)**
-
----
-
-## What it looks like
-
-The [sample application](#sample-application), rendering the same components three different ways.
-
-**A view mounted in the browser**, from a model serialised by your endpoint:
-
-<img src="https://raw.githubusercontent.com/davidwhitney/JsxCore/main/images/screenshots/sample-client.png" alt="A client-rendered JsxCore view, with a working counter" width="820">
-
-**Calling .NET from a server-rendered view.** No fetch, no API, no bridge: the component asked a C#
-service for the total during rendering, and the browser received markup:
-
-<img src="https://raw.githubusercontent.com/davidwhitney/JsxCore/main/images/screenshots/sample-dotnet-globals.png" alt="A server-rendered view reading values from a .NET service" width="820">
-
-**A type error while you work.** The watcher recompiles on save and pushes the diagnostics to the
-page, rather than serving a stale build or a blank screen:
-
-<img src="https://raw.githubusercontent.com/davidwhitney/JsxCore/main/images/screenshots/hot-reload-error.png" alt="The development overlay showing a TypeScript compilation error" width="820">
-
----
 
 ## Install
 
@@ -69,13 +55,7 @@ dotnet add package JsxCore
 
 JsxCore restores the npm packages it needs itself, by
 talking to the registry directly, so a clean checkout builds with `dotnet build` on a machine with
-no Node and no npm installed. It writes a `package-lock.json` that real `npm ci` accepts, and you
-can [switch back to npm](docs/package-management.md#using-npm-instead) with one property if you
-would rather. If you already have npm, keep using it: `npm install` works unchanged and JsxCore
-reads what it installed.
-
-No Node process runs at build time or when serving a request either: the TypeScript compiler is a
-native binary JsxCore starts directly.
+no Node and no npm installed.
 
 **Prerequisites:** .NET 8, 9 or 10. Views that
 import [npm packages](docs/npm-packages.md) still need those package files on the server, which
@@ -90,11 +70,9 @@ using JsxCore.Hosting;
 using JsxCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
-
 builder.AddJsxCore();
 
 var app = builder.Build();
-
 app.UseJsxCore();
 
 app.MapGet("/", () => Results.Extensions.Jsx("Home/Index", new { name = "World" }));
@@ -113,77 +91,8 @@ Run the app.
 
 ---
 
-## Quick start: ASP.NET Core MVC
+## Sample apps included
 
-JsxCore registers itself as an `IViewEngine`, so there is nothing JsxCore-specific in the
-controller. `View()` finds `Views/Home/Index.tsx` through the normal view location rules.
-
-```csharp
-using JsxCore.Hosting;
-
-var builder = WebApplication.CreateBuilder(args);
-
-builder.Services.AddControllersWithViews();
-builder.AddJsxCore();
-
-var app = builder.Build();
-
-app.UseJsxCore();
-app.MapControllers();
-
-app.Run();
-```
-
-```csharp
-// Controllers/HomeController.cs
-public class HomeController : Controller
-{
-    [HttpGet("/")]
-    public IActionResult Index() => View(new IndexModel("World"));
-}
-```
-
-```csharp
-// Models/IndexModel.cs (exported to TypeScript automatically)
-namespace MyApp.Models;
-
-public sealed record IndexModel(string Name);
-```
-
-```tsx
-// Views/Home/Index.tsx
-import type { ViewProps } from "dotnet:rendering";
-import type MyApp from "dotnet:MyApp";
-
-export default function Index({ model }: ViewProps<MyApp.Models.IndexModel>) {
-    return <h1>Hello {model.name}</h1>;
-}
-```
-
-Razor keeps working alongside it. A view JsxCore cannot find falls through to Razor, so you can
-migrate a page at a time.
-
----
-
-## Where next
-
-| | |
-|---|---|
-| **[Getting started](docs/getting-started.md)** | Prerequisites, installation, project layout |
-| **[Runtimes](docs/runtimes.md)** | Preact, which ships inside JsxCore, upgrading it, and switching to React |
-| **[Render modes](docs/render-modes.md)** | Client, server, or both |
-| **[Writing views](docs/writing-views.md)** | The view contract, `head`, hooks, the JSX dialect |
-| **[Import syntax](docs/import-syntax.md)** | Every import a view can write: components, npm, `dotnet:` |
-| **[Model types](docs/model-types.md)** | TypeScript generated from your .NET models |
-| **[npm packages](docs/npm-packages.md)** | Importing from `node_modules`, on the server and in the browser |
-| **[Package management](docs/package-management.md)** | Installing packages without npm, and the `dotnet npm` tool |
-| **[.NET interop](docs/dotnet-interop.md)** | Calling .NET directly from server-rendered views |
-| **[Build and deploy](docs/build-and-deploy.md)** | Build modes, and publishing without npm |
-| **[Full documentation](docs/README.md)** | Everything else |
-
----
-
-## Sample application
 
 [`samples/SampleApp`](samples/SampleApp) demonstrates every render mode, .NET globals, MVC
 integration, generated model types and Preact features:
@@ -192,14 +101,19 @@ integration, generated model types and Preact features:
 dotnet run --project samples/SampleApp
 ```
 
-[`samples/SampleApp.React`](samples/SampleApp.React) is the smallest thing that works: a minimal
-API, one view, and `<JsxCoreFramework>react</JsxCoreFramework>`. The build restores React for it.
+You'll see **a view mounted in the browser**, from a model serialised by your endpoint:
 
-```bash
-dotnet run --project samples/SampleApp.React
-```
+<img src="https://raw.githubusercontent.com/davidwhitney/JsxCore/main/images/screenshots/sample-client.png" alt="A client-rendered JsxCore view, with a working counter" width="820">
 
----
+**Calling .NET from a server-rendered view.** No fetch, no API, no bridge: the component asked a C#
+service for the total during rendering, and the browser received markup:
+
+<img src="https://raw.githubusercontent.com/davidwhitney/JsxCore/main/images/screenshots/sample-dotnet-globals.png" alt="A server-rendered view reading values from a .NET service" width="820">
+
+**A type error while you work.** The watcher recompiles on save and pushes the diagnostics to the
+page, rather than serving a stale build or a blank screen:
+
+<img src="https://raw.githubusercontent.com/davidwhitney/JsxCore/main/images/screenshots/hot-reload-error.png" alt="The development overlay showing a TypeScript compilation error" width="820">
 
 ## Licence
 
