@@ -24,6 +24,7 @@ A TSX/JSX view engine for ASP.NET Core. To get running, start with
 | **[Writing views](writing-views.md)** | The view contract, component imports, `head`, hooks, the JSX dialect |
 | **[Import syntax](import-syntax.md)** | Every import a view can write, and what each one resolves to |
 | **[Model types](model-types.md)** | TypeScript types generated from your .NET models, and how to control what is exported |
+| **[Views and Web APIs](views-and-web-apis.md)** | A page server rendered for first paint that then talks to your own API |
 | **[Returning views](returning-views.md)** | Minimal APIs, MVC controllers, per-response document settings |
 | **[npm packages](npm-packages.md)** | Importing packages from `node_modules`, on the server and in the browser |
 | **[Package management](package-management.md)** | Installing packages without npm, and the `dotnet npm` tool |

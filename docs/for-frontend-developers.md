@@ -252,5 +252,6 @@ Worth knowing before you commit:
 - [Render modes](render-modes.md) — client, server, or both, in detail
 - [Writing views](writing-views.md) — the view contract, `head`, hooks, the JSX dialect
 - [Import syntax](import-syntax.md) — every import a view can write
+- [Views and Web APIs](views-and-web-apis.md) — server render first paint, then fetch from your own API
 - [Returning views](returning-views.md) — minimal APIs and MVC controllers, per-response settings
 - [.NET interop](dotnet-interop.md) — registering the objects behind `dotnet:globals`
