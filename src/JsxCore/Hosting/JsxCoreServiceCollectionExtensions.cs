@@ -40,12 +40,24 @@ public static class JsxCoreServiceCollectionExtensions
         var options = new JsxCoreOptions();
         configure?.Invoke(options);
 
+        // The convention scans the application's own assembly, and it also carries what the build
+        // decided, so it is resolved before anything reads either.
+        options.TypeDefinitions.ApplicationAssembly ??= ResolveApplicationAssembly(environment);
+
+        // A Release build compiles the views and publishes them, so the application serves what it
+        // produced rather than compiling again on a server that may have no toolchain at all.
+        // Nobody has to ask for that; setting the option only overrides it.
+        options.PrecompiledOnly = ConfiguredOptimisation.Precompiled(
+            options.PrecompiledOnly, options.TypeDefinitions.ApplicationAssembly);
+
+        var precompiled = options.PrecompiledOnly == true;
+
         // Precompiled applications have no compiler, so nothing can be watched or hot reloaded.
-        var isDevelopment = environment.IsDevelopment() && !options.PrecompiledOnly;
+        var isDevelopment = environment.IsDevelopment() && !precompiled;
         options.WatchForChanges ??= isDevelopment;
         options.HotReload ??= isDevelopment;
 
-        if (options.PrecompiledOnly)
+        if (precompiled)
         {
             options.CompileOnStartup = false;
             options.WatchForChanges = false;
@@ -54,6 +66,7 @@ public static class JsxCoreServiceCollectionExtensions
 
         var contentRoot = environment.ContentRootPath;
 
+        // Already resolved above; kept for callers that construct options themselves.
         // The convention scans the application's own assembly. Resolving it from the environment
         // rather than Assembly.GetEntryAssembly() keeps it correct under test hosts, where the
         // entry assembly is the test runner.
@@ -213,7 +226,7 @@ public static class JsxCoreServiceCollectionExtensions
             _ => false
         };
 
-        if (!allowed || options.PrecompiledOnly)
+        if (!allowed || options.PrecompiledOnly == true)
         {
             return null;
         }
@@ -251,6 +264,16 @@ public static class JsxCoreServiceCollectionExtensions
         if (toolchain is not null)
         {
             return new JsMinifier(toolchain, logger);
+        }
+
+        // A precompiled application is published output: the build minified the views and the
+        // publish step minified the packages, so there is nothing left for a runtime minifier to
+        // do and esbuild is deliberately absent. Warning there would be noise about a job already
+        // done.
+        if (options.PrecompiledOnly == true)
+        {
+            logger.LogDebug("JsxCore: esbuild is not present; assets were minified by the build.");
+            return null;
         }
 
         logger.LogWarning(

@@ -30,7 +30,8 @@ versions do not provide. Raise the range in `package.json` and rebuild, or run
 
 ### `JsxCoreEnvironmentException`: no compiled views were found
 
-`PrecompiledOnly` is set but the publish output has no compiled views. Check that the package's
+The application is serving precompiled views — which a Release build turns on by itself — but the
+output has none. Check that the package's
 build targets ran, that `JsxCoreCompileOnBuild` is not `false`, and that
 `options.WorkingDirectory` matches `JsxCoreWorkingDirectory`.
 
@@ -91,7 +92,9 @@ The build could not find the TypeScript compiler and could not install it either
   Delete `package-lock.json` and build again to have it rewritten, then commit the result.
 
 The build carries on regardless, leaving compilation to application startup, so this is a warning
-rather than an error. It does become fatal later if the application runs with `PrecompiledOnly`.
+rather than an error. It does become fatal later, because a Release build then starts an
+application that expects compiled views and finds none. Building Debug, or setting
+`options.PrecompiledOnly = false`, compiles at startup instead.
 
 ---
 

@@ -1,3 +1,4 @@
+using JsxCore.Tool;
 using JsxCore.Compilation;
 using JsxCore.Compilation.Provisioning.PackageManagement.Native;
 using Shouldly;
@@ -152,5 +153,49 @@ public class PackageManagementTests
         result.Succeeded.ShouldBeTrue();
         result.DidAnything.ShouldBeFalse();
         manager.Adds.ShouldBe(0);
+    }
+
+    [Fact]
+    public void Analyse_PackageHasItsOwnDependencies_RecordsThemForPublishing()
+    {
+        // react-dom needs scheduler. Publishing only what package.json names produced an
+        // application that resolved react-dom and then failed on the first server render.
+        var root = Path.Combine(Path.GetTempPath(), "jsxcore-closure-" + Guid.NewGuid().ToString("n")[..8]);
+        var modules = Path.Combine(root, "node_modules");
+
+        try
+        {
+            Directory.CreateDirectory(Path.Combine(modules, "outer"));
+            Directory.CreateDirectory(Path.Combine(modules, "middle"));
+            Directory.CreateDirectory(Path.Combine(modules, "inner"));
+
+            File.WriteAllText(Path.Combine(root, "package.json"),
+                """{"name":"app","dependencies":{"outer":"^1"},"devDependencies":{"tool":"^1"}}""");
+            File.WriteAllText(Path.Combine(modules, "outer", "package.json"),
+                """{"name":"outer","version":"1.0.0","dependencies":{"middle":"^1"},"devDependencies":{"outer-tool":"^1"}}""");
+            File.WriteAllText(Path.Combine(modules, "middle", "package.json"),
+                """{"name":"middle","version":"1.0.0","dependencies":{"inner":"^1"}}""");
+            File.WriteAllText(Path.Combine(modules, "inner", "package.json"),
+                """{"name":"inner","version":"1.0.0"}""");
+
+            var props = Path.Combine(root, "obj", "JsxCore.g.props");
+            AnalyseCommand.Run(Arguments.Parse(["--project-dir", root, "--output", props]));
+
+            var written = File.ReadAllText(props);
+
+            written.ShouldContain("<JsxCoreNpmRuntimePackage Include=\"outer\"");
+            written.ShouldContain("<JsxCoreNpmRuntimePackage Include=\"middle\"");
+            written.ShouldContain("<JsxCoreNpmRuntimePackage Include=\"inner\"");
+
+            // A package's own devDependencies are not installed for it, so they are not published.
+            written.ShouldNotContain("outer-tool");
+
+            // Nor are the application's, which is the cut a production npm ci makes.
+            written.ShouldNotContain("<JsxCoreNpmRuntimePackage Include=\"tool\"");
+        }
+        finally
+        {
+            try { Directory.Delete(root, recursive: true); } catch (IOException) { }
+        }
     }
 }

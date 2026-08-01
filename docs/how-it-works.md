@@ -154,7 +154,7 @@ the package's build targets never ran:
 | | |
 |---|---|
 | Development only | The default is `DependencyInstallMode.Development`. A published application never installs anything |
-| Never when precompiled | `PrecompiledOnly` skips it entirely; there is nothing to install and no reason to write to a server's disk |
+| Never when precompiled | Skipped entirely, which a Release build means by default; there is nothing to install and no reason to write to a server's disk |
 | Only what is missing | Nothing runs on subsequent starts |
 | Reported as it happens | Every command is printed before it runs |
 | Never fatal on its own | If the install fails, startup still gives you the command to run by hand |

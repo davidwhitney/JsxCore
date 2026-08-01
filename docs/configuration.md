@@ -42,7 +42,7 @@ builder.AddJsxCore(options =>
 |---|---|---|
 | `TypeChecking` | `Warn` | `Off`, `Warn` or `Error` |
 | `CompileOnStartup` | `true` | Compile everything during startup |
-| `PrecompiledOnly` | `false` | Serve prebuilt output with no toolchain |
+| `PrecompiledOnly` | follows the build | Serve prebuilt output with no toolchain. On for Release, off for Debug; set it to override |
 | `WatchForChanges` | dev only | Recompile when sources change |
 | `HotReload` | dev only | Serve the hot reload client and endpoint |
 | `AutoInstallDependencies` | `Development` | `Never`, `Development` or `Always`: when *startup* may restore packages. The build restores in any configuration |
@@ -175,6 +175,7 @@ Set these in your `.csproj`. They control [build-time compilation](build-and-dep
 | `JsxCoreAutoInstallDependencies` | `true` | Install missing npm packages during the build |
 | `JsxCoreMinify` | Release only | Minify what is served to the browser, with esbuild |
 | `JsxCoreCompressAssets` | Release only | Compress assets on the way out: Brotli, or gzip |
+| `JsxCorePrecompiled` | Release only | Serve the views the build compiled instead of compiling at startup |
 | `JsxCoreMinifierPath` | auto | Explicit path to the esbuild binary |
 | `JsxCoreNpm` | probed | Path to npm, if it is not on PATH |
 | `JsxCorePackageManager` | `native` | `native` talks to the registry directly; `npm` shells out to npm |
@@ -245,7 +246,7 @@ Full reference in [package management](package-management.md#on-the-command-line
 
 | Type | Thrown when |
 |---|---|
-| `JsxCoreEnvironmentException` | Something needed is missing at registration: the toolchain, the views directory, a writable working directory, or compiled output when `PrecompiledOnly` is set |
+| `JsxCoreEnvironmentException` | Something needed is missing at registration: the toolchain, the views directory, a writable working directory, or compiled output when the application is serving precompiled views |
 | `JsxCompilationException` | Compilation failed and `TypeChecking` is `Error` |
 | `JsxViewNotFoundException` | A view could not be located; carries every path probed |
 | `JsxRenderException` | Server-side rendering threw; carries the JavaScript stack trace |

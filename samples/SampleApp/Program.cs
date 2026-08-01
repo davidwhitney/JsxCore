@@ -18,7 +18,6 @@ builder.AddJsxCore(options =>
     options.DefaultRenderMode = RenderMode.Client;
 
     // Published output already contains the compiled views, so production needs no toolchain.
-    options.PrecompiledOnly = builder.Environment.IsProduction();
 
     // Expose .NET objects to server-rendered views.
     options.Globals.Register<InventoryService>("Inventory");

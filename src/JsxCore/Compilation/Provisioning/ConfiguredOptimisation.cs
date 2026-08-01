@@ -16,12 +16,23 @@ public static class ConfiguredOptimisation
 {
     public const string MinifyKey = "JsxCoreMinify";
     public const string CompressKey = "JsxCoreCompressAssets";
+    public const string PrecompiledKey = "JsxCorePrecompiled";
 
     /// <summary>What the build said about minification, or null when it said nothing.</summary>
     public static bool? Minify(Assembly? assembly) => Read(assembly, MinifyKey);
 
     /// <summary>What the build said about compression, or null when it said nothing.</summary>
     public static bool? Compress(Assembly? assembly) => Read(assembly, CompressKey);
+
+    /// <summary>
+    /// Whether the build produced views for the application to serve rather than compile.
+    /// </summary>
+    /// <remarks>
+    /// Unlike minification, there is no environment fallback: an application whose assembly says
+    /// nothing compiles on startup, which is what it did before the build ever stamped this.
+    /// </remarks>
+    public static bool Precompiled(bool? configured, Assembly? assembly) =>
+        configured ?? Read(assembly, PrecompiledKey) ?? false;
 
     /// <summary>
     /// Resolves a setting: what was asked for explicitly, then what the build stamped, then the

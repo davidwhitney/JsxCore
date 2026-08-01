@@ -41,6 +41,16 @@ public static partial class AnalyseCommand
                 .Append(" Installed=\"").Append(installed is null ? "false" : "true").Append('"')
                 .AppendLine(" Visible=\"false\" />");
         }
+        // Everything the runtime actually needs, which is the declared dependencies plus theirs,
+        // and theirs. react-dom needs scheduler; publishing only what package.json names leaves an
+        // application that resolves react-dom and then fails on the first render.
+        props.AppendLine("  </ItemGroup>");
+        props.AppendLine("  <ItemGroup>");
+        foreach (var name in RuntimeClosure(manifest, layout))
+        {
+            props.Append("    <JsxCoreNpmRuntimePackage Include=\"").Append(Escape(name))
+                 .AppendLine("\" Visible=\"false\" />");
+        }
         props.AppendLine("  </ItemGroup>");
         props.AppendLine("</Project>");
 
@@ -66,6 +76,43 @@ public static partial class AnalyseCommand
             builder.Append("    <").Append(name).Append('>')
                 .Append(Escape(value)).Append("</").Append(name).AppendLine(">");
         }
+    }
+
+    /// <summary>
+    /// The runtime dependency closure: what has to be present for a view to render, walked through
+    /// the installed packages rather than read off the manifest.
+    /// </summary>
+    /// <remarks>
+    /// A package's own devDependencies are not included, which is the cut npm makes when installing
+    /// it as a dependency. A package that is declared but not installed contributes only itself.
+    /// </remarks>
+    private static IReadOnlyList<string> RuntimeClosure(PackageManifest? manifest, NodeModulesLayout layout)
+    {
+        var seen = new HashSet<string>(StringComparer.Ordinal);
+        var queue = new Queue<string>(
+            (manifest?.Packages ?? []).Where(package => !package.Development).Select(package => package.Name));
+
+        while (queue.Count > 0)
+        {
+            var name = queue.Dequeue();
+            if (!seen.Add(name))
+            {
+                continue;
+            }
+
+            if (layout.FindFile($"{name}/package.json") is not { } path
+                || PackageManifest.Read(path) is not { } installed)
+            {
+                continue;
+            }
+
+            foreach (var dependency in installed.Packages.Where(package => !package.Development))
+            {
+                queue.Enqueue(dependency.Name);
+            }
+        }
+
+        return [.. seen.OrderBy(name => name, StringComparer.Ordinal)];
     }
 
     private static string Escape(string value) => value

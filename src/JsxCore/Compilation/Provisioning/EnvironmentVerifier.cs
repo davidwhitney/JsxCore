@@ -14,7 +14,9 @@ public static class EnvironmentVerifier
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(contentRoot);
 
-        if (options.PrecompiledOnly)
+        // Null means nobody decided, which registration resolves before calling this; treated as
+        // "compile", so a caller constructing options directly behaves as it always did.
+        if (options.PrecompiledOnly == true)
         {
             VerifyPrecompiledOutput(options, contentRoot);
             return null;

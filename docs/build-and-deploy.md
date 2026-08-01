@@ -81,20 +81,27 @@ yourself:
 With that set, a build with no compiler emits warning `JSX0001` and compiles nothing, leaving the
 work to application startup.
 
-### 3. Precompiled only, at run time
+### 3. Precompiled only, at run time *(automatic for Release)*
 
-Because publish output already contains compiled views, production needs no toolchain at all:
-
-```csharp
-builder.AddJsxCore(options =>
-{
-    options.PrecompiledOnly = builder.Environment.IsProduction();
-});
-```
+Because publish output already contains compiled views, production needs no toolchain at all — and
+you do not have to ask for it. A **Release** build compiles the views, carries them into the output
+and records the fact on your assembly, so the application serves what the build produced.
 
 Startup then verifies that compiled output *exists* instead of verifying the toolchain, and
 compilation, watching and hot reload are all disabled. If the output is missing, startup fails with
 an explanation rather than serving an application that 500s on every view.
+
+Set it yourself only to override that:
+
+```csharp
+builder.AddJsxCore(options =>
+{
+    options.PrecompiledOnly = false;   // compile at startup even in Release
+});
+```
+
+Debug builds leave it off, because compiling at startup is what makes a view change appear without
+a rebuild.
 
 Views that import [npm packages](npm-packages.md) are the exception: those are read from
 `node_modules` at run time, so they still have to be present. Everything in your `dependencies` is
@@ -135,13 +142,10 @@ would. With `warn` it raises `JSX0003` instead.
 
 ## Deployment
 
-The recommended production setup:
+The recommended production setup is the default one:
 
 ```csharp
-builder.AddJsxCore(options =>
-{
-    options.PrecompiledOnly = builder.Environment.IsProduction();
-});
+builder.AddJsxCore();
 ```
 
 ```bash
@@ -149,10 +153,11 @@ dotnet publish -c Release
 ```
 
 Views are compiled during publish, the JavaScript is carried into the output, and the running
-application needs **no `node_modules`, no TypeScript and no Node.js**.
+application needs **no `node_modules`, no TypeScript and no Node.js**. Nothing in `Program.cs` says
+so, because the build already did.
 
-If you would rather compile at startup in production, leave `PrecompiledOnly` off and make sure the
-TypeScript package is present on the server.
+If you would rather compile at startup in production, set `options.PrecompiledOnly = false` and make
+sure the TypeScript package is present on the server.
 
 ### What the framework needs
 
@@ -171,7 +176,7 @@ itself.
 
 ### Containers
 
-With `PrecompiledOnly`, the runtime image needs nothing beyond the .NET runtime, and the build
+The runtime image needs nothing beyond the .NET runtime, and the build
 image needs nothing beyond the SDK, because packages are restored without Node:
 
 ```dockerfile
@@ -213,7 +218,7 @@ and a better outcome than an application that will not start.
 
 It covers everything the browser downloads: your compiled views, the framework, and the npm
 packages, which are usually the bulk of it. Views are minified both by the build, for a
-`PrecompiledOnly` deployment where nothing recompiles them later, and at startup for an application
+a precompiled deployment where nothing recompiles them later, and at startup for an application
 that compiles then.
 
 **Compression** is Brotli where the client takes it and gzip otherwise, computed once per build and

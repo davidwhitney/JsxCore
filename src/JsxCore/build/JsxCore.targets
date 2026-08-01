@@ -50,6 +50,18 @@
     <JsxCoreCompressAssets Condition="'$(JsxCoreCompressAssets)' == ''">false</JsxCoreCompressAssets>
 
     <!--
+      A Release build compiles the views and carries them into the output, so the application can
+      serve what the build produced instead of compiling again on a server that may have no
+      toolchain. Debug leaves it off, because compiling at startup is what makes a view change
+      show up without a rebuild.
+
+      Stamped onto the assembly below, so an application started from published output obeys it
+      without anyone writing PrecompiledOnly in Program.cs.
+    -->
+    <JsxCorePrecompiled Condition="'$(JsxCorePrecompiled)' == '' And '$(Configuration)' == 'Release' And '$(JsxCoreCompileOnBuild)' != 'false'">true</JsxCorePrecompiled>
+    <JsxCorePrecompiled Condition="'$(JsxCorePrecompiled)' == ''">false</JsxCorePrecompiled>
+
+    <!--
       Install missing npm packages as part of the build. This is what makes a clean checkout work:
       without it the compiler is absent, nothing is compiled, and the failure only surfaces later.
     -->
@@ -182,6 +194,14 @@
              Query="/Project/ItemGroup/JsxCoreNpmDevDependency/@Include">
       <Output TaskParameter="Result" ItemName="JsxCoreDevDependencyName" />
     </XmlPeek>
+
+    <!-- The declared runtime dependencies plus everything they depend on, which is what publishing
+         has to carry: resolving a package and then failing on its own import is worse than not
+         having it. -->
+    <XmlPeek Condition="Exists('$(JsxCoreGeneratedProps)')" XmlInputPath="$(JsxCoreGeneratedProps)"
+             Query="/Project/ItemGroup/JsxCoreNpmRuntimePackage/@Include">
+      <Output TaskParameter="Result" ItemName="JsxCoreRuntimePackageName" />
+    </XmlPeek>
   </Target>
 
   <Target Name="JsxCoreLocateCompiler" DependsOnTargets="JsxCoreAnalyse;JsxCoreLocateManifest">
@@ -247,6 +267,11 @@
     <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
       <_Parameter1>JsxCoreCompressAssets</_Parameter1>
       <_Parameter2>$(JsxCoreCompressAssets)</_Parameter2>
+    </AssemblyAttribute>
+
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>JsxCorePrecompiled</_Parameter1>
+      <_Parameter2>$(JsxCorePrecompiled)</_Parameter2>
     </AssemblyAttribute>
   </ItemGroup>
 
@@ -499,6 +524,29 @@
     the .mjs files and manifests are taken, so this costs a few tens of kilobytes rather than the
     whole package.
   -->
+  <!--
+    Minify the packages copied into the publish output.
+
+    The application minifies npm assets as it serves them, which covers running locally, but esbuild
+    is a development dependency and is deliberately not published: on a server there is nothing to
+    minify with, so a published application would serve packages exactly as npm wrote them. Since
+    packages are most of what a browser downloads, that is the whole feature missing from the one
+    deployment it matters in.
+
+    Done on the copies in the publish output, never in anyone's node_modules, and with each file
+    left the kind of module it already is — forcing ESM onto a CommonJS package cannot convert its
+    require calls, and JsxCore wraps those itself when serving.
+  -->
+  <Target Name="JsxCoreMinifyPublishedPackages"
+          AfterTargets="Publish"
+          DependsOnTargets="JsxCoreLocateCompiler"
+          Condition="'$(JsxCoreMinify)' == 'true' And Exists('$(PublishDir)node_modules')">
+    <Exec Command="$(JsxCoreToolCommand) minify --project-dir &quot;$(MSBuildProjectDirectory)&quot; --directory &quot;$(PublishDir)node_modules&quot; --esbuild &quot;$(JsxCoreMinifierPath)&quot;"
+          WorkingDirectory="$(MSBuildProjectDirectory)"
+          ContinueOnError="true"
+          StandardOutputImportance="high" />
+  </Target>
+
   <Target Name="JsxCoreIncludeInPublish"
           BeforeTargets="ComputeResolvedFilesToPublishList"
           DependsOnTargets="JsxCoreAnalyse;JsxCoreLocateCompiler;JsxCoreCompileViews"
@@ -537,7 +585,12 @@
       a production npm ci makes.
     -->
     <ItemGroup Condition="'$(_JsxCoreNodeModules)' != ''">
-      <_JsxCoreRuntimePackage Include="@(JsxCoreDependencyName)"
+      <_JsxCoreRuntimePackage Include="@(JsxCoreRuntimePackageName)"
+                              Exclude="preact;preact-render-to-string" />
+
+      <!-- Older generated props, from before the closure was recorded. -->
+      <_JsxCoreRuntimePackage Condition="'@(JsxCoreRuntimePackageName)' == ''"
+                              Include="@(JsxCoreDependencyName)"
                               Exclude="preact;preact-render-to-string" />
 
       <_JsxCorePackageFile Include="$(_JsxCoreNodeModules)%(_JsxCoreRuntimePackage.Identity)/**/*"

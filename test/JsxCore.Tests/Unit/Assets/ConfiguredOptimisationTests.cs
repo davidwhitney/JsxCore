@@ -42,6 +42,29 @@ public class ConfiguredOptimisationTests
         ConfiguredOptimisation.Minify(AssemblyWith(ConfiguredOptimisation.MinifyKey, "yes please")).ShouldBeNull();
     }
 
+    [Fact]
+    public void Precompiled_BuildSaidNothing_CompilesOnStartupAsItAlwaysDid()
+    {
+        // No environment fallback here, unlike minification: an assembly that says nothing must
+        // behave as it did before the build ever stamped this, or an application built by an older
+        // JsxCore would start refusing to compile.
+        ConfiguredOptimisation.Precompiled(configured: null, assembly: null).ShouldBeFalse();
+        ConfiguredOptimisation.Precompiled(null, AssemblyWith("Unrelated", "true")).ShouldBeFalse();
+    }
+
+    [Fact]
+    public void Precompiled_ReleaseBuildStampedIt_ServesWhatTheBuildProduced() =>
+        ConfiguredOptimisation.Precompiled(
+            null, AssemblyWith(ConfiguredOptimisation.PrecompiledKey, "true")).ShouldBeTrue();
+
+    [Theory]
+    [InlineData(true, "false", true)]
+    [InlineData(false, "true", false)]
+    public void Precompiled_ApplicationDisagreesWithTheBuild_TheApplicationWins(
+        bool configured, string stamped, bool expected) =>
+        ConfiguredOptimisation.Precompiled(
+            configured, AssemblyWith(ConfiguredOptimisation.PrecompiledKey, stamped)).ShouldBe(expected);
+
     private static Assembly AssemblyWith(string key, string value)
     {
         var name = new AssemblyName("JsxCoreOptimisationProbe" + Guid.NewGuid().ToString("n")[..8]);

@@ -180,8 +180,10 @@ the same place, so they have to exist on the server. Two ways:
 dotnet npm ci        # or: npm ci --omit=dev
 ```
 
-**Or let publish carry them**, which happens automatically for everything in `dependencies`. Those
-package directories are copied under `node_modules/` in the publish output, where the runtime finds
+**Or let publish carry them**, which happens automatically for everything in `dependencies` — and
+for everything those packages depend on in turn, since a package that resolves and then fails on its
+own import is no better than a missing one. Those package directories are copied under
+`node_modules/` in the publish output, where the runtime finds
 them by walking up from the content root. `devDependencies` are left out, which is the same cut a
 production `npm ci` makes.
 

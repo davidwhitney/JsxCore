@@ -29,7 +29,12 @@ public sealed class JsMinifier(EsbuildToolchain toolchain, ILogger logger)
     /// Minifies every <c>.js</c> file under <paramref name="root"/>, in place.
     /// </summary>
     /// <returns>How many files were rewritten, which is zero when anything went wrong.</returns>
-    public int MinifyDirectory(string root)
+    /// <param name="preserveFormat">
+    /// Leave each file the kind of module it already is. Required for anything out of
+    /// node_modules: forcing ESM on a CommonJS package cannot convert its <c>require</c> calls, and
+    /// JsxCore wraps those itself at serve time, so the original text is what must survive.
+    /// </param>
+    public int MinifyDirectory(string root, bool preserveFormat = false)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(root);
 
@@ -50,7 +55,7 @@ public sealed class JsMinifier(EsbuildToolchain toolchain, ILogger logger)
         // --outbase is not optional. Without it esbuild derives output paths from the common
         // parent of whatever it was handed, so a lone Home/Index.js lands at the root as
         // Index.js: the original survives unminified and a stray module appears beside it.
-        return Run([.. files, $"--outdir={root}", $"--outbase={root}", "--allow-overwrite"], root)
+        return Run([.. files, $"--outdir={root}", $"--outbase={root}", "--allow-overwrite"], root, preserveFormat)
             ? files.Count
             : 0;
     }
@@ -117,7 +122,7 @@ public sealed class JsMinifier(EsbuildToolchain toolchain, ILogger logger)
     /// <summary>
     /// Invokes esbuild. Arguments are passed as a list because a package path can contain spaces.
     /// </summary>
-    private bool Run(IReadOnlyList<string> arguments, string workingDirectory)
+    private bool Run(IReadOnlyList<string> arguments, string workingDirectory, bool preserveFormat = false)
     {
         var startInfo = new ProcessStartInfo(_toolchain.ExecutablePath)
         {
@@ -132,10 +137,15 @@ public sealed class JsMinifier(EsbuildToolchain toolchain, ILogger logger)
             startInfo.ArgumentList.Add(argument);
         }
 
-        // Modules in, modules out. Without --format esbuild would infer per file, and a package
-        // whose source happens to look like a script would come back as one.
         startInfo.ArgumentList.Add("--minify");
-        startInfo.ArgumentList.Add("--format=esm");
+
+        // Modules in, modules out, for what JsxCore compiled: those are ESM and saying so keeps a
+        // file that happens to look like a script from coming back as one. Never for a package,
+        // where the format is the package's to decide.
+        if (!preserveFormat)
+        {
+            startInfo.ArgumentList.Add("--format=esm");
+        }
         startInfo.ArgumentList.Add("--log-level=warning");
 
         try

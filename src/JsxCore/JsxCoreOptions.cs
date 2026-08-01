@@ -225,7 +225,12 @@ public sealed class JsxCoreOptions
     /// toolchain, so the production machine needs no npm packages. Compilation, watching and hot
     /// reload are all disabled.
     /// </remarks>
-    public bool PrecompiledOnly { get; set; }
+    /// <remarks>
+    /// Null follows the build: a Release build compiles views and publishes them, so the
+    /// application serves what it produced rather than compiling again on the server. Set it
+    /// explicitly to override that in either direction.
+    /// </remarks>
+    public bool? PrecompiledOnly { get; set; }
 
     /// <summary>
     /// Watch the views directory and recompile on change. Defaults to true in the Development
