@@ -78,6 +78,10 @@ which is why this is a warning. Build the project to restore it, or add it yours
 `dotnet npm add esbuild --dev`. It only appears where minification is enabled, which by default
 means Release builds. See [Build and deploy](build-and-deploy.md#minification-and-compression).
 
+A **published** application never reports this. esbuild is a development dependency and is
+deliberately not published; the build and the publish step minified everything before it got there,
+so there is nothing left to do and nothing to warn about.
+
 If the machine is one esbuild publishes no binary for, set `JsxCoreMinify` to `false` rather than
 carrying the warning.
 

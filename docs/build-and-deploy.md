@@ -225,14 +225,18 @@ that compiles then.
 held in memory rather than repeated per request. Turn it off if a reverse proxy or CDN in front of
 the application already compresses, since doing it twice costs CPU and saves nothing.
 
-On the React sample, the whole client payload:
+On the React sample, published in Release and measured over HTTP:
 
 | | bytes | |
 |---|---|---|
-| as published by npm | 1,762,890 | |
-| minified | 606,756 | 66% smaller |
-| minified, gzipped | 190,964 | |
-| minified, Brotli | 161,547 | **91% smaller than the first row** |
+| as published by npm | 1,733,178 | what a browser would fetch untouched |
+| minified | 303,867 | 82% smaller |
+| minified, gzipped | 80,334 | |
+| minified, Brotli | 66,836 | **96% smaller than the first row** |
+
+React is the case that shows it: `react` and `react-dom` ship unminified CommonJS, and the wrapper
+serves both their development and production builds. Preact's own packages arrive minified from npm,
+so the same table for the Preact sample moves by about a kilobyte.
 
 Minified and unminified assets never share a URL: the setting is part of the build id, so turning
 minification on moves every URL rather than serving different bytes from one a browser has already
@@ -269,7 +273,7 @@ options.TypeDefinitions.OutputPath = "Views/generated";
 publish/
 ├── MyApp.dll
 ├── obj/JsxCore/js/          ← compiled views
-├── node_modules/react/...      ← only in React mode, or if you installed your own Preact
+├── node_modules/react/...      ← your dependencies, and everything they depend on
 ├── wwwroot/
 └── ...
 ```

@@ -85,9 +85,12 @@ esbuild's binary lives in a platform-specific package that npm selects with `os`
 [the native client](package-management.md) fetching the right one is all that is required, and the
 `postinstall` step JsxCore does not run has nothing left to do.
 
-Views are minified in both places they are compiled: by the build, for a deployment where nothing
-recompiles them, and at startup for an application that compiles then. Packages and the framework
-are minified once per build as they are prepared for the browser.
+Minification happens wherever the thing being served is produced. Views are minified by the build,
+for a deployment where nothing recompiles them, and at startup for an application that compiles
+then. Packages are minified as the graph is prepared for the browser — and again by **publish**, on
+the copies going into the output, because esbuild is a development dependency that a server never
+receives. Without that last step a published application would serve packages exactly as npm wrote
+them, which is most of what a browser downloads.
 
 ### Server rendering is in-process
 
