@@ -12,6 +12,7 @@ A TSX/JSX view engine for ASP.NET Core. To get running, start with
 | | |
 |---|---|
 | **[Getting started](getting-started.md)** | Prerequisites, installation, your first view, project layout |
+| **[For frontend developers](for-frontend-developers.md)** | Coming from Next.js or a Vite SPA: what maps onto what, and where server and client code live |
 | **[How it works](how-it-works.md)** | The compilation pipeline, native ESM, where the packages come from, build ids, the embedded runtime |
 
 ## Using it
