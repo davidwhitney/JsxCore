@@ -1,9 +1,10 @@
 import { useState } from "react";
 import type { ViewProps } from "dotnet:rendering";
+import type { IndexModel } from "dotnet:SampleApp.React";
 
 export const head = { title: "JsxCore with React" };
 
-export default function Index({ model }: ViewProps<{ framework: string; renderedAt: string }>) {
+export default function Index({ model }: ViewProps<IndexModel>) {
     const [count, setCount] = useState(0);
 
     return (

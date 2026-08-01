@@ -13,6 +13,8 @@ Native JSX, React, Preact and TypeScript support for ASP.NET MVC, WebAPI and Min
 
 **This makes ASP.NET Core a fully featured React and TypeScript developer experience, comparable and competitive with Node-based frameworks like Next.js, Remix, and Astro, but without the Node runtime or npm dependency.**
 
+<img src="https://raw.githubusercontent.com/davidwhitney/JsxCore/main/images/screenshots/rider.png" alt="The developer experience" width="820">
+
 Sold already? Go [get started](docs/getting-started.md) or [install the package](#install).
 
 ## Comprehensive Documentation
