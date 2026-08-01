@@ -12,12 +12,11 @@
 | **TypeScript 7+** | installed for you on first run | Compiles views |
 | **A JS framework** | Preact ships inside JsxCore; React is restored for you | See [Runtimes](runtimes.md) |
 
-**Node and npm are not required.** JsxCore restores those packages itself, talking to the npm
-registry directly, and writes a `package-lock.json` that real npm accepts. See
+**Node and npm are not required.** See
 [package management](package-management.md) for how it works, the `dotnet npm` tool, and how to
 use npm instead if you would rather.
 
-No JavaScript tooling runs on Node either: the TypeScript compiler is a standalone native executable
+The TypeScript compiler is a standalone native executable
 that JsxCore starts directly, and Preact is a set of files carried inside the JsxCore package. There
 is no Node process at build time or when serving a request.
 
@@ -29,7 +28,7 @@ is no Node process at build time or when serving a request.
 dotnet add package JsxCore
 ```
 
-That is all you have to run. The build installs the packages JsxCore needs, and creates a
+The build creates a
 `package.json` if there is not one already:
 
 ```
@@ -39,9 +38,8 @@ JsxCore: fetching @typescript/typescript-linux-x64@7.0.2
 ```
 
 This happens during `dotnet build`, `dotnet publish` and `dotnet run` alike, so a clean checkout
-and a build agent are both covered. Nothing runs once the packages are present.
+and a build agent are both covered.
 
-You do not need any of that to write your first view.
 [How the packages get there](how-it-works.md#how-the-packages-get-there) covers the mechanics, and
 how to take them over, when you want them.
 
@@ -57,11 +55,9 @@ using JsxCore.Hosting;
 using JsxCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
-
 builder.AddJsxCore();          // verifies the toolchain; throws if it is missing
 
 var app = builder.Build();
-
 app.UseJsxCore();              // serves compiled modules, and hot reload in development
 
 app.MapGet("/", () => Results.Extensions.Jsx("Home/Index", new { name = "World" }));
@@ -117,8 +113,7 @@ is worth committing. See [Development](development.md#editor-support).
 ## Startup verification
 
 `AddJsxCore()` verifies the environment **synchronously, at registration**, and throws
-`JsxCoreEnvironmentException` if anything it needs is missing. This is on purpose: the alternative
-is an app that starts cleanly and then 500s on the first view request, with far less context.
+`JsxCoreEnvironmentException` if anything it needs is missing.
 
 It checks that a TypeScript compiler is present and new enough, that the views directory exists,
 and that the working directory is writable. A failure tells you what is missing, every path it

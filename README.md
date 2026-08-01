@@ -15,6 +15,11 @@ Native JSX, React, Preact and TypeScript support for ASP.NET MVC, WebAPI and Min
 
 Sold already? Go [get started](docs/getting-started.md) or [install the package](#install).
 
+## Comprehensive Documentation
+
+* **[Getting started](docs/getting-started.md)**
+* **[Read the full documentation](docs/README.md)**
+
 ## Want to know more?
 
 Write your views as `.tsx` files and return them from a controller or a minimal API. They are real
@@ -40,10 +45,6 @@ Key Features:
   One project-file property switches to React, which the build restores for you.
 - **Types generated from your C#.** View models are described once, in .NET.
 - **Drops into MVC.** Registers as an `IViewEngine`, so `return View()` finds `Index.tsx`.
-
-## Comprehensive Documentation
-
-📖 **[Read the documentation](docs/README.md)**
 
 ## Install
 

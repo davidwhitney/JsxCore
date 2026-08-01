@@ -114,7 +114,7 @@ Independent of *when* compilation happens, `options.TypeChecking` controls how s
 | `Error` | Type errors throw; compilation fails and requests for views fail |
 
 `Warn` is the right default in development, because a type error in one view should not take down
-the other twelve, and the emitted JavaScript is still perfectly runnable.
+the others.
 
 Use `Error` where a mistake should stop the line:
 
