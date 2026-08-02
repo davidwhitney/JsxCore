@@ -72,6 +72,59 @@ function resolveHead(viewModule, props) {
     return head || null;
 }
 
+/**
+ * Renders with a sink in place for <Head> to push into, and returns what it collected alongside
+ * the markup.
+ *
+ * The sink is a global rather than something threaded through the tree, because <Head> can be
+ * anywhere in it and neither Preact nor React offers a way to reach a render-scoped value without
+ * a context provider the view would have to opt into. Restored afterwards so a nested render
+ * cannot strand it.
+ */
+function renderCollectingHead(render) {
+    const outer = globalThis.__jsxcore_head;
+    globalThis.__jsxcore_head = [];
+
+    try {
+        return { html: render(), contributed: globalThis.__jsxcore_head };
+    } finally {
+        globalThis.__jsxcore_head = outer;
+    }
+}
+
+/**
+ * Folds what <Head> contributed into the descriptor the head export produced.
+ *
+ * The component wins on title, because it ran with everything the view knew by then; tags are
+ * appended, because two components each adding a meta tag both meant it.
+ */
+function mergeHead(head, contributed) {
+    if (!contributed || contributed.length === 0) {
+        return head;
+    }
+
+    const merged = {
+        title: head && head.title,
+        meta: (head && head.meta) ? head.meta.slice() : [],
+        links: (head && head.links) ? head.links.slice() : [],
+        scripts: (head && head.scripts) ? head.scripts.slice() : []
+    };
+
+    for (const entry of contributed) {
+        if (entry.tag === "title") {
+            merged.title = entry.title;
+        } else if (entry.tag === "meta") {
+            merged.meta.push(entry.attributes);
+        } else if (entry.tag === "link") {
+            merged.links.push(entry.attributes);
+        } else if (entry.tag === "script") {
+            merged.scripts.push(entry.attributes);
+        }
+    }
+
+    return merged;
+}
+
 // Rendering is synchronous, so a component returning a promise never resolves into markup, and
 // rendering it anyway drops the component silently.
 function synchronous(Component) {
@@ -104,12 +157,16 @@ export function createServerEntry(createElement, renderToString) {
             const element = createElement(
                 synchronous(Component), { model: props.model, context: props.context });
 
+            const rendered = renderCollectingHead(() => renderToString(element));
+
             return JSON.stringify({
-                html: renderToString(element),
-                head: resolveHead(viewModule, props)
+                html: rendered.html,
+                head: mergeHead(resolveHead(viewModule, props), rendered.contributed)
             });
         },
 
+        // Only the head export, because the component is not run in this pass. A <Head> inside a
+        // client-rendered view is applied by the browser after it mounts.
         readHead(viewModule, props) {
             return JSON.stringify({ html: "", head: resolveHead(viewModule, props) });
         }

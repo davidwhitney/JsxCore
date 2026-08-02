@@ -138,6 +138,7 @@ The specifier is not configurable: the module is named after the assembly it des
 | `dotnet:<AssemblyName>/<Namespace>` | The same types, imported by name from the namespace they live in |
 | `dotnet:globals` | The .NET objects registered with `options.Globals`, one named export each |
 | `dotnet:rendering` | `isServerRender`, and the types a view is handed: `ViewProps`, `HeadDescriptor` |
+| `dotnet:rendering/head` | The `<Head>` component |
 | `dotnet:wwwroot/<path>` | A static file, as the URL it is served from |
 
 One rule: `dotnet:` is the .NET side of the application, meaning an assembly by name or one of the

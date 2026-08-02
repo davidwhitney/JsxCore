@@ -28,6 +28,16 @@ public static class RuntimeAssets
         "index", "jsx-runtime", "jsx-dev-runtime", "client", "server", "hooks", "dotnet", "dom"
     ];
 
+    /// <summary>
+    /// Sub-paths of <see cref="ModuleSpecifier"/> a view may import, as in
+    /// <c>dotnet:rendering/head</c>.
+    /// </summary>
+    /// <remarks>
+    /// One list, read by the import map the browser gets and by the compiler configuration, so a
+    /// specifier that type checks is one the browser can also resolve.
+    /// </remarks>
+    public static readonly IReadOnlyList<string> PublicSubModules = ["head"];
+
     private const string SharedResourcePrefix = "JsxCore.Assets.shared.";
     private const string PreactResourcePrefix = "JsxCore.Assets.preact.";
     private const string ReactResourcePrefix = "JsxCore.Assets.react.";

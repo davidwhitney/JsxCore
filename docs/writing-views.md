@@ -95,7 +95,11 @@ Only the **view** needs a default export. Shared components can export whatever 
 
 ---
 
-## The `head` export
+## The document head
+
+Two ways to set it, and they can be mixed.
+
+### The `head` export
 
 Populates the document head. It can be an object or a function of the model:
 
@@ -121,6 +125,52 @@ shipping the page first.
 
 A [per-response `Title`](returning-views.md#per-response-document-settings) overrides it when you
 need to.
+
+### The `<Head>` component
+
+The same job from inside the tree, as `next/head` does it:
+
+```tsx
+import Head from "dotnet:rendering/head";
+import type { ViewProps } from "dotnet:rendering";
+
+export default function Products({ model }: ViewProps<ProductsModel>) {
+    return (
+        <>
+            <Head>
+                <title>{model.category}</title>
+                <meta name="description" content={model.summary} />
+            </Head>
+            <h1>{model.category}</h1>
+        </>
+    );
+}
+```
+
+It renders nothing where it sits. `title`, `meta`, `link` and `script` children are lifted into the
+document head; anything else is ignored.
+
+The reason to reach for it over the export is that **any component can use it**, not just the view.
+A card deep in the tree can contribute a meta tag without the view knowing it exists, which a `head`
+export cannot express because it is evaluated before the tree is built.
+
+Both can be used together. Tags from each are emitted, and the component wins the title, because it
+ran with everything the view knew by then.
+
+### Which to use
+
+| | `head` export | `<Head>` |
+|---|---|---|
+| Declared by | the view module | any component in the tree |
+| Reads the model | yes, as a function of it | yes, wherever it sits |
+| Server-rendered views | in the first response | in the first response |
+| Client-rendered views | in the first response | applied by the browser after mounting |
+
+That last row is the whole trade. A `head` export is read without running the view, so a
+client-rendered page gets its title in the HTML the server sent. `<Head>` needs the component to
+run, which in `Client` mode happens in the browser, so the title arrives a moment later. For a page
+that search engines or link previews have to see, use the export, or
+[render on the server](render-modes.md).
 
 ---
 

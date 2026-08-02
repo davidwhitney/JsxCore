@@ -24,6 +24,9 @@
       "dotnet:rendering": [
         "../obj/JsxCore/runtime/index.d.ts"
       ],
+      "dotnet:rendering/head": [
+        "../obj/JsxCore/runtime/head.d.ts"
+      ],
       "preact": [
         "../../../node_modules/preact/src/index.d.ts"
       ],

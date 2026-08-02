@@ -127,6 +127,13 @@ public sealed class JsxRuntimeLayout
         // consistently, so every specifier this scheme serves is listed rather than implied.
         map[RuntimeAssets.ModuleSpecifier] = $"{assetBase}/runtime/dotnet.js";
 
+        // Listed rather than implied, for the same reason: a sub-path of the scheme is still a
+        // specifier the browser has to be told about one at a time.
+        foreach (var name in RuntimeAssets.PublicSubModules)
+        {
+            map[$"{RuntimeAssets.ModuleSpecifier}/{name}"] = $"{assetBase}/runtime/{name}.js";
+        }
+
         // Generated from what the application registered, and served from the same directory.
         map[TypeDefinitionOptions.GlobalsSpecifier] =
             $"{assetBase}/runtime/{GeneratedGlobalsModule.FileName}";

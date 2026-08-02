@@ -74,6 +74,7 @@ public static class TsConfigWriter
         {
             [RuntimeAssets.ModuleSpecifier] = new JsonArray("./runtime/index.d.ts")
         };
+        AddSubModulePaths(paths, "./runtime");
         var ambientTypes = AddGeneratedTypesPath(options, layout, paths, relativeTo: layout.WorkingDirectory);
         compilerOptions["paths"] = MergePaths(compilerOptions, paths);
 
@@ -227,6 +228,7 @@ public static class TsConfigWriter
         {
             [RuntimeAssets.ModuleSpecifier] = new JsonArray($"{runtime}/index.d.ts")
         };
+        AddSubModulePaths(paths, runtime);
         var ambientTypes = AddGeneratedTypesPath(options, layout, paths, relativeTo: layout.ViewsDirectory);
         compilerOptions["paths"] = MergePaths(compilerOptions, paths);
 
@@ -382,6 +384,22 @@ public static class TsConfigWriter
 
         var relative = Normalise(Path.GetRelativePath(relativeTo, path));
         return !relative.StartsWith('.') && !Path.IsPathRooted(relative) ? "./" + relative : relative;
+    }
+
+    /// <summary>
+    /// Maps each sub-path of the rendering scheme onto its declarations.
+    /// </summary>
+    /// <remarks>
+    /// From the same list the import map is built from, so a specifier cannot type check in an
+    /// editor and then fail to resolve in a browser.
+    /// </remarks>
+    private static void AddSubModulePaths(JsonObject paths, string runtimeDirectory)
+    {
+        foreach (var name in RuntimeAssets.PublicSubModules)
+        {
+            paths[$"{RuntimeAssets.ModuleSpecifier}/{name}"] =
+                new JsonArray($"{runtimeDirectory}/{name}.d.ts");
+        }
     }
 
     private static JsonObject MergePaths(JsonObject compilerOptions, JsonObject basePaths)

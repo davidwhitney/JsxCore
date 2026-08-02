@@ -76,7 +76,7 @@ JsxCore-specific code in the action. See
 | `getServerSideProps` | a C# endpoint, or a controller action | [Returning views](returning-views.md) |
 | `"use client"` / `"use server"` | the same directives, read from the view | [Render modes](render-modes.md) |
 | File-system routing | `app.MapGet(...)`, or controller conventions | [Returning views](returning-views.md#view-resolution) |
-| `next/head` | the `head` export | [Writing views](writing-views.md#the-head-export) |
+| `next/head` | `<Head>`, or the `head` export | [Writing views](writing-views.md#the-document-head) |
 | Hooks | `preact/hooks`, or `react` in React mode | [Writing views](writing-views.md#hooks) |
 | `npm install x` | `npm install x`, or `dotnet npm add x` | [npm packages](npm-packages.md) |
 | Importing an image or a stylesheet | `dotnet:wwwroot/…` | [Import syntax](import-syntax.md#static-assets) |

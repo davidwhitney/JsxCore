@@ -13,6 +13,7 @@ all use a scheme rather than a package name, because nothing behind them comes f
 | `"marked"`, `"preact/hooks"` | an npm package, or the framework |
 | `"dotnet:MyApp"`, `"dotnet:MyApp/Models"` | types generated from your .NET assembly |
 | `"dotnet:globals"`, `"dotnet:rendering"` | the .NET objects you registered, and the view contract |
+| `"dotnet:rendering/head"` | the `<Head>` component |
 | `"dotnet:wwwroot/images/logo.svg"` | a static file of yours, as the URL it is served from |
 
 ---
@@ -197,8 +198,18 @@ import type { ViewProps, HeadDescriptor } from "dotnet:rendering";
 ```
 
 `isServerRender()` says which pass is running. `ViewProps<TModel>` is what every view is handed,
-and `HeadDescriptor` is what a `head` export may return. See
-[Writing views](writing-views.md).
+and `HeadDescriptor` is what a `head` export may return.
+
+One sub-path, for the component that sets document head tags from inside the tree:
+
+```tsx
+import Head from "dotnet:rendering/head";
+
+<Head><title>Products</title></Head>
+```
+
+See [Writing views](writing-views.md#the-document-head) for what it does and when to prefer the
+`head` export.
 
 ---
 
@@ -226,6 +237,7 @@ if (!isServerRender()) {
 | `import { marked } from "marked"` | No | Yes |
 | `import { Card } from "./Card.tsx"` | No | No: a relative URL |
 | `import logo from "dotnet:wwwroot/logo.svg"` | No | No: rewritten to a relative URL |
+| `import Head from "dotnet:rendering/head"` | No | Yes |
 
 The entries are generated for you. `options.ImportMap` adds your own, and wins over the generated
 ones, which is how to point a package at a CDN. See

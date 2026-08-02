@@ -121,7 +121,9 @@ mountView(Component, {"containerId":"jsxcore-root","modelId":"jsxcore-model","hy
 ```
 
 The component never runs on the server, but its [`head` export](writing-views.md#the-head-export)
-still does, so the document gets its title and meta tags without you doing anything.
+still does, so the document gets its title and meta tags in the first response. A
+[`<Head>`](writing-views.md#the-head-component) inside the component is applied by the browser
+instead, once it has mounted.
 
 `.NET` globals are unavailable. Accessing them throws a clear error rather than failing silently.
 
