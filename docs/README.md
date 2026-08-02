@@ -47,7 +47,7 @@ A TSX/JSX view engine for ASP.NET Core. To get running, start with
 | **[Configuration](configuration.md)** | Every option, and every MSBuild property |
 | **[Content Security Policy](content-security-policy.md)** | Supplying a nonce for the scripts JsxCore writes |
 | **[Troubleshooting](troubleshooting.md)** | Common errors, and the limitations to know about up front |
-| **[Roadmap](roadmap.md)** | What is not built yet, and what it would involve |
+| **[Roadmap](roadmap.md)** | What is not built yet, in the order it would be built |
 
 ---
 
