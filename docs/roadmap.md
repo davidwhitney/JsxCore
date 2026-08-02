@@ -3,36 +3,7 @@
 ← [Documentation index](README.md)
 
 What is not built yet, in the order I would build it, with enough design recorded that starting is
-execution rather than rediscovery.
-
----
-
-Nothing here is scheduled. Two long-standing items, WebAssembly interop and CSS processing, had
-fuller design notes in earlier revisions of this file, including their hard parts and how we would
-know they worked. Those are in git history if the summaries below are not enough.
-
----
-
-## Shipped since this list was written
-
-So the rest is not read against a stale picture:
-
-- **npm packages restore without npm.** The native client resolves, fetches, verifies and unpacks,
-  and writes a `package-lock.json` that real `npm ci` accepts. `dotnet npm` puts the same client on
-  the command line. This closed what used to be item 1.
-- **React alongside Preact**, chosen with `<JsxCoreFramework>`.
-- **Minification and compression**, on by default for Release: views by the build, packages at
-  publish, Brotli or gzip at serve time.
-- **Precompiled by default for Release**, so a published application serves what the build produced
-  rather than compiling on a server.
-- **The `dotnet:` scheme**: assembly types, namespace sub-paths, registered globals, and the
-  rendering contract.
-- **Tailwind**, which works today with about fifteen lines of setup. See [Tailwind](tailwind.md).
-- **CSP nonces** on every script JsxCore writes.
-- **[Static asset imports](import-syntax.md#static-assets)**, as `/images/logo.svg`, resolving to
-  the URL `UseStaticFiles` serves the file from.
-- **`@/` path aliases**, generated for the views directory and rewritten into relative specifiers,
-  so an alias resolves in a browser rather than only in an editor.
+execution rather than rediscovery. Nothing here is scheduled.
 
 ---
 
@@ -74,29 +45,63 @@ processor installed.
 
 ---
 
-## 2. Static assets, the parts deliberately left out
+---
 
-Named because they will be asked for, not because they are queued:
+## 2. Type modules per assembly
 
-- **Vite's `?url` and `?raw` suffixes.** `?raw` reads a file's contents into a module, which is a
-  different feature from naming a URL.
-- **Content hashing.** An imported asset is served by `UseStaticFiles` at its own URL, cached
-  however that middleware is configured rather than immutably like a compiled view. ASP.NET Core's
-  static web assets already fingerprint.
-- **Assets beside a component.** An image in the views directory is not served and cannot be
-  imported. Views are a source tree; `wwwroot` is what the application serves.
+Every generated type lands in one module named after the application assembly, whatever assembly
+actually declared it. A model from a referenced project ends up at a specifier naming the wrong
+assembly, with its own namespace hanging off it:
+
+```
+dotnet:MyApp.Web/MyApp/Contracts/Models     what you get
+dotnet:MyApp.Contracts/Models               what you would reach for, which does not exist
+```
+
+A solution with a separate contracts or domain project is ordinary, and that is exactly where its
+models live, so this is met more often than its size suggests.
+
+**The work.** One module per declaring assembly, with namespace sub-modules under each, as there
+are today under the single one.
+
+The hard part is what the present design is built to avoid. Everything is declared in one file
+precisely so that references between namespaces resolve without imports, and the namespace modules
+are facades aliasing it. Splitting by assembly means a model in one assembly referencing a type in
+another needs a real generated `import type`.
+
+One property makes that tractable: .NET forbids circular project references, so the import graph
+between generated modules is acyclic by construction. Nothing has to tolerate a cycle, which is the
+usual reason this kind of split turns nasty.
+
+**Decide before writing code.** Whether an assembly declaring no exported types is emitted at all,
+and what a view imports when a type is reachable through two assemblies because one re-exports the
+other.
+
+**How we would know it works:** a model in a referenced assembly is importable from a specifier
+naming that assembly; a model referencing a type across an assembly boundary still type checks; and
+the application's own module no longer contains anything it did not declare.
 
 ---
 
-## 3. Environment variables in views
+## 3. Delete the built-in renderer
 
-`process.env.API_URL`, or `import.meta.env.MODE`. Today `process` exists only inside the CommonJS
-wrapper, so a view referencing it breaks in the browser. That is the exact bug class that broke
-React before the wrapper supplied one.
+`runtime/client.js`, `server.js`, `dom.js`, `hooks.js`, `jsx-runtime.js` and `jsx-dev-runtime.js`
+are a closed island left from before Preact was vendored. About 1,400 lines including declarations,
+and nothing in the live path reaches them: they import each other and nothing else imports them.
 
-The shape that seems right is an explicit allow-list injected into the import map, rather than
-ambient access to the server's environment. Leaking configuration into the browser by accident is
-the risk worth designing against.
+It is not only dead weight. `index.js` re-exports the island's hooks, so importing `useState` from
+`dotnet:rendering` compiles, resolves, and then never runs, which is the worst shape a trap can
+take.
+
+**What has to survive.** `index.js` and `index.d.ts` stay: the module loader resolves
+`dotnet:rendering` to the first, and the second is where `ViewProps`, `HeadDescriptor` and
+`isServerRender` are declared. They stop re-exporting `jsx-runtime.js` and `hooks.js`, which is the
+part that closes the trap. `dotnet.js`, `head.js`, `host-shims.js` and `hmr-client.js` are all live
+and unaffected.
+
+**How we would know it worked:** the suite passes untouched, since nothing tests the island
+directly, and a view importing `useState` from `dotnet:rendering` stops compiling instead of
+failing at run time.
 
 ---
 
@@ -109,53 +114,46 @@ recommendation and writing it down is most of this item.
 
 ---
 
-## 5. Loose ends worth closing
+## 5. Environment variables in views
 
-Small, known, and each found while doing something else:
+`process.env.API_URL`, or `import.meta.env.MODE`. Today `process` exists only inside the CommonJS
+wrapper, so a view referencing it breaks in the browser. That is the exact bug class that broke
+React before the wrapper supplied one.
 
-- **Per-assembly type modules.** `dotnet:<Assembly>` is named per assembly but contains every
-  declared type, including any pulled in from referenced assemblies. Splitting them needs generated
-  cross-module imports for types that reference each other.
-- **Delete the built-in renderer.** `runtime/client.js`, `server.js`, `dom.js`, `hooks.js` and the
-  JSX runtime files, about 1,400 lines including declarations, are a closed island nothing in the
-  live path imports, left from before Preact was vendored. `index.js` still re-exports its hooks,
-  which is a quiet trap: importing `useState` from the runtime compiles and never runs.
-- **npm `.bin` linking.** The native client does not create `node_modules/.bin`, because linking
-  executables is a lifecycle-script job it deliberately does not run. Any npm tool with a CLI must
-  be invoked by path, as [Tailwind](tailwind.md) documents.
-- **Top-level `await` in a view.** Legal ESM that Jint may not survive, and server rendering is
-  synchronous by design. Find out what it does today and make the failure explicit, as async
-  components already are.
-- **Client-side routing.** React Router works but competes with ASP.NET routing. A documentation and
-  opinion question rather than a feature: say which one owns the URL.
+The shape that seems right is an explicit allow-list injected into the import map, rather than
+ambient access to the server's environment. Leaking configuration into the browser by accident is
+the risk worth designing against.
 
 ---
 
-## 6. Call .NET from the browser, not just from the server
+## Decided against
 
-Server-rendered views call .NET objects directly, in process:
+Recorded so they are not rediscovered as gaps:
 
-```tsx
-export default function Dashboard() {
-    return <p>{Inventory.getSummary().total}</p>;
-}
-```
+- **Vite's `?url` and `?raw` suffixes.** `?raw` reads a file's contents into a module, which is a
+  different feature from naming a URL.
+- **Content hashing for imported assets.** They are served by `UseStaticFiles` at their own URL,
+  cached however that middleware is configured rather than immutably like a compiled view. ASP.NET
+  Core's static web assets already fingerprint.
+- **Assets beside a component.** An image in the views directory is not served and cannot be
+  imported. Views are a source tree; `wwwroot` is what the application serves.
+- **npm `.bin` linking.** The native client does not create `node_modules/.bin`, because linking
+  executables is a lifecycle-script job it deliberately does not run. Any npm tool with a CLI must
+  be invoked by path, as [Tailwind](tailwind.md) documents.
+- **Top-level `await` in a view.** It works: an already-resolved promise awaits and the view
+  renders. Anything needing a timer fails with `setTimeout is not defined`, because the engine has
+  no event loop, which is a clear enough failure to leave alone.
+- **Client-side routing.** React Router works but competes with ASP.NET routing. Which one owns the
+  URL is a question for whoever is building the application.
 
-Client-rendered views cannot, and the documentation tells you to guard the call with
-`isServerRender()`. That asymmetry is the sharpest edge in the model: the same view, the same call,
-working or not depending on where it ran.
-
-The proposal is to compile the exported .NET surface to WebAssembly, load it in the browser, and
-generate TypeScript shims so the call means the same thing on both sides. It is by far the largest
-item here, and it changes the programming model rather than filling a gap.
+WebAssembly interop, compiling the exported .NET surface so client-rendered views could call it
+directly, is not on this list. The design notes are in git history if it ever comes back.
 
 ---
 
 ## Order
 
 Item 1 is the biggest remaining gap between this and what someone arriving from Next.js expects,
-and its ordering half is answered. Item 2 is a list of things to say no to until asked. Item 3 is
-small and mostly about choosing a safe shape. Item 4 is writing rather than building.
-
-Item 6 is worth more than all of them, and should not start until the synchronous-or-not question
-has an answer that survives contact with a real application.
+and its ordering half is answered. Item 2 is the one an ordinary solution layout runs into. Item 3
+is deletion, the cheapest of these and the only one that makes the library smaller. Items 4 and 5
+are writing and choosing a shape.
