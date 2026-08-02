@@ -61,12 +61,12 @@ public class ViewAssetTests
         ViewAssets.IsCompressible(ViewAssets.ContentTypes[".mp4"]).ShouldBeFalse();
     }
 
-    private static ViewAssetManifest Manifest(params (string Module, string[] Imports, string[] Styles)[] modules)
+    private static ViewManifest Manifest(params (string Module, string[] Imports, string[] Styles)[] modules)
     {
-        var manifest = new ViewAssetManifest();
+        var manifest = new ViewManifest();
         foreach (var (module, imports, styles) in modules)
         {
-            manifest.Modules[module] = new ViewAssetModule(imports, styles);
+            manifest.Modules[module] = new ViewModule(imports, styles);
         }
 
         return manifest;
@@ -116,7 +116,7 @@ public class ViewAssetTests
     {
         var manifest = Manifest(("Home/Index.js", ["Shared/Card.js"], ["/page.css"]));
 
-        var parsed = ViewAssetManifest.Parse(manifest.ToJson());
+        var parsed = ViewManifest.Parse(manifest.ToJson());
 
         parsed.StylesFor("Home/Index.js").ShouldBe(["/page.css"]);
         parsed.Modules["Home/Index.js"].Imports.ShouldBe(["Shared/Card.js"]);
@@ -124,5 +124,5 @@ public class ViewAssetTests
 
     [Fact]
     public void Manifest_ThatIsNotJson_IsIgnoredRatherThanThrown() =>
-        ViewAssetManifest.Parse("{ half a fi").Modules.ShouldBeEmpty();
+        ViewManifest.Parse("{ half a fi").Modules.ShouldBeEmpty();
 }

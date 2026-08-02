@@ -43,11 +43,13 @@ The same page in JsxCore:
 ```csharp
 // Program.cs: this is your getServerSideProps
 app.MapGet("/products", (ProductService products) =>
-    Results.Extensions.JsxServerRendered("Home/Products", new ProductsModel(products.All())));
+    Results.Extensions.Jsx("Home/Products", new ProductsModel(products.All())));
 ```
 
 ```tsx
 // Views/Home/Products.tsx
+"use server";
+
 import type { ProductsModel } from "dotnet:MyApp/Models";
 import type { ViewProps } from "dotnet:rendering";
 
@@ -72,7 +74,7 @@ JsxCore-specific code in the action. See
 | What you would reach for | Here | Detail |
 |---|---|---|
 | `getServerSideProps` | a C# endpoint, or a controller action | [Returning views](returning-views.md) |
-| `"use client"` / server components | a render mode, chosen per response | [Render modes](render-modes.md) |
+| `"use client"` / `"use server"` | the same directives, read from the view | [Render modes](render-modes.md) |
 | File-system routing | `app.MapGet(...)`, or controller conventions | [Returning views](returning-views.md#view-resolution) |
 | `next/head` | the `head` export | [Writing views](writing-views.md#the-head-export) |
 | Hooks | `preact/hooks`, or `react` in React mode | [Writing views](writing-views.md#hooks) |

@@ -1,3 +1,6 @@
+// Reads .NET globals, which only exist during the server pass, so it declares the server here.
+"use server";
+
 import { Inventory, Clock } from "dotnet:globals";
 import { isServerRender } from "dotnet:rendering";
 import type { ViewProps } from "dotnet:rendering";

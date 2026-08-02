@@ -8,7 +8,11 @@ using JsxCore.Compilation.Modules;
 
 namespace JsxCore.Rendering;
 
-public sealed record JsxRenderRequest(LocatedView View, object? Model, RenderMode RenderMode)
+/// <summary>
+/// A view to render. <paramref name="RenderMode"/> is what the call site asked for; null leaves the
+/// choice to the view's directive, and then to the configured default.
+/// </summary>
+public sealed record JsxRenderRequest(LocatedView View, object? Model, RenderMode? RenderMode = null)
 {
     public DocumentOptions? Document { get; init; }
     public string? Title { get; init; }
@@ -40,9 +44,10 @@ public sealed class JsxViewRenderer(
 
         var buildId = _compilation.BuildId;
         var context = BuildContextValues(httpContext);
+        var renderMode = ResolveRenderMode(request);
 
         ServerRenderResult? serverResult;
-        if (request.RenderMode is RenderMode.Server or RenderMode.ServerAndClient)
+        if (renderMode is RenderMode.Server or RenderMode.ServerAndClient)
         {
             serverResult = await _serverRenderer.RenderAsync(
                 request.View,
@@ -61,7 +66,7 @@ public sealed class JsxViewRenderer(
         var documentContext = new DocumentContext
         {
             ViewName = request.View.ViewName,
-            RenderMode = request.RenderMode,
+            RenderMode = renderMode,
             ServerHtml = serverResult?.Html,
             Head = serverResult?.Head,
             ModelJson = JsonSerializer.Serialize(request.Model, _options.JsonSerializerOptions),
@@ -82,6 +87,24 @@ public sealed class JsxViewRenderer(
         };
 
         return HtmlDocumentWriter.Write(documentContext);
+    }
+
+    /// <summary>
+    /// Where this response renders: what the call site asked for, else what the view's directive
+    /// prologue asks for, else the configured default.
+    /// </summary>
+    /// <remarks>
+    /// In that order because each is more specific than the next. An endpoint naming a mode is
+    /// deciding for one response and knows why; a <c>"use client"</c> at the top of a view is the
+    /// view stating where it expects to run, which is right until an endpoint says otherwise.
+    /// </remarks>
+    public RenderMode ResolveRenderMode(JsxRenderRequest request)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+
+        return request.RenderMode
+               ?? _compilation.Views.ModeFor(request.View.ModuleRelativePath)
+               ?? _options.DefaultRenderMode;
     }
 
     /// <summary>
@@ -152,7 +175,7 @@ public sealed class JsxViewRenderer(
                 return cached;
             }
 
-            var styles = _compilation.Assets.StylesFor(view.ModuleRelativePath);
+            var styles = _compilation.Views.StylesFor(view.ModuleRelativePath);
 
             cache[view.ModuleRelativePath] = styles;
             return styles;

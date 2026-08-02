@@ -87,8 +87,8 @@ public sealed class JsxTestHost : IAsyncDisposable
         app.UseJsxCore();
 
         app.MapGet("/client/{view}", (string view) => Results.Extensions.Jsx($"Home/{view}", TestModel));
-        app.MapGet("/server/{view}", (string view) => Results.Extensions.JsxServerRendered($"Home/{view}", TestModel));
-        app.MapGet("/hybrid/{view}", (string view) => Results.Extensions.JsxServerAndClient($"Home/{view}", TestModel));
+        app.MapGet("/server/{view}", (string view) => Results.Extensions.Jsx($"Home/{view}", TestModel, RenderMode.Server));
+        app.MapGet("/hybrid/{view}", (string view) => Results.Extensions.Jsx($"Home/{view}", TestModel, RenderMode.ServerAndClient));
 
         configureApp?.Invoke(app);
 

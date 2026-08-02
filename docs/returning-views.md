@@ -11,15 +11,16 @@ for one response.
 
 ```csharp
 app.MapGet("/", () => Results.Extensions.Jsx("Home/Index", model));
-app.MapGet("/report", () => Results.Extensions.JsxServerRendered("Home/Report", model));
-app.MapGet("/search", () => Results.Extensions.JsxServerAndClient("Home/Search", model));
 ```
 
-Or with an explicit mode:
+One method, whatever the view does. Where it renders comes from the view's `"use client"` or
+`"use server"` directive. Pass a mode to decide at the endpoint instead:
 
 ```csharp
-Results.Extensions.Jsx("Home/Index", model, RenderMode.Server);
+Results.Extensions.Jsx("Home/Search", model, RenderMode.ServerAndClient);
 ```
+
+See [Render modes](render-modes.md#the-order) for the order of precedence.
 
 `JsxResults.Jsx(...)` is available as a plain static if you prefer not to extend `Results`.
 
@@ -61,8 +62,7 @@ An IDE cannot see run time configuration, so an application that changes
 Be explicit when you want a particular mode:
 
 ```csharp
-public IActionResult Report() => this.JsxServerRendered("Home/Report", model);
-public IActionResult Search() => this.JsxServerAndClient("Home/Search", model);
+public IActionResult Report() => this.Jsx("Home/Report", model, RenderMode.Server);
 public IActionResult Index()  => this.Jsx("Home/Index", model);
 ```
 
@@ -101,8 +101,9 @@ options.ViewEngineOrder = 1;   // Razor first, JSX as the fallback
 ## Async endpoints
 
 A component cannot be `async`, because
-[server rendering is synchronous](dotnet-interop.md#why-this-is-synchronous). But **the endpoint that
-builds its model is ordinary ASP.NET Core, and should be async whenever it talks to anything**.
+[server rendering is synchronous](dotnet-interop.md#why-this-is-synchronous). But **the endpoint
+that builds its model is ordinary ASP.NET Core, and should be async whenever it talks to
+anything**.
 Database queries, HTTP calls to downstream services and any other I/O belong there, awaited with
 C#'s own `async`/`await`, so the view receives a finished result.
 
@@ -114,7 +115,7 @@ app.MapGet("/dashboard", async (InventoryService inventory, IOrderClient orders)
     var recentTask = orders.GetRecentAsync(limit: 10);
     await Task.WhenAll(stockTask, recentTask);
 
-    return Results.Extensions.JsxServerRendered(
+    return Results.Extensions.Jsx(
         "Home/Dashboard", new DashboardModel(stockTask.Result, recentTask.Result));
 });
 ```
@@ -135,10 +136,9 @@ public sealed class DashboardController(InventoryService inventory) : Controller
 }
 ```
 
-This is the pattern to follow, not a workaround for a missing feature. Awaiting in the endpoint
-happens once, on a thread pool thread, with the whole of ASP.NET Core's cancellation and dependency
-injection available; awaiting inside a component would mean suspending a render, which is the
-machinery JsxCore does not have and does not need. By the time the component runs, every value it
+Awaiting in the endpoint happens once, on a thread pool thread, with the whole of ASP.NET Core's
+cancellation and dependency injection available. Awaiting inside a component would mean suspending a
+render, which is machinery JsxCore does not have. By the time the component runs, every value it
 needs is already in the model.
 
 A component that needs data the endpoint did not fetch has two options:

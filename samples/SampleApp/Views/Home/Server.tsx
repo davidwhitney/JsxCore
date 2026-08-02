@@ -1,3 +1,6 @@
+// This page is markup and nothing else, so it says where it runs and the endpoint does not have to.
+"use server";
+
 import type { ViewProps } from "dotnet:rendering";
 import type SampleApp from "dotnet:SampleApp";
 import { Page, Card } from "../Shared/Layout.tsx";

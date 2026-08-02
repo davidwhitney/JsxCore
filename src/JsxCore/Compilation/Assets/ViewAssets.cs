@@ -38,8 +38,8 @@ public static class ViewAssets
     /// <summary>The ambient declarations that make an asset import type check.</summary>
     public const string DeclarationFileName = "jsxcore-assets.d.ts";
 
-    /// <summary>The module graph recorded for the renderer, written into the compiled output.</summary>
-    public const string ManifestFileName = "jsxcore-assets.json";
+    /// <summary>What the linker recorded for the renderer, written into the compiled output.</summary>
+    public const string ManifestFileName = "jsxcore-views.json";
 
     /// <summary>
     /// Where the generated modules live, within the compiled output.

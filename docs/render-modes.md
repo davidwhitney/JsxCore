@@ -14,24 +14,93 @@ Every response chooses where its component runs.
 | `Server` | Server | None | Yes | Content pages, email, SEO, no-JS |
 | `ServerAndClient` | Both | Yes | Server pass only | First paint **and** interactivity |
 
-```csharp
-Results.Extensions.Jsx("Home/Index", model);                  // Client
-Results.Extensions.JsxServerRendered("Home/Report", model);   // Server
-Results.Extensions.JsxServerAndClient("Home/Search", model);  // Both
+---
+
+## A view can say where it runs
+
+Open a view with a directive and it renders that way wherever it is returned from:
+
+```tsx
+"use server";
+
+import type { ViewProps } from "dotnet:rendering";
+import type { ReportModel } from "dotnet:MyApp/Models";
+
+export default function Report({ model }: ViewProps<ReportModel>) {
+    return <table>{/* ... */}</table>;
+}
 ```
 
-Change the default for the whole application:
+```tsx
+"use client";
+
+import { useState } from "preact/hooks";
+
+export default function Search() {
+    const [query, setQuery] = useState("");
+    return <input value={query} onInput={(e) => setQuery(e.currentTarget.value)} />;
+}
+```
+
+The endpoint then says nothing about rendering:
+
+```csharp
+app.MapGet("/report", () => Results.Extensions.Jsx("Home/Report", model));
+app.MapGet("/search", () => Results.Extensions.Jsx("Home/Search", model));
+```
+
+A report is markup whoever asks for it, and a search box is interactive whoever asks for it.
+Repeating that at every call site is how the two drift.
+
+The directive has to be the **first statement in the file**, before the imports, in the position
+JavaScript reserves for `"use strict"`. Comments above it are fine, and either quote style works.
+
+### It applies to the view, not to what it imports
+
+Only the view the endpoint named is consulted. A directive at the top of `Shared/Card.tsx` says
+nothing about the pages that import it.
+
+That differs from Next.js, where `"use client"` marks a bundling boundary that propagates. JsxCore
+has one module graph and one mode per response, so propagation would mean a shared component
+quietly changing how every page importing it renders.
+
+---
+
+## Choosing at the endpoint instead
+
+Pass a mode and it wins, whatever the view says:
+
+```csharp
+app.MapGet("/search", () => Results.Extensions.Jsx("Home/Search", model, RenderMode.ServerAndClient));
+```
+
+`ServerAndClient` has no directive of its own, because it is genuinely a per-response decision: the
+same view is often server-rendered on a public page and client-only behind a login.
+
+From an MVC controller, through `ViewData`:
+
+```csharp
+ViewData[JsxViewEngine.RenderModeKey] = RenderMode.ServerAndClient;
+return View(model);
+```
+
+And the fallback for a view that declares nothing and an endpoint that asks for nothing:
 
 ```csharp
 builder.AddJsxCore(options => options.DefaultRenderMode = RenderMode.Server);
 ```
 
-From an MVC controller, set it per view with the extension methods, or via ViewData:
+### The order
 
-```csharp
-ViewData[JsxViewEngine.RenderModeKey] = RenderMode.Server;
-return View(model);
-```
+**The mode the endpoint passed** → **the view's directive** → **`options.DefaultRenderMode`**
+
+Each is more specific than the next. An endpoint naming a mode is deciding for one response and
+knows why; a directive is the view stating where it expects to run, which holds until an endpoint
+says otherwise.
+
+The directive is read from the compiled output, which the build records once, so it costs nothing
+per request and works on a server published with no `.tsx` files on it. Changing one takes effect
+on the next build.
 
 ---
 

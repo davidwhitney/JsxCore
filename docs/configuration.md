@@ -32,7 +32,7 @@ builder.AddJsxCore(options =>
 
 | Option | Default | Purpose |
 |---|---|---|
-| `DefaultRenderMode` | `Client` | Mode used when a result does not specify one |
+| `DefaultRenderMode` | `Client` | Mode used when neither the result nor the view's directive names one |
 | `EnableReactCompatibility` | `true` | In Preact mode, map `react`/`react-dom` to `preact/compat` |
 | `ViewEngineOrder` | `0` | Position among MVC view engines; `0` beats Razor |
 | `JsonSerializerOptions` | web defaults | How the model is serialised, and the basis for generated types |

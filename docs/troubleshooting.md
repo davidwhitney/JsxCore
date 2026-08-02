@@ -183,8 +183,9 @@ endpoint instead and pass the finished model in: see
 
 ### ".NET globals are only available during server rendering"
 
-A client-rendered view touched `dotnet`. Either switch the view to `RenderMode.Server`, or guard the
-call with `isServerRender()`.
+A client-rendered view touched `dotnet`. Open the view with `"use server"` so it always renders on
+the server, or guard the call with `isServerRender()`. See
+[Render modes](render-modes.md#a-view-can-say-where-it-runs).
 
 ### "cannot resolve the module 'x' during server rendering"
 

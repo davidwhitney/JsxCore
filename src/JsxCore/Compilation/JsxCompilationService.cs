@@ -144,7 +144,7 @@ public sealed class JsxCompilationService(
     private void LinkAssets()
     {
         var linked = ViewAssetLinker.Link(Layout);
-        _assets = linked.Manifest;
+        _views = linked.Manifest;
 
         if (linked.Linked > 0)
         {
@@ -163,16 +163,17 @@ public sealed class JsxCompilationService(
         }
     }
 
-    private volatile ViewAssetManifest? _assets;
+    private volatile ViewManifest? _views;
 
     /// <summary>
-    /// What each compiled module brings with it, for the document writer to turn into link elements.
+    /// What the linker recorded about each compiled module: its stylesheets, and the render mode
+    /// its directive prologue asks for.
     /// </summary>
     /// <remarks>
     /// Read from disk when nothing compiled in this process, which is the precompiled case: the
     /// build recorded it and publishing carried it, exactly as it did the views themselves.
     /// </remarks>
-    public ViewAssetManifest Assets => _assets ??= ViewAssetManifest.ReadFrom(Layout.OutputDirectory);
+    public ViewManifest Views => _views ??= ViewManifest.ReadFrom(Layout.OutputDirectory);
 
     private void LogResult(CompilationResult result)
     {

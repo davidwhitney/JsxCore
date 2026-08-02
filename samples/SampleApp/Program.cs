@@ -49,12 +49,12 @@ app.MapGet("/", () => Results.Extensions.Jsx("Home/Index", new IndexModel(
     ],
     GeneratedAt: DateTimeOffset.Now)));
 
-app.MapGet("/markdown", () => Results.Extensions.JsxServerAndClient("Home/Markdown", new
+app.MapGet("/markdown", () => Results.Extensions.Jsx("Home/Markdown", new
 {
     source = "# Hello\n\nRendered by **marked**, an npm package, on the server *and* the client."
-}));
+}, RenderMode.ServerAndClient));
 
-app.MapGet("/server", () => Results.Extensions.JsxServerRendered("Home/Server", new TeamModel(
+app.MapGet("/server", () => Results.Extensions.Jsx("Home/Server", new TeamModel(
     Heading: "Rendered on the server",
     Rows:
     [
@@ -63,7 +63,7 @@ app.MapGet("/server", () => Results.Extensions.JsxServerRendered("Home/Server", 
         new TeamMember("Barbara Liskov", "Language designer", new DateOnly(1974, 9, 30))
     ])));
 
-app.MapGet("/hybrid", () => Results.Extensions.JsxServerAndClient("Home/Hybrid", new
+app.MapGet("/hybrid", () => Results.Extensions.Jsx("Home/Hybrid", new
 {
     heading = "Server rendered, then interactive",
     items = new[]
@@ -71,9 +71,9 @@ app.MapGet("/hybrid", () => Results.Extensions.JsxServerAndClient("Home/Hybrid",
         "Compilation", "Reconciliation", "Hydration", "Serialisation",
         "Routing", "Caching", "Diagnostics", "Hot reload"
     }
-}));
+}, RenderMode.ServerAndClient));
 
-app.MapGet("/preact", () => Results.Extensions.JsxServerAndClient("Home/Preact", new CatalogueModel(
+app.MapGet("/preact", () => Results.Extensions.Jsx("Home/Preact", new CatalogueModel(
     Heading: "Rendered with Preact",
     Products:
     [
@@ -82,9 +82,10 @@ app.MapGet("/preact", () => Results.Extensions.JsxServerAndClient("Home/Preact",
         new Product(3, "USB-C dock", 129.99m, Availability.InStock) { StockKeepingUnit = "SKU-1003" },
         new Product(4, "Desk mat", 24.00m, Availability.Discontinued) { StockKeepingUnit = "SKU-1004" }
     ])
-    { Featured = new Product(1, "Mechanical keyboard", 89.00m, Availability.InStock) }));
+    { Featured = new Product(1, "Mechanical keyboard", 89.00m, Availability.InStock) },
+    RenderMode.ServerAndClient));
 
-app.MapGet("/dashboard", () => Results.Extensions.JsxServerRendered("Home/Dashboard", new
+app.MapGet("/dashboard", () => Results.Extensions.Jsx("Home/Dashboard", new
 {
     heading = "Reading .NET from a view"
 }));

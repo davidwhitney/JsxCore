@@ -21,9 +21,9 @@ namespace JsxCore.Compilation.Assets;
 public static partial class ViewAssetLinker
 {
     /// <summary>What a linking run did, and what it could not resolve.</summary>
-    public sealed record Result(int Linked, ViewAssetManifest Manifest, IReadOnlyList<string> Unresolved)
+    public sealed record Result(int Linked, ViewManifest Manifest, IReadOnlyList<string> Unresolved)
     {
-        public static readonly Result None = new(0, ViewAssetManifest.Empty, []);
+        public static readonly Result None = new(0, ViewManifest.Empty, []);
     }
 
     public static Result Link(CompilationLayout layout)
@@ -42,7 +42,7 @@ public static partial class ViewAssetLinker
         }
 
         var context = new LinkContext(Path.GetFullPath(outputDirectory), Path.GetFullPath(webRoot));
-        var manifest = new ViewAssetManifest();
+        var manifest = new ViewManifest();
         var linked = 0;
 
         foreach (var file in Directory
@@ -65,10 +65,14 @@ public static partial class ViewAssetLinker
 
             linked += module.Linked;
 
-            if (module.Imports.Count > 0 || module.Styles.Count > 0)
+            // Read before rewriting: the prologue is untouched either way, but this is the one
+            // point the compiler's own output is in hand.
+            var mode = ViewDirectives.Parse(source);
+
+            if (module.Imports.Count > 0 || module.Styles.Count > 0 || mode is not null)
             {
                 manifest.Modules[context.RelativeToOutput(file)] =
-                    new ViewAssetModule(module.Imports, module.Styles);
+                    new ViewModule(module.Imports, module.Styles, mode);
             }
 
             if (rewritten != source)
@@ -84,16 +88,16 @@ public static partial class ViewAssetLinker
     }
 
     /// <summary>
-    /// The manifest exists only when a view imports a stylesheet, so its absence is the fast path
-    /// for the applications that do not.
+    /// The manifest exists only when a view imports a stylesheet or declares a directive, so its
+    /// absence is the fast path for the applications that do neither.
     /// </summary>
-    private static void WriteManifest(string root, ViewAssetManifest manifest)
+    private static void WriteManifest(string root, ViewManifest manifest)
     {
         var path = Path.Combine(root, ViewAssets.ManifestFileName);
 
         try
         {
-            if (manifest.HasStyles)
+            if (manifest.HasContent)
             {
                 AssetStage.WriteFileIfChanged(path, manifest.ToJson());
             }

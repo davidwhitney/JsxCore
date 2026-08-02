@@ -162,8 +162,8 @@ of thing in the same application, sharing DI, authentication and configuration.
 data. Use `Results.Extensions.Jsx(...)` or leave the default render mode alone, pass a small model
 (or none), and fetch in an effect. You lose first-paint markup and SEO; you gain a simpler endpoint.
 
-**Server rendered, no JavaScript at all.** `RenderMode.Server` sends markup and no script. Good for
-content pages, email and anything crawled. There is no client half to write.
+**Server rendered, no JavaScript at all.** Open the view with `"use server"` and it sends markup and
+no script. Good for content pages, email and anything crawled. There is no client half to write.
 
 **Fetching on an event rather than a timer.** Exactly as above, in a handler:
 

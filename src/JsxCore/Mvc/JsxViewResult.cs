@@ -95,7 +95,8 @@ public sealed class JsxViewResult(string viewName, object? model = null, RenderM
         var view = locator.Find(ViewName, controllerName, areaName, out var searched)
             ?? throw new JsxViewNotFoundException(ViewName, searched);
 
-        var request = new JsxRenderRequest(view, Model, RenderMode ?? options.DefaultRenderMode)
+        // Null passes the choice on: the view's directive decides, and then the configured default.
+        var request = new JsxRenderRequest(view, Model, RenderMode)
         {
             Document = BuildDocumentOptions(options.Document),
             Title = Title

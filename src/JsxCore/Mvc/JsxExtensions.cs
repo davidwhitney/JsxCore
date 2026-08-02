@@ -6,11 +6,14 @@ namespace JsxCore.Mvc;
 
 public static class JsxControllerExtensions
 {
-    /// <summary>Renders a JSX view using the configured default render mode.</summary>
+    /// <summary>
+    /// Renders a JSX view, in the mode its <c>"use client"</c> or <c>"use server"</c> directive
+    /// asks for, or the configured default when it declares neither.
+    /// </summary>
     public static JsxViewResult Jsx(this ControllerBase controller, string viewName, object? model = null) =>
         new(viewName, model);
 
-    /// <summary>Renders a JSX view with an explicit render mode.</summary>
+    /// <summary>Renders a JSX view in a named mode, whatever its directive says.</summary>
     public static JsxViewResult Jsx(this ControllerBase controller, string viewName, object? model, RenderMode renderMode) =>
         new(viewName, model, renderMode);
 
@@ -30,13 +33,6 @@ public static class JsxControllerExtensions
         return result;
     }
 
-    /// <summary>Renders a JSX view on the server, like a traditional view engine.</summary>
-    public static JsxViewResult JsxServerRendered(this ControllerBase controller, string viewName, object? model = null) =>
-        new(viewName, model, RenderMode.Server);
-
-    /// <summary>Renders a JSX view on the server and mounts it again on the client for interactivity.</summary>
-    public static JsxViewResult JsxServerAndClient(this ControllerBase controller, string viewName, object? model = null) =>
-        new(viewName, model, RenderMode.ServerAndClient);
 
     /// <summary>
     /// Adds a value to the <c>context</c> prop that views receive, for this request only.
@@ -63,13 +59,13 @@ public static class JsxControllerExtensions
 /// <summary>Minimal API helpers for returning JSX/TSX views.</summary>
 public static class JsxResults
 {
-    /// <summary>Renders a JSX view using the configured default render mode.</summary>
+    /// <summary>
+    /// Renders a JSX view. A null <paramref name="renderMode"/> takes the mode from the view's
+    /// <c>"use client"</c> or <c>"use server"</c> directive, and then from the configured default.
+    /// </summary>
     public static IResult Jsx(string viewName, object? model = null, RenderMode? renderMode = null) =>
         new JsxViewResult(viewName, model, renderMode);
 
-    /// <summary>Renders a JSX view on the server.</summary>
-    public static IResult JsxServerRendered(string viewName, object? model = null) =>
-        new JsxViewResult(viewName, model, RenderMode.Server);
 }
 
 /// <summary>
@@ -78,7 +74,10 @@ public static class JsxResults
 /// </summary>
 public static class JsxResultExtensions
 {
-    /// <summary>Renders a JSX view using the configured default render mode.</summary>
+    /// <summary>
+    /// Renders a JSX view. A null <paramref name="renderMode"/> takes the mode from the view's
+    /// <c>"use client"</c> or <c>"use server"</c> directive, and then from the configured default.
+    /// </summary>
     public static IResult Jsx(this IResultExtensions _, string viewName, object? model = null, RenderMode? renderMode = null) =>
         new JsxViewResult(viewName, model, renderMode);
 
@@ -98,11 +97,4 @@ public static class JsxResultExtensions
         return result;
     }
 
-    /// <summary>Renders a JSX view on the server, like a traditional view engine.</summary>
-    public static IResult JsxServerRendered(this IResultExtensions _, string viewName, object? model = null) =>
-        new JsxViewResult(viewName, model, RenderMode.Server);
-
-    /// <summary>Renders a JSX view on the server and mounts it again on the client.</summary>
-    public static IResult JsxServerAndClient(this IResultExtensions _, string viewName, object? model = null) =>
-        new JsxViewResult(viewName, model, RenderMode.ServerAndClient);
 }

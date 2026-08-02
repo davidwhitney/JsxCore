@@ -47,6 +47,20 @@ export default function Page({ model, context }: ViewProps<Model>) {
 | `model` | Whatever you passed to the result, serialised with your `JsonSerializerOptions` |
 | `context` | Ambient values: `path`, plus anything from `ContextValues` or `AddJsxContext` |
 
+### Saying where the view runs
+
+A view can open with a directive, in the position JavaScript reserves for `"use strict"`:
+
+```tsx
+"use server";
+
+export default function Report({ model }: ViewProps<ReportModel>) { /* ... */ }
+```
+
+`"use server"` renders it on the server and sends no JavaScript; `"use client"` mounts it in the
+browser. See [Render modes](render-modes.md#a-view-can-say-where-it-runs) for what happens when a
+view declares neither, and for how an endpoint overrides one.
+
 ---
 
 ## Importing components

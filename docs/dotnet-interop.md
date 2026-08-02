@@ -156,7 +156,10 @@ The endpoint is where `await` belongs, and it is ordinary async C#:
 
 ```csharp
 app.MapGet("/dashboard", async (InventoryService inventory) =>
-    Results.Extensions.JsxServerRendered("Home/Dashboard", await inventory.LoadAsync()));
+    Results.Extensions.Jsx("Home/Dashboard", await inventory.LoadAsync()));
 ```
+
+The view opens with `"use server"`, which is what makes the globals reachable, so the endpoint says
+nothing about rendering.
 
 See [async endpoints](returning-views.md#async-endpoints).
