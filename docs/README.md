@@ -26,6 +26,7 @@ A TSX/JSX view engine for ASP.NET Core. To get running, start with
 | **[Model types](model-types.md)** | TypeScript types generated from your .NET models, and how to control what is exported |
 | **[Views and Web APIs](views-and-web-apis.md)** | A page server rendered for first paint that then talks to your own API |
 | **[Returning views](returning-views.md)** | Minimal APIs, MVC controllers, per-response document settings |
+| **[Tailwind CSS](tailwind.md)** | Setting it up, and the three things that catch people out |
 | **[npm packages](npm-packages.md)** | Importing packages from `node_modules`, on the server and in the browser |
 | **[Package management](package-management.md)** | Installing packages without npm, and the `dotnet npm` tool |
 | **[.NET interop](dotnet-interop.md)** | Calling .NET objects directly from server-rendered views |

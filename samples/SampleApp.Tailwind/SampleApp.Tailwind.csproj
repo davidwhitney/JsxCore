@@ -1,0 +1,38 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\JsxCore\JsxCore.csproj" />
+    <ProjectReference Include="..\..\src\JsxCore.Tool\JsxCore.Tool.csproj" ReferenceOutputAssembly="false" />
+    <ProjectReference Include="..\..\src\JsxCore.Analyzers\JsxCore.Analyzers.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <JsxCoreToolsDirectory>$(MSBuildThisFileDirectory)..\..\src\JsxCore\Assets\</JsxCoreToolsDirectory>
+    <JsxCoreToolPath>$(MSBuildThisFileDirectory)..\..\src\JsxCore.Tool\bin\$(Configuration)\net8.0\JsxCore.Tool.dll</JsxCoreToolPath>
+  </PropertyGroup>
+
+  <Import Project="..\..\src\JsxCore\build\JsxCore.targets" />
+
+  <!--
+    Tailwind compiles the stylesheet. It reads the views to find which classes are used, so it runs
+    after JsxCore has restored packages and before the output is assembled.
+
+    ContinueOnError, because Tailwind's CLI is a Node program: a machine without Node still builds
+    and runs, it just serves the stylesheet from the last time this did run.
+  -->
+  <Target Name="BuildTailwindStylesheet"
+          DependsOnTargets="JsxCoreEnsureDependencies"
+          AfterTargets="JsxCoreCompileViews"
+          BeforeTargets="Build">
+    <Exec Command="node node_modules/@tailwindcss/cli/dist/index.mjs --input Styles/app.css --output wwwroot/app.css --minify"
+          WorkingDirectory="$(MSBuildProjectDirectory)"
+          ContinueOnError="true"
+          StandardOutputImportance="low" />
+  </Target>
+
+</Project>

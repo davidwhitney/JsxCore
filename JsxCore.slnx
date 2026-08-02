@@ -2,6 +2,7 @@
   <Folder Name="/samples/">
     <Project Path="samples/SampleApp/SampleApp.csproj" />
     <Project Path="samples/SampleApp.React/SampleApp.React.csproj" />
+    <Project Path="samples/SampleApp.Tailwind/SampleApp.Tailwind.csproj" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/JsxCore/JsxCore.csproj" />
