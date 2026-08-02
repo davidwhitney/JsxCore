@@ -204,15 +204,24 @@ The package is not installed, or `options.AllowNodeModules` is off. Install it w
 `dotnet npm add <name>` and restart; the error lists the `node_modules` directories that were
 searched. See [Using npm packages](npm-packages.md).
 
-### "could not resolve the asset import 'dotnet:wwwroot/…'"
+### "could not resolve the asset import"
 
-No such file under the web root. The path after `dotnet:wwwroot/` is relative to that directory:
-`wwwroot/images/logo.svg` is `dotnet:wwwroot/images/logo.svg`, served as `/images/logo.svg`.
+No such file under the web root. The specifier is the URL, so `wwwroot/images/logo.svg` is imported
+as `/images/logo.svg`.
 
 The import is left as written rather than rewritten to a URL that 404s, so it fails to load in the
 browser too. If the web root is not `wwwroot`, set `JsxCoreWebRootDirectory` so the build resolves
-against the directory the application serves. See
-[Import syntax](import-syntax.md#static-assets).
+against the directory the application serves.
+
+### "left the asset import ... as written"
+
+The import is not rooted, so nothing serves what it names: `./logo.svg` beside a view is a source
+file, and views are not served. Move the file under `wwwroot` and import it as the URL it is served
+from.
+
+It type checks either way because the declarations behind this are `*.svg` wildcards, and
+TypeScript rejects a pattern beginning with a slash as a relative module name, so the build reports
+the difference instead. See [Import syntax](import-syntax.md#static-assets).
 
 ---
 

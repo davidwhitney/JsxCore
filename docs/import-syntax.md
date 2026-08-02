@@ -9,12 +9,12 @@ all use a scheme rather than a package name, because nothing behind them comes f
 
 | Written | Resolves to |
 |---|---|
-| `"./Card.tsx"` | another view or component of yours |
+| `"./Card.tsx"`, `"@/Shared/Card.tsx"` | another view or component of yours |
 | `"marked"`, `"preact/hooks"` | an npm package, or the framework |
 | `"dotnet:MyApp"`, `"dotnet:MyApp/Models"` | types generated from your .NET assembly |
 | `"dotnet:globals"`, `"dotnet:rendering"` | the .NET objects you registered, and the view contract |
 | `"dotnet:rendering/head"` | the `<Head>` component |
-| `"dotnet:wwwroot/images/logo.svg"` | a static file of yours, as the URL it is served from |
+| `"/images/logo.svg"` | a static file of yours, as the URL it is served from |
 
 ---
 
@@ -36,6 +36,20 @@ file; an export is enough. Only a view, meaning a module returned from an endpoi
 export.
 
 An import that resolves outside the views directory is refused.
+
+### The `@/` alias
+
+`@/` is the views directory, so a deep component can reach a shared one without counting `../`:
+
+```tsx
+import { Card } from "@/Shared/Card.tsx";
+```
+
+The same alias every Next.js and Vite template scaffolds, generated for you in both the compiler
+configuration and the editor one. Aliases of your own work too: add them to
+`options.CompilerOptions["paths"]` and they merge over the generated ones rather than replacing
+them. Any alias landing inside the views directory is rewritten to a relative path when the view
+compiles, which is what makes it resolve in a browser and not only in an editor.
 
 ---
 
@@ -147,32 +161,36 @@ as `any` and sharpen after a run. See [.NET interop](dotnet-interop.md).
 
 ## Static assets
 
-Static files live in `wwwroot`, served by `UseStaticFiles()`. `dotnet:wwwroot/` names one from a
-view:
+Static files live in `wwwroot`, served by `UseStaticFiles()`. Import one by the URL it is served
+from:
 
 ```tsx
-import logo from "dotnet:wwwroot/images/logo.svg";
+import logo from "/images/logo.svg";
 
 export default function Header() {
     return <img src={logo} alt="Contoso" />;
 }
 ```
 
-The import resolves to the URL the file is served from, here `/images/logo.svg`, typed `string`.
-The path after `dotnet:wwwroot/` is relative to the web root, as the URL is.
+The specifier and the URL are the same string, which is the point: `wwwroot/images/logo.svg` is
+served at `/images/logo.svg`, so that is what you write. It resolves to that URL, typed `string`.
 
 Nothing is copied or versioned. The point is the check: a typo becomes a compile error instead of a
 broken image in production. `<img src="/images/logo.svg" />` by hand still works.
 
-Any web asset extension resolves: images, fonts, video, `.pdf`, `.css`. A missing file is reported
-by name and its import left as written, rather than rewritten to a URL that 404s.
+Any web asset extension resolves: images, fonts, video, `.pdf`, `.css`.
+
+**The path has to start at the root.** `./logo.svg` beside a view names nothing JsxCore serves,
+because views are a source tree. It type checks anyway, since the declarations behind this are
+`*.svg` wildcards and TypeScript rejects a pattern beginning with a slash, so the build reports it
+by name instead. A rooted path naming a file the web root does not hold is reported the same way.
 
 ### Stylesheets
 
 A stylesheet import binds nothing, so JsxCore answers it in the document:
 
 ```tsx
-import "dotnet:wwwroot/css/card.css";
+import "/css/card.css";
 ```
 
 Every view reaching that import, directly or through a component, gets a `<link rel="stylesheet">`
@@ -236,7 +254,7 @@ if (!isServerRender()) {
 | `import { isServerRender } from "dotnet:rendering"` | No | Yes |
 | `import { marked } from "marked"` | No | Yes |
 | `import { Card } from "./Card.tsx"` | No | No: a relative URL |
-| `import logo from "dotnet:wwwroot/logo.svg"` | No | No: rewritten to a relative URL |
+| `import logo from "/images/logo.svg"` | No | No: rewritten to a relative URL |
 | `import Head from "dotnet:rendering/head"` | No | Yes |
 
 The entries are generated for you. `options.ImportMap` adds your own, and wins over the generated

@@ -7,7 +7,7 @@ using Shouldly;
 namespace JsxCore.Tests.Component.Assets;
 
 /// <summary>
-/// Importing a static asset from a view: <c>dotnet:wwwroot/images/logo.svg</c> resolves, type
+/// Importing a static asset from a view: <c>/images/logo.svg</c> resolves, type
 /// checks, and hands back the URL ASP.NET Core already serves the file from.
 /// </summary>
 /// <remarks>
@@ -23,7 +23,7 @@ public class StaticAssetTests
         var project = JsxProjectFixture.Create();
         project.AddFile("wwwroot/images/logo.svg", Logo);
         project.AddView("Home/Index.tsx", """
-            import logo from "dotnet:wwwroot/images/logo.svg";
+            import logo from "/images/logo.svg";
             export default function Index() {
                 return <img src={logo} alt="logo" />;
             }
@@ -70,7 +70,7 @@ public class StaticAssetTests
         using var project = ProjectWithLogo();
         project.Options.TypeChecking = TypeCheckingMode.Warn;
         project.AddView("Home/Typed.tsx", """
-            import logo from "dotnet:wwwroot/images/logo.svg";
+            import logo from "/images/logo.svg";
             const upper: string = logo.toUpperCase();
             export default function Typed() { return <p>{upper}</p>; }
             """);
@@ -102,7 +102,7 @@ public class StaticAssetTests
         using var project = JsxProjectFixture.Create();
         project.AddFile("wwwroot/css/app.css", "body { color: rebeccapurple; }");
         project.AddView("Home/Index.tsx", """
-            import "dotnet:wwwroot/css/app.css";
+            import "/css/app.css";
             export default function Index() { return <p>styled</p>; }
             """);
 
@@ -122,11 +122,11 @@ public class StaticAssetTests
         project.AddFile("wwwroot/card.css", ".card { color: red; }");
         project.AddFile("wwwroot/page.css", ".page { color: blue; }");
         project.AddView("Shared/Card.tsx", """
-            import "dotnet:wwwroot/card.css";
+            import "/card.css";
             export function Card() { return <div class="card" />; }
             """);
         project.AddView("Home/Index.tsx", """
-            import "dotnet:wwwroot/page.css";
+            import "/page.css";
             import { Card } from "../Shared/Card.tsx";
             export default function Index() { return <Card />; }
             """);
@@ -149,7 +149,7 @@ public class StaticAssetTests
         using var project = JsxProjectFixture.Create();
         project.AddFile("wwwroot/app.css", "body { margin: 0; }");
         project.AddView("Home/Index.tsx", """
-            import "dotnet:wwwroot/app.css";
+            import "/app.css";
             export default function Index() { return <p>styled</p>; }
             """);
 
@@ -163,12 +163,32 @@ public class StaticAssetTests
     }
 
     [Fact]
+    public async Task Import_WrittenRelatively_IsReported()
+    {
+        // It type checks, because the ambient declarations cannot be narrowed to rooted paths, so
+        // the linker is the only thing that can say the file is not somewhere it serves.
+        using var project = JsxProjectFixture.Create();
+        project.AddView("Home/logo.svg", Logo);
+        project.AddView("Home/Index.tsx", """
+            import logo from "./logo.svg";
+            export default function Index() { return <img src={logo} />; }
+            """);
+
+        await project.CompileAsync();
+        var linked = JsxCore.Compilation.Assets.ViewAssetLinker.Link(project.Layout);
+
+        linked.Misplaced.ShouldContain("./logo.svg");
+        (await File.ReadAllTextAsync(Path.Combine(project.Layout.OutputDirectory, "Home", "Index.js")))
+            .ShouldContain("./logo.svg");
+    }
+
+    [Fact]
     public async Task Import_OfAFileThatIsNotThere_IsLeftAloneAndReported()
     {
         // Guessing a URL would produce a page that 404s an image in a browser and nowhere else.
         using var project = JsxProjectFixture.Create();
         project.AddView("Home/Index.tsx", """
-            import logo from "dotnet:wwwroot/images/missing.svg";
+            import logo from "/images/missing.svg";
             export default function Index() { return <img src={logo} />; }
             """);
 
@@ -176,9 +196,9 @@ public class StaticAssetTests
 
         var linked = JsxCore.Compilation.Assets.ViewAssetLinker.Link(project.Layout);
 
-        linked.Unresolved.ShouldContain("dotnet:wwwroot/images/missing.svg");
+        linked.Unresolved.ShouldContain("/images/missing.svg");
         (await File.ReadAllTextAsync(Path.Combine(project.Layout.OutputDirectory, "Home", "Index.js")))
-            .ShouldContain("dotnet:wwwroot/images/missing.svg");
+            .ShouldContain("/images/missing.svg");
     }
 
     [Fact]
@@ -188,14 +208,14 @@ public class StaticAssetTests
         project.AddFile("secrets.txt", "not yours");
         project.AddFile("wwwroot/ok.txt", "fine");
         project.AddView("Home/Index.tsx", """
-            import secret from "dotnet:wwwroot/../secrets.txt";
+            import secret from "/../secrets.txt";
             export default function Index() { return <p>{secret}</p>; }
             """);
 
         await project.CompileAsync();
         var linked = JsxCore.Compilation.Assets.ViewAssetLinker.Link(project.Layout);
 
-        linked.Unresolved.ShouldContain("dotnet:wwwroot/../secrets.txt");
+        linked.Unresolved.ShouldContain("/../secrets.txt");
         Directory.Exists(Path.Combine(project.Layout.OutputDirectory, "_static")).ShouldBeFalse();
     }
 

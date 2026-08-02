@@ -4,26 +4,39 @@ using Shouldly;
 namespace JsxCore.Tests.Unit.Assets;
 
 /// <summary>
-/// What a <c>dotnet:wwwroot/…</c> specifier means, and what the renderer makes of the graph
-/// recorded for it.
+/// What a rooted asset specifier means, and what the renderer makes of the graph recorded for it.
 /// </summary>
 public class ViewAssetTests
 {
     [Theory]
-    [InlineData("dotnet:wwwroot/images/logo.svg", "images/logo.svg")]
-    [InlineData("dotnet:wwwroot/app.css", "app.css")]
-    [InlineData("dotnet:rendering", null)]
-    [InlineData("dotnet:globals", null)]
+    [InlineData("/images/logo.svg", "images/logo.svg")]
+    [InlineData("/app.css", "app.css")]
+
+    // The path is the URL, so anything not starting at the root names nothing here.
     [InlineData("./logo.svg", null)]
-    [InlineData("/images/logo.svg", null)]
+    [InlineData("../assets/logo.svg", null)]
+    [InlineData("dotnet:rendering", null)]
     [InlineData("preact", null)]
-    [InlineData("dotnet:wwwroot/", null)]
+    [InlineData("/", null)]
+
     // Suffixes are Vite's, and are a separate feature: without them a module would be written that
     // the rewritten import does not name.
-    [InlineData("dotnet:wwwroot/logo.svg?url", null)]
-    [InlineData("dotnet:wwwroot/logo.svg#icon", null)]
-    public void PathFor_TellsAnAssetImportFromEverythingElse(string specifier, string? expected) =>
+    [InlineData("/logo.svg?url", null)]
+    [InlineData("/logo.svg#icon", null)]
+    public void PathFor_TakesRootedPathsOnly(string specifier, string? expected) =>
         ViewAssets.PathFor(specifier).ShouldBe(expected);
+
+    [Theory]
+    // Type checks against the wildcard declarations, resolves to nothing, so it has to be reported.
+    [InlineData("./logo.svg", true)]
+    [InlineData("../assets/logo.svg", true)]
+    [InlineData("some-package/icon.svg", true)]
+
+    [InlineData("/images/logo.svg", false)]
+    [InlineData("./Card.tsx", false)]
+    [InlineData("preact", false)]
+    public void IsMisplacedAsset_CatchesAnAssetNamedSomeOtherWay(string specifier, bool expected) =>
+        ViewAssets.IsMisplacedAsset(specifier).ShouldBe(expected);
 
     [Fact]
     public void Declarations_CoverEveryImportableExtension()
@@ -32,11 +45,12 @@ public class ViewAssetTests
 
         foreach (var extension in ViewAssets.ContentTypes.Keys)
         {
-            declarations.ShouldContain($"declare module \"dotnet:wwwroot/*{extension}\"");
+            declarations.ShouldContain($"declare module \"*{extension}\"");
         }
 
-        // One star per pattern is all TypeScript allows, and it matches separators, so one
-        // declaration per extension covers every directory depth.
+        // A pattern beginning with a slash is rejected as a relative module name (TS2436), so these
+        // cannot be narrowed to rooted specifiers however much one would like them to be.
+        declarations.ShouldNotContain("\"/*");
         declarations.ShouldNotContain("**");
     }
 

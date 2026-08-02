@@ -140,6 +140,12 @@ This overrides a working configuration. `jsx`, `jsxImportSource`, `module`, `mod
 `rewriteRelativeImportExtensions` are load-bearing: changing them breaks the browser's module
 resolution, the server renderer, or both.
 
+`paths` is the exception: it merges key by key over the generated mappings, so adding an alias
+cannot silently drop the `dotnet:` schemes or the framework's own declarations. An alias pointing
+inside the views directory is rewritten to a relative path when the view compiles, so it resolves
+in a browser as well as in an editor. See
+[the `@/` alias](import-syntax.md#the--alias).
+
 ---
 
 ## Coexist with Razor

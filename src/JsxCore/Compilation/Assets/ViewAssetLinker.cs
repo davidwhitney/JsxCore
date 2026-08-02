@@ -21,18 +21,37 @@ namespace JsxCore.Compilation.Assets;
 public static partial class ViewAssetLinker
 {
     /// <summary>What a linking run did, and what it could not resolve.</summary>
-    public sealed record Result(int Linked, ViewManifest Manifest, IReadOnlyList<string> Unresolved)
+    /// <param name="Unresolved">Rooted asset imports naming a file the web root does not hold.</param>
+    /// <param name="Misplaced">
+    /// Asset imports written relatively, or as a package sub-path. They type check against the
+    /// ambient declarations, which cannot be narrowed to rooted specifiers, and then resolve to
+    /// nothing.
+    /// </param>
+    public sealed record Result(
+        int Linked,
+        ViewManifest Manifest,
+        IReadOnlyList<string> Unresolved,
+        IReadOnlyList<string> Misplaced)
     {
-        public static readonly Result None = new(0, ViewManifest.Empty, []);
+        public static readonly Result None = new(0, ViewManifest.Empty, [], []);
     }
 
     public static Result Link(CompilationLayout layout)
     {
         ArgumentNullException.ThrowIfNull(layout);
-        return Link(layout.OutputDirectory, layout.WebRoot);
+
+        return Link(
+            layout.OutputDirectory,
+            layout.WebRoot,
+            layout.ViewsDirectory,
+            ViewAliases.ReadFrom(layout.TsConfigPath, layout.ViewsDirectory));
     }
 
-    public static Result Link(string outputDirectory, string webRoot)
+    public static Result Link(
+        string outputDirectory,
+        string webRoot,
+        string? viewsDirectory = null,
+        ViewAliases? aliases = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(outputDirectory);
 
@@ -41,7 +60,11 @@ public static partial class ViewAssetLinker
             return Result.None;
         }
 
-        var context = new LinkContext(Path.GetFullPath(outputDirectory), Path.GetFullPath(webRoot));
+        var context = new LinkContext(
+            Path.GetFullPath(outputDirectory),
+            Path.GetFullPath(webRoot),
+            viewsDirectory is null ? null : Path.GetFullPath(viewsDirectory),
+            aliases ?? ViewAliases.None);
         var manifest = new ViewManifest();
         var linked = 0;
 
@@ -84,7 +107,7 @@ public static partial class ViewAssetLinker
         context.PruneGenerated();
         WriteManifest(context.Output, manifest);
 
-        return new Result(linked, manifest, context.Unresolved);
+        return new Result(linked, manifest, context.Unresolved, context.Misplaced);
     }
 
     /// <summary>
@@ -113,9 +136,34 @@ public static partial class ViewAssetLinker
     }
 
     /// <summary>The roots this run works against, and what it has generated so far.</summary>
-    private sealed class LinkContext(string output, string webRoot)
+    private sealed class LinkContext(string output, string webRoot, string? views, ViewAliases aliases)
     {
         public string Output { get; } = output;
+
+        /// <summary>
+        /// The compiled module an aliased specifier names, relative to the output, or null when no
+        /// alias claims it or it lands outside the views directory.
+        /// </summary>
+        public string? ResolveAlias(string specifier)
+        {
+            if (views is null || aliases.IsEmpty || aliases.Resolve(specifier) is not { } source)
+            {
+                return null;
+            }
+
+            if (!Under(source, views))
+            {
+                return null;
+            }
+
+            // The output mirrors the views tree, and every view compiles to .js whatever it was
+            // written as.
+            var relative = Path.ChangeExtension(Path.GetRelativePath(views, source), ".js");
+
+            return File.Exists(Path.Combine(Output, relative))
+                ? relative.Replace(Path.DirectorySeparatorChar, '/')
+                : null;
+        }
 
         private readonly string _generatedRoot = Path.Combine(output, ViewAssets.ModuleDirectory);
         private readonly HashSet<string> _written = new(StringComparer.OrdinalIgnoreCase);
@@ -124,12 +172,19 @@ public static partial class ViewAssetLinker
         /// <summary>Specifiers that named nothing in the web root, in the order they were met.</summary>
         public IReadOnlyList<string> Unresolved => _unresolved;
 
+        /// <summary>Asset imports written some way other than as a URL, so nothing serves them.</summary>
+        public IReadOnlyList<string> Misplaced => _misplaced;
+
+        private readonly List<string> _misplaced = [];
+
+        public void RecordMisplaced(string specifier) => _misplaced.Add(specifier);
+
         public bool IsGenerated(string path) => Under(path, _generatedRoot);
 
         public string RelativeToOutput(string path) =>
             Path.GetRelativePath(Output, path).Replace(Path.DirectorySeparatorChar, '/');
 
-        private static bool Under(string path, string root) =>
+        public static bool Under(string path, string root) =>
             path.StartsWith(root.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar,
                 StringComparison.OrdinalIgnoreCase);
 
@@ -218,7 +273,15 @@ public static partial class ViewAssetLinker
 
             if (ViewAssets.PathFor(specifier) is not { } assetPath || !ViewAssets.IsAsset(assetPath))
             {
-                return match.Value;
+                // An asset named some other way resolves to nothing, and saying so is the only
+                // chance anyone gets: the declarations cannot tell the two spellings apart.
+                if (ViewAssets.IsMisplacedAsset(specifier))
+                {
+                    context.RecordMisplaced(specifier);
+                    return match.Value;
+                }
+
+                return RewriteAlias(match, specifier);
             }
 
             if (context.Generate(specifier, assetPath) is not { } generated)
@@ -237,6 +300,29 @@ public static partial class ViewAssetLinker
             // module's own URL, which already carries the build id, so nothing has to be told where
             // this application serves its modules from.
             var relative = Path.GetRelativePath(_directory, generated.ModulePath)
+                .Replace(Path.DirectorySeparatorChar, '/');
+
+            return match.Groups["lead"].Value
+                   + match.Groups["quote"].Value
+                   + (relative.StartsWith('.') ? relative : "./" + relative)
+                   + match.Groups["quote"].Value;
+        }
+
+        /// <summary>
+        /// Turns an aliased specifier into a relative path to the compiled module it names, which
+        /// is what both the browser and the server module loader can resolve.
+        /// </summary>
+        private string RewriteAlias(Match match, string specifier)
+        {
+            if (specifier.StartsWith('.') || context.ResolveAlias(specifier) is not { } module)
+            {
+                return match.Value;
+            }
+
+            Imports.Add(module);
+            Linked++;
+
+            var relative = Path.GetRelativePath(_directory, Path.Combine(context.Output, module))
                 .Replace(Path.DirectorySeparatorChar, '/');
 
             return match.Groups["lead"].Value

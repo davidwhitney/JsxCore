@@ -23,7 +23,7 @@ builder.AddJsxCore(options =>
 | `ViewsDirectory` | `"Views"` | Where views live, relative to the content root |
 | `WorkingDirectory` | `"obj/JsxCore"` | Compiler output; gitignored and hidden from project trees |
 | `RequestPath` | `"/_jsx"` | Base path compiled modules are served from |
-| `WebRootDirectory` | the host's web root, else `"wwwroot"` | What `dotnet:wwwroot/…` imports resolve against |
+| `WebRootDirectory` | the host's web root, else `"wwwroot"` | What rooted asset imports resolve against |
 | `Extensions` | `.tsx`, `.jsx` | File extensions treated as views, in probe order |
 | `ViewLocationFormats` | `{Views}/{controller}/{view}`, `{Views}/Shared/{view}`, `{Views}/{view}` | How a view name maps to a path |
 | `AreaViewLocationFormats` | area-aware equivalents | Tried first when the request has an area |
@@ -139,10 +139,9 @@ The specifier is not configurable: the module is named after the assembly it des
 | `dotnet:globals` | The .NET objects registered with `options.Globals`, one named export each |
 | `dotnet:rendering` | `isServerRender`, and the types a view is handed: `ViewProps`, `HeadDescriptor` |
 | `dotnet:rendering/head` | The `<Head>` component |
-| `dotnet:wwwroot/<path>` | A static file, as the URL it is served from |
 
 One rule: `dotnet:` is the .NET side of the application, meaning an assembly by name or one of the
-three names JsxCore reserves: `globals`, `rendering` and `wwwroot/`. It is not an npm package and
+two names JsxCore reserves: `globals` and `rendering`. It is not an npm package and
 does not resolve like one; the browser is told about it through the import map, and TypeScript through
 `paths`. Reserved names are matched first and win over an assembly of the same name, which a
 PascalCase assembly cannot collide with anyway. See [Import syntax](import-syntax.md).
@@ -174,7 +173,7 @@ Set these in your `.csproj`. They control [build-time compilation](build-and-dep
 | `JsxCoreViewsDirectory` | `Views` | Where views live |
 | `JsxCoreManifestDirectory` | beside the project | Directory holding the `package.json` to use, for a solution sharing one |
 | `JsxCoreWorkingDirectory` | `$(BaseIntermediateOutputPath)JsxCore\` | Compiler output |
-| `JsxCoreWebRootDirectory` | `wwwroot` | What `dotnet:wwwroot/…` imports resolve against |
+| `JsxCoreWebRootDirectory` | `wwwroot` | What rooted asset imports resolve against |
 | `JsxCoreAutoInstallDependencies` | `true` | Install missing npm packages during the build |
 | `JsxCoreMinify` | Release only | Minify what is served to the browser, with esbuild |
 | `JsxCoreCompressAssets` | Release only | Compress assets on the way out: Brotli, or gzip |

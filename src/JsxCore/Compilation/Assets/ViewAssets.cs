@@ -8,8 +8,8 @@ namespace JsxCore.Compilation.Assets;
 /// Static assets live where they always have in an ASP.NET Core application: in <c>wwwroot</c>,
 /// served by <c>UseStaticFiles</c>. JsxCore copies nothing out of it. What it adds is the half a
 /// frontend developer expects and the framework has no answer for: that
-/// <c>import logo from "dotnet:wwwroot/images/logo.svg"</c> resolves, type checks, and hands back
-/// the URL the file is served from.
+/// <c>import logo from "/images/logo.svg"</c> resolves, type checks, and hands back the URL the
+/// file is served from.
 /// </para>
 /// <para>
 /// That needs doing because an svg is not JavaScript. TypeScript leaves a specifier it has no
@@ -21,19 +21,19 @@ namespace JsxCore.Compilation.Assets;
 public static class ViewAssets
 {
     /// <summary>
-    /// How a view names a file in the application's web root: <c>dotnet:wwwroot/images/logo.svg</c>.
+    /// How a view names a file in the application's web root: <c>/images/logo.svg</c>.
     /// </summary>
     /// <remarks>
-    /// The same scheme as the assemblies and the other reserved names, under the same rule:
-    /// <c>dotnet:</c> is the .NET side of the application. wwwroot is exactly that.
+    /// The URL the file is served from, written exactly as it would be in an <c>src</c> attribute.
+    /// That is the whole appeal: the import and the hand-written URL are the same string, and it is
+    /// the spelling every Vite project already uses for its public directory.
     /// <para>
-    /// A scheme rather than a relative path, because the two ask different questions. A relative
-    /// path says where a file sits on this machine; this names one of the application's own served
-    /// files, which is what a URL is an answer about. It also cannot be mistaken for an import of
-    /// something beside the view, and it does not change meaning when a view moves.
+    /// A leading slash is a legal ESM specifier that no browser could do anything useful with here,
+    /// since it would fetch an image and refuse it as a module, so nothing that worked before means
+    /// something different now.
     /// </para>
     /// </remarks>
-    public const string Scheme = "dotnet:wwwroot/";
+    public const string RootPrefix = "/";
 
     /// <summary>The ambient declarations that make an asset import type check.</summary>
     public const string DeclarationFileName = "jsxcore-assets.d.ts";
@@ -114,17 +114,36 @@ public static class ViewAssets
     /// </summary>
     public static string? PathFor(string specifier)
     {
-        if (!specifier.StartsWith(Scheme, StringComparison.Ordinal))
+        if (!specifier.StartsWith(RootPrefix, StringComparison.Ordinal))
         {
             return null;
         }
 
-        var path = specifier[Scheme.Length..];
+        var path = specifier[RootPrefix.Length..];
 
         // Query strings and fragments are not part of this yet, and treating "logo.svg?url" as an
         // ordinary asset would produce a module nothing points at.
         return path.Length > 0 && !path.Contains('?') && !path.Contains('#') ? path : null;
     }
+
+    /// <summary>
+    /// Whether a specifier names an asset but not one this can serve, which is how a relative
+    /// import of an image is told apart from a rooted one.
+    /// </summary>
+    /// <remarks>
+    /// The ambient declarations have to be plain <c>*.svg</c> wildcards, because TypeScript rejects
+    /// a pattern beginning with a slash as a relative module name. So an import of
+    /// <c>./logo.svg</c> type checks as readily as a rooted one, and would otherwise fail as a
+    /// module the browser cannot load, with nothing said about why.
+    /// </remarks>
+    public static bool IsMisplacedAsset(string specifier) =>
+        PathFor(specifier) is null && IsAssetSpecifier(specifier);
+
+    private static bool IsAssetSpecifier(string specifier) =>
+        specifier.Length > 0
+        && !specifier.Contains('?')
+        && !specifier.Contains('#')
+        && IsAsset(specifier);
 
     /// <summary>The module generated for an imported asset, exporting the URL it is served from.</summary>
     /// <remarks>
@@ -142,7 +161,7 @@ public static class ViewAssets
          """;
 
     /// <summary>
-    /// Ambient declarations so <c>import logo from "dotnet:wwwroot/images/logo.svg"</c> type checks.
+    /// Ambient declarations so <c>import logo from "/images/logo.svg"</c> type checks.
     /// </summary>
     /// <remarks>
     /// A wildcard module per extension rather than one covering everything: a mistyped specifier
@@ -155,17 +174,18 @@ public static class ViewAssets
         builder.AppendLine("// Written by JsxCore. Importing a file from your web root gives you the URL it is");
         builder.AppendLine("// served from, so it can go straight into an src or href:");
         builder.AppendLine("//");
-        builder.AppendLine("//     import logo from \"dotnet:wwwroot/images/logo.svg\";");
+        builder.AppendLine("//     import logo from \"/images/logo.svg\";");
         builder.AppendLine("//     <img src={logo} />");
         builder.AppendLine("//");
-        builder.AppendLine("// The file is one of your own, under wwwroot, served by UseStaticFiles.");
+        builder.AppendLine("// The path is the URL, so it starts at your web root. A relative import of an image");
+        builder.AppendLine("// type checks against these too, but nothing serves it, and the build says so.");
         builder.AppendLine();
 
         foreach (var extension in ContentTypes.Keys.OrderBy(key => key, StringComparer.Ordinal))
         {
-            // One wildcard is all a pattern module may have, and it matches path separators, so a
-            // single declaration per extension covers every depth of directory under the web root.
-            builder.AppendLine($"declare module \"{Scheme}*{extension}\" {{");
+            // A pattern beginning with a slash is rejected as a relative module name, so these
+            // cannot be narrowed to rooted specifiers. The linker reports the difference instead.
+            builder.AppendLine($"declare module \"*{extension}\" {{");
             builder.AppendLine("    const url: string;");
             builder.AppendLine("    export default url;");
             builder.AppendLine("}");

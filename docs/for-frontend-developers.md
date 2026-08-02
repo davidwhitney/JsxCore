@@ -79,7 +79,7 @@ JsxCore-specific code in the action. See
 | `next/head` | `<Head>`, or the `head` export | [Writing views](writing-views.md#the-document-head) |
 | Hooks | `preact/hooks`, or `react` in React mode | [Writing views](writing-views.md#hooks) |
 | `npm install x` | `npm install x`, or `dotnet npm add x` | [npm packages](npm-packages.md) |
-| Importing an image or a stylesheet | `dotnet:wwwroot/…` | [Import syntax](import-syntax.md#static-assets) |
+| Importing an image or a stylesheet | `/images/logo.svg`, the URL it is served from | [Import syntax](import-syntax.md#static-assets) |
 | An API route | you are already in the API | [Views and Web APIs](views-and-web-apis.md) |
 | Hand-written response interfaces | generated from your C# | [Model types](model-types.md) |
 | `next dev` | `dotnet run`, with hot reload over a WebSocket | [Development](development.md) |

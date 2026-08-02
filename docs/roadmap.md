@@ -29,8 +29,10 @@ So the rest is not read against a stale picture:
   rendering contract.
 - **Tailwind**, which works today with about fifteen lines of setup. See [Tailwind](tailwind.md).
 - **CSP nonces** on every script JsxCore writes.
-- **[Static asset imports](import-syntax.md#static-assets)**, as `dotnet:wwwroot/images/logo.svg`,
-  resolving to the URL `UseStaticFiles` serves the file from.
+- **[Static asset imports](import-syntax.md#static-assets)**, as `/images/logo.svg`, resolving to
+  the URL `UseStaticFiles` serves the file from.
+- **`@/` path aliases**, generated for the views directory and rewritten into relative specifiers,
+  so an alias resolves in a browser rather than only in an editor.
 
 ---
 
@@ -58,7 +60,7 @@ stylesheets come from a walk of it: dependencies first, each once, independent o
 CSS processing inherits that.
 
 Open: **where a processed stylesheet lives, and where it goes.** An imported stylesheet today is a
-file in `wwwroot`, spelled `dotnet:wwwroot/card.css`, which is why JsxCore neither copies nor
+file in `wwwroot`, named by the URL it is served from, which is why JsxCore neither copies nor
 versions it. A `.module.css` is neither: a source file, so it belongs beside the component and would
 be spelled relatively, and a build output, so it needs a URL carrying a build id. Two kinds of
 stylesheet in one feature, and the design should say which is which.
@@ -111,9 +113,6 @@ recommendation and writing it down is most of this item.
 
 Small, known, and each found while doing something else:
 
-- **Verify tsconfig path aliases.** User `CompilerOptions` merge into both generated configs, so
-  `paths` such as `@/components/*` should survive, but the `dotnet:*` mapping merges into the same
-  object and the interaction is untested.
 - **Per-assembly type modules.** `dotnet:<Assembly>` is named per assembly but contains every
   declared type, including any pulled in from referenced assemblies. Splitting them needs generated
   cross-module imports for types that reference each other.

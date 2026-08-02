@@ -257,10 +257,10 @@ Reference one by hand:
 <img src="/images/logo.svg" alt="Contoso" />
 ```
 
-Or import it, which is the same URL with the path checked at compile time:
+Or import it, which is the same string with the path checked at compile time:
 
 ```tsx
-import logo from "dotnet:wwwroot/images/logo.svg";
+import logo from "/images/logo.svg";
 
 <img src={logo} alt="Contoso" />
 ```
@@ -291,5 +291,5 @@ Or per response, with [`result.HeadContent`](returning-views.md#per-response-doc
   no `fs`, `path` or other Node built-ins. A package that reaches for one fails with a message
   naming it.
 - **Reach outside the views directory.** A relative import resolving outside the compiled output is
-  refused. [`dotnet:wwwroot/…`](import-syntax.md#static-assets) is the way to name a file the
+  refused. A [rooted path](import-syntax.md#static-assets) is the way to name a file the
   application serves.

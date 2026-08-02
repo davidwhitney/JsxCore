@@ -3,7 +3,7 @@ import type { ComponentChildren } from "preact";
 // Static assets stay where they belong in an ASP.NET Core application: in wwwroot, served by
 // UseStaticFiles. Importing one resolves to the URL it is served from, here "/favicon.ico", so the
 // path is checked when the view compiles instead of being a string nobody verifies.
-import logo from "dotnet:wwwroot/favicon.ico";
+import logo from "/favicon.ico";
 
 // Shared components live alongside views and are imported with plain ESM. TypeScript rewrites
 // "./Layout.tsx" to "./Layout.js" on the way out, so the browser resolves this graph natively

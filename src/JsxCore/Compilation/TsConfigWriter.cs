@@ -75,6 +75,7 @@ public static class TsConfigWriter
             [RuntimeAssets.ModuleSpecifier] = new JsonArray("./runtime/index.d.ts")
         };
         AddSubModulePaths(paths, "./runtime");
+        paths[ViewsAlias] = new JsonArray(Normalise(layout.ViewsDirectory) + "/*");
         var ambientTypes = AddGeneratedTypesPath(options, layout, paths, relativeTo: layout.WorkingDirectory);
         compilerOptions["paths"] = MergePaths(compilerOptions, paths);
 
@@ -83,10 +84,7 @@ public static class TsConfigWriter
             compilerOptions["noCheck"] = true;
         }
 
-        foreach (var (key, value) in options.CompilerOptions)
-        {
-            compilerOptions[key] = JsonSerializer.SerializeToNode(value);
-        }
+        ApplyUserOptions(compilerOptions, options);
 
         var includes = new JsonArray();
         foreach (var extension in options.Extensions.Concat([".ts", ".js"]).Distinct(StringComparer.OrdinalIgnoreCase))
@@ -229,13 +227,11 @@ public static class TsConfigWriter
             [RuntimeAssets.ModuleSpecifier] = new JsonArray($"{runtime}/index.d.ts")
         };
         AddSubModulePaths(paths, runtime);
+        paths[ViewsAlias] = new JsonArray("./*");
         var ambientTypes = AddGeneratedTypesPath(options, layout, paths, relativeTo: layout.ViewsDirectory);
         compilerOptions["paths"] = MergePaths(compilerOptions, paths);
 
-        foreach (var (key, value) in options.CompilerOptions)
-        {
-            compilerOptions[key] = JsonSerializer.SerializeToNode(value);
-        }
+        ApplyUserOptions(compilerOptions, options);
 
         config["//"] = $"{GeneratedMarker}: written by JsxCore so editors can resolve " +
                        $"'{RuntimeAssets.ModuleSpecifier}'. Delete or edit this file freely; JsxCore only " +
@@ -399,6 +395,46 @@ public static class TsConfigWriter
         {
             paths[$"{RuntimeAssets.ModuleSpecifier}/{name}"] =
                 new JsonArray($"{runtimeDirectory}/{name}.d.ts");
+        }
+    }
+
+    /// <summary>
+    /// The alias JsxCore provides for the views directory, matching what every Next.js and Vite
+    /// template scaffolds.
+    /// </summary>
+    /// <remarks>
+    /// Generated rather than left to the application, so it works in a fresh project, and because
+    /// only an alias JsxCore knows about can be rewritten into something a browser resolves.
+    /// </remarks>
+    public const string ViewsAlias = "@/*";
+
+    /// <summary>
+    /// Merges what the application configured over what was generated.
+    /// </summary>
+    /// <remarks>
+    /// <c>paths</c> is merged key by key rather than replaced. Assigning it wholesale is the
+    /// obvious reading of "extra options merged into the generated tsconfig", and it used to drop
+    /// every mapping JsxCore had just made: the <c>dotnet:</c> schemes and the framework's own
+    /// declarations all stopped resolving because an application added one alias of its own.
+    /// </remarks>
+    private static void ApplyUserOptions(JsonObject compilerOptions, JsxCoreOptions options)
+    {
+        foreach (var (key, value) in options.CompilerOptions)
+        {
+            var node = JsonSerializer.SerializeToNode(value);
+
+            if (key == "paths" && node is JsonObject userPaths
+                && compilerOptions["paths"] is JsonObject generated)
+            {
+                foreach (var (specifier, target) in userPaths.ToList())
+                {
+                    generated[specifier] = target?.DeepClone();
+                }
+
+                continue;
+            }
+
+            compilerOptions[key] = node;
         }
     }
 

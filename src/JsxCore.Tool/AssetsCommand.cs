@@ -44,6 +44,13 @@ public static class AssetsCommand
                 $"file under {layout.WebRoot}.");
         }
 
+        foreach (var specifier in linked.Misplaced.Distinct(StringComparer.Ordinal))
+        {
+            Console.Error.WriteLine(
+                $"JsxCore: left the asset import '{specifier}' as written. Only a rooted path " +
+                $"names something JsxCore serves, as in \"/images/logo.svg\".");
+        }
+
         return 0;
     }
 }

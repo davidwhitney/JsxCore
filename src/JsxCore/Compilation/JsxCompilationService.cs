@@ -158,8 +158,18 @@ public sealed class JsxCompilationService(
         {
             _logger.LogWarning(
                 "JsxCore could not resolve the asset import '{Specifier}': there is no such file " +
-                "under {WebRoot}. The path is relative to your web root, exactly as the URL is.",
+                "under {WebRoot}. The path is the URL, so it starts at your web root.",
                 specifier, Layout.WebRoot);
+        }
+
+        // Type checks, resolves to nothing. The ambient declarations cannot tell a rooted specifier
+        // from a relative one, so this is the only place the difference can be reported.
+        foreach (var specifier in linked.Misplaced.Distinct(StringComparer.Ordinal))
+        {
+            _logger.LogWarning(
+                "JsxCore left the asset import '{Specifier}' as written, because only a rooted " +
+                "path names something it serves. Put the file under {WebRoot} and import it as the " +
+                "URL it is served from, as in \"/images/logo.svg\".", specifier, Layout.WebRoot);
         }
     }
 
