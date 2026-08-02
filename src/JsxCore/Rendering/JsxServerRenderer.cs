@@ -151,6 +151,16 @@ public sealed class JsxServerRenderer(
 
     private static readonly JsonSerializerOptions SerializerOptions = new(JsonSerializerDefaults.Web);
 
+    /// <summary>
+    /// The global a view reads through <c>isServerRender()</c>.
+    /// </summary>
+    /// <remarks>
+    /// Separate from the globals bridge because they answer different questions. This one is true
+    /// for every server render; the bridge holds whatever the application registered, which is
+    /// often nothing.
+    /// </remarks>
+    internal const string ServerFlag = "__jsxcore_server";
+
     private void InstallGlobals(Engine engine, IServiceProvider services)
     {
         var registrations = _options.Globals.Registrations;
@@ -216,6 +226,11 @@ public sealed class JsxServerRenderer(
         // Before anything is imported: a package that expects a browser or Node global reads it
         // while its own module body runs, so there is no later point at which this would work.
         engine.Execute(RuntimeAssets.HostShims);
+
+        // Which pass is running, stated on its own rather than inferred from whether any .NET
+        // objects were registered. An application that registers none is still server rendering,
+        // and isServerRender() used to answer that wrongly.
+        engine.SetValue(ServerFlag, true);
 
         return engine;
     }

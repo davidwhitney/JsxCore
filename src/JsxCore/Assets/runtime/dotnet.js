@@ -6,18 +6,36 @@
 
 function bridge() {
     const value = globalThis.__jsxcore_dotnet;
-    if (!value) {
+    if (value) {
+        return value;
+    }
+
+    // Two different mistakes, and telling someone to guard a call they already guarded is worse
+    // than saying nothing. Which one it is depends on the side this ran on.
+    if (isServerRender()) {
         throw new Error(
-            "JsxCore: .NET globals are only available during server rendering. " +
-            "This view ran on the client. Either switch it to RenderMode.Server, or guard " +
-            "the call with `isServerRender()`."
+            "JsxCore: this application has registered no .NET globals, so there is nothing " +
+            "for dotnet:globals to reach. Register one with " +
+            "`options.Globals.Register<MyService>(\"Name\")`."
         );
     }
-    return value;
+
+    throw new Error(
+        "JsxCore: .NET globals are only available during server rendering. " +
+        "This view ran on the client. Either switch it to RenderMode.Server, or guard " +
+        "the call with `isServerRender()`."
+    );
 }
 
+/**
+ * Whether this is the server pass.
+ *
+ * Reads a flag the host sets for every server render, rather than checking whether any .NET object
+ * was registered: an application that registers none is still rendering on the server, and this
+ * used to answer that wrongly.
+ */
 export function isServerRender() {
-    return !!globalThis.__jsxcore_dotnet;
+    return globalThis.__jsxcore_server === true;
 }
 
 // Each registered object is handed out as a proxy rather than directly, so that a view holding on

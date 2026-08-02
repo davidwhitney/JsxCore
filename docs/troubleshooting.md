@@ -187,6 +187,17 @@ A client-rendered view touched `dotnet`. Open the view with `"use server"` so it
 the server, or guard the call with `isServerRender()`. See
 [Render modes](render-modes.md#a-view-can-say-where-it-runs).
 
+### "this application has registered no .NET globals"
+
+The view is rendering on the server, so the guard is not the problem: nothing has been registered
+for `dotnet:globals` to reach. Register one:
+
+```csharp
+builder.AddJsxCore(options => options.Globals.Register<InventoryService>("Inventory"));
+```
+
+See [.NET interop](dotnet-interop.md#registering-globals).
+
 ### "cannot resolve the module 'x' during server rendering"
 
 The package is not installed, or `options.AllowNodeModules` is off. Install it with
