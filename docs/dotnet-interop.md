@@ -152,9 +152,11 @@ I/O boundary to await across. That removes the usual SSR dance of collecting pro
 re-rendering, and it is why **server components must be synchronous**. An async component is
 rejected with an explicit error.
 
-Do the async work in your endpoint and pass the result in the model:
+The endpoint is where `await` belongs, and it is ordinary async C#:
 
 ```csharp
 app.MapGet("/dashboard", async (InventoryService inventory) =>
     Results.Extensions.JsxServerRendered("Home/Dashboard", await inventory.LoadAsync()));
 ```
+
+See [async endpoints](returning-views.md#async-endpoints).

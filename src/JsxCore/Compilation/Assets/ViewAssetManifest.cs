@@ -14,8 +14,8 @@ public sealed record ViewAssetModule(IReadOnlyList<string> Imports, IReadOnlyLis
 /// </summary>
 /// <remarks>
 /// <para>
-/// A stylesheet import has no runtime value to return — <c>import "dotnet:wwwroot/app.css"</c>
-/// binds nothing — so unlike an image it cannot be answered by a module that exports a URL. The
+/// A stylesheet import has no runtime value to return, since <c>import "dotnet:wwwroot/app.css"</c>
+/// binds nothing, so unlike an image it cannot be answered by a module that exports a URL. The
 /// document has to carry a link element, and the document is written by the server, which is why
 /// what a view imports has to be recorded somewhere the server can read.
 /// </para>

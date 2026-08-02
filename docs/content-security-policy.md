@@ -17,8 +17,8 @@ Three of them, each doing something a separate file cannot:
 | `<script type="application/json">` | your model, serialised into the page so the client mounts with the data the server used |
 | `<script type="module">` | the mount call, naming this view's module and container |
 
-Under a policy of `script-src 'self'` all three are blocked and nothing renders — not a degraded
-page, an empty one.
+Under a policy of `script-src 'self'` all three are blocked and nothing renders. Not a degraded
+page: an empty one.
 
 ---
 
@@ -46,16 +46,15 @@ builder.AddJsxCore(options =>
 });
 ```
 
-That is the whole integration. The callback is asked **per request**, because a nonce that is reused
-is not a nonce, and every script JsxCore writes carries the result — including the hot reload client
-in development, which is an external script but still governed by a `script-src` that names only a
-nonce.
+The callback is asked **per request**, because a nonce that is reused is not a nonce, and every
+script JsxCore writes carries the result, including the hot reload client in development, which is
+an external script but still governed by a `script-src` naming only a nonce.
 
 Returning null or an empty string writes no attribute, which is what an application without a
 policy wants. Nothing is validated: the value is escaped and emitted.
 
 If you already use a library that manages CSP headers, read its nonce rather than generating your
-own — the point is that JsxCore emits the *same* value your header names.
+own, so that JsxCore emits the *same* value your header names.
 
 ---
 
@@ -84,5 +83,5 @@ and stayed interactive with no violations reported.
 
 ## See also
 
-- [Extensibility](extensibility.md) — document templates and import map entries
-- [Returning views](returning-views.md) — per-response document settings
+- [Extensibility](extensibility.md): document templates and import map entries
+- [Returning views](returning-views.md): per-response document settings

@@ -2,6 +2,9 @@
 
 ← [Documentation index](README.md)
 
+Returning a view from a minimal API or an MVC controller, and overriding document settings
+for one response.
+
 ---
 
 ## Minimal APIs
@@ -51,9 +54,9 @@ a build.
 </PropertyGroup>
 ```
 
-One limitation worth knowing: an IDE cannot see run time configuration, so an application that
-changes `options.ViewLocationFormats` in code gets annotations describing the defaults. Set
-`JsxCoreViewLocationFormats` in the project file to match if you have moved them.
+An IDE cannot see run time configuration, so an application that changes
+`options.ViewLocationFormats` in code gets annotations describing the defaults. Set
+`JsxCoreViewLocationFormats` in the project file to match.
 
 Be explicit when you want a particular mode:
 
@@ -92,6 +95,55 @@ side by side and you can migrate a page at a time.
 ```csharp
 options.ViewEngineOrder = 1;   // Razor first, JSX as the fallback
 ```
+
+---
+
+## Async endpoints
+
+A component cannot be `async`, because
+[server rendering is synchronous](dotnet-interop.md#why-this-is-synchronous). But **the endpoint that
+builds its model is ordinary ASP.NET Core, and should be async whenever it talks to anything**.
+Database queries, HTTP calls to downstream services and any other I/O belong there, awaited with
+C#'s own `async`/`await`, so the view receives a finished result.
+
+```csharp
+app.MapGet("/dashboard", async (InventoryService inventory, IOrderClient orders) =>
+{
+    // Ordinary async C#: run them concurrently, await, then hand over a finished model.
+    var stockTask = inventory.LoadAsync();
+    var recentTask = orders.GetRecentAsync(limit: 10);
+    await Task.WhenAll(stockTask, recentTask);
+
+    return Results.Extensions.JsxServerRendered(
+        "Home/Dashboard", new DashboardModel(stockTask.Result, recentTask.Result));
+});
+```
+
+The same in a controller:
+
+```csharp
+public sealed class DashboardController(InventoryService inventory) : Controller
+{
+    [HttpGet("/dashboard")]
+    public async Task<IActionResult> Index()
+    {
+        var model = new DashboardModel(await inventory.LoadAsync());
+
+        ViewData[JsxViewEngine.RenderModeKey] = RenderMode.ServerAndClient;
+        return View(model);
+    }
+}
+```
+
+This is the pattern to follow, not a workaround for a missing feature. Awaiting in the endpoint
+happens once, on a thread pool thread, with the whole of ASP.NET Core's cancellation and dependency
+injection available; awaiting inside a component would mean suspending a render, which is the
+machinery JsxCore does not have and does not need. By the time the component runs, every value it
+needs is already in the model.
+
+A component that needs data the endpoint did not fetch has two options:
+[`dotnet:globals`](dotnet-interop.md) for a synchronous in-process call during the server pass, or
+[`fetch` in an effect](views-and-web-apis.md) after hydration.
 
 ---
 
@@ -137,22 +189,13 @@ responses.
 
 ## Passing ambient data
 
-Values that every view should see, configured once:
-
-```csharp
-options.ContextValues["environment"] = builder.Environment.EnvironmentName;
-```
-
-Values for one request:
-
-```csharp
-httpContext.AddJsxContext("user", user.Identity?.Name);
-```
-
-Both arrive as the component's `context` prop, alongside the request `path`:
+`options.ContextValues` and `httpContext.AddJsxContext(...)` both arrive as the component's
+`context` prop, alongside the request `path`:
 
 ```tsx
 export default function Page({ context }: ViewProps<Model>) {
     return <footer>{String(context.environment)}</footer>;
 }
 ```
+
+See [Extensibility](extensibility.md#pass-ambient-data-to-every-view) for setting them.

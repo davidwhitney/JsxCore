@@ -7,7 +7,7 @@ namespace JsxCore.Compilation.Assets;
 /// <para>
 /// Static assets live where they always have in an ASP.NET Core application: in <c>wwwroot</c>,
 /// served by <c>UseStaticFiles</c>. JsxCore copies nothing out of it. What it adds is the half a
-/// frontend developer expects and the framework has no answer for — that
+/// frontend developer expects and the framework has no answer for: that
 /// <c>import logo from "dotnet:wwwroot/images/logo.svg"</c> resolves, type checks, and hands back
 /// the URL the file is served from.
 /// </para>

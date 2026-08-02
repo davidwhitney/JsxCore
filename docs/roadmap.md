@@ -2,12 +2,12 @@
 
 ← [Documentation index](README.md)
 
----
-
 What is not built yet, in the order I would build it, with enough design recorded that starting is
 execution rather than rediscovery.
 
-Nothing here is scheduled. Two long-standing items — WebAssembly interop and CSS processing — had
+---
+
+Nothing here is scheduled. Two long-standing items, WebAssembly interop and CSS processing, had
 fuller design notes in earlier revisions of this file, including their hard parts and how we would
 know they worked. Those are in git history if the summaries below are not enough.
 
@@ -25,7 +25,7 @@ So the rest is not read against a stale picture:
   publish, Brotli or gzip at serve time.
 - **Precompiled by default for Release**, so a published application serves what the build produced
   rather than compiling on a server.
-- **The `dotnet:` scheme** — assembly types, namespace sub-paths, registered globals, and the
+- **The `dotnet:` scheme**: assembly types, namespace sub-paths, registered globals, and the
   rendering contract.
 - **Tailwind**, which works today with about fifteen lines of setup. See [Tailwind](tailwind.md).
 - **CSP nonces** on every script JsxCore writes.
@@ -54,7 +54,7 @@ Two constraints from the earlier design work still hold:
 - **Scoping reaches into the JSX transform**, which is what makes this bigger than copying files.
 
 The third, ordering, is settled: asset imports record the compiled module graph, and a page's
-stylesheets come from a walk of it — dependencies first, each once, independent of render order.
+stylesheets come from a walk of it: dependencies first, each once, independent of render order.
 CSS processing inherits that.
 
 Open: **where a processed stylesheet lives, and where it goes.** An imported stylesheet today is a
@@ -89,8 +89,8 @@ Named because they will be asked for, not because they are queued:
 ## 3. Environment variables in views
 
 `process.env.API_URL`, or `import.meta.env.MODE`. Today `process` exists only inside the CommonJS
-wrapper, so a view referencing it breaks in the browser — the exact bug class that broke React
-before the wrapper supplied one.
+wrapper, so a view referencing it breaks in the browser. That is the exact bug class that broke
+React before the wrapper supplied one.
 
 The shape that seems right is an explicit allow-list injected into the import map, rather than
 ambient access to the server's environment. Leaking configuration into the browser by accident is
@@ -102,7 +102,7 @@ the risk worth designing against.
 
 Vitest or Jest against a `.tsx`. JsxCore cannot provide this without Node, so the honest answer may
 be "render through `WebApplicationFactory` and assert on the markup", which [Testing](testing.md)
-already covers — but that is not said anywhere a frontend developer will look. Deciding the
+already covers, but that is not said anywhere a frontend developer will look. Deciding the
 recommendation and writing it down is most of this item.
 
 ---
@@ -112,13 +112,13 @@ recommendation and writing it down is most of this item.
 Small, known, and each found while doing something else:
 
 - **Verify tsconfig path aliases.** User `CompilerOptions` merge into both generated configs, so
-  `paths` such as `@/components/*` should survive — but the `dotnet:*` mapping merges into the same
+  `paths` such as `@/components/*` should survive, but the `dotnet:*` mapping merges into the same
   object and the interaction is untested.
 - **Per-assembly type modules.** `dotnet:<Assembly>` is named per assembly but contains every
   declared type, including any pulled in from referenced assemblies. Splitting them needs generated
   cross-module imports for types that reference each other.
 - **Delete the built-in renderer.** `runtime/client.js`, `server.js`, `dom.js`, `hooks.js` and the
-  JSX runtime files — about 1,400 lines including declarations — are a closed island nothing in the
+  JSX runtime files, about 1,400 lines including declarations, are a closed island nothing in the
   live path imports, left from before Preact was vendored. `index.js` still re-exports its hooks,
   which is a quiet trap: importing `useState` from the runtime compiles and never runs.
 - **npm `.bin` linking.** The native client does not create `node_modules/.bin`, because linking

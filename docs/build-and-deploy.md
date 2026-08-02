@@ -2,6 +2,8 @@
 
 ← [Documentation index](README.md)
 
+When views are compiled, how strictly they are type-checked, and what reaches a server.
+
 ---
 
 ## Build modes
@@ -41,49 +43,26 @@ The target locates the same native compiler, walking up from the project directo
 rather than failing your build.
 
 Finding it, reading `package.json` and writing the compiler configuration are done by a small tool
-the package ships under `tools/`, which the target invokes. That is not an implementation detail
-you should have to care about, with one exception worth knowing: **the build-time and run-time
-compiler settings are produced by the same code**, so they cannot drift apart. `JsxCoreToolPath`
-points at it if you ever need to relocate it, and `JSX0006` is what you see when it is missing.
+the package ships under `tools/`, which the target invokes. One consequence is worth knowing:
+**the build-time and run-time compiler settings are produced by the same code**, so they cannot
+drift apart. `JsxCoreToolPath` relocates the tool; `JSX0006` reports it missing.
 
 ### The build installs its own dependencies
 
-A clean checkout needs no npm step of its own. When the compiler is missing, the build fetches it
-before compiling:
-
-```
-JsxCore: restoring with native: typescript
-JsxCore: fetching @typescript/typescript-linux-x64@7.0.2
-```
-
-So a pipeline is just:
+A clean checkout needs no npm step of its own, so a pipeline is just:
 
 ```yaml
 - run: dotnet publish -c Release
 ```
 
-Nothing runs on a build where the packages are already present, so this costs nothing after the
-first time.
-
-**When a lock file exists it is installed from directly**, exactly as pinned, without rewriting
-`package-lock.json`. That keeps builds reproducible and the working tree clean. Resolving afresh
-against the registry is only a fallback, when there is no lock file or when the lock file did not
-produce a usable compiler.
-
-Committing `package.json` and `package-lock.json` is still the right thing to do: it pins versions
-and lets the build take the reproducible path. If you would rather manage packages entirely
-yourself:
-
-```xml
-<JsxCoreAutoInstallDependencies>false</JsxCoreAutoInstallDependencies>
-```
-
-With that set, a build with no compiler emits warning `JSX0001` and compiles nothing, leaving the
-work to application startup.
+The build fetches the compiler when it is missing and does nothing when it is not. Set
+`<JsxCoreAutoInstallDependencies>false</JsxCoreAutoInstallDependencies>` to manage packages
+yourself; a build with no compiler then emits `JSX0001` and leaves the work to startup. See
+[package management](package-management.md#during-a-build).
 
 ### 3. Precompiled only, at run time *(automatic for Release)*
 
-Because publish output already contains compiled views, production needs no toolchain at all — and
+Because publish output already contains compiled views, production needs no toolchain at all, and
 you do not have to ask for it. A **Release** build compiles the views, carries them into the output
 and records the fact on your assembly, so the application serves what the build produced.
 
@@ -163,21 +142,18 @@ sure the TypeScript package is present on the server.
 
 **Preact needs nothing.** It ships inside the JsxCore package, and the view engine stages it out of
 the assembly at startup, so there is nothing to publish and nothing to install. If you have
-installed your own Preact, the build publishes its `.mjs` files and manifests under `node_modules/`
-— a few tens of kilobytes rather than the whole package — and the running application resolves them
-the same way it does in development.
+installed your own Preact, the build publishes its `.mjs` files and manifests under `node_modules/`,
+a few tens of kilobytes rather than the whole package, and the running application resolves them the
+same way it does in development.
 
 **React is restored from npm**, like any other dependency, and `react` and `react-dom` are carried
 into the publish output because they are regular `dependencies`. Their `@types` packages are dev
 dependencies and are left out.
 
-You need npm on neither the server nor the **build** machine: JsxCore restores from the registry
-itself.
-
 ### Containers
 
-The runtime image needs nothing beyond the .NET runtime, and the build
-image needs nothing beyond the SDK, because packages are restored without Node:
+The runtime image needs nothing beyond the .NET runtime, and the build image nothing beyond the SDK,
+because packages are restored without npm or Node:
 
 ```dockerfile
 FROM mcr.microsoft.com/dotnet/sdk:10.0 AS build
@@ -191,8 +167,7 @@ COPY --from=build /app .
 ENTRYPOINT ["dotnet", "MyApp.dll"]
 ```
 
-No npm and no Node appear in either stage. The SDK image is enough, because JsxCore fetches the
-compiler binary from the registry itself.
+No npm and no Node appear in either stage.
 
 ## Minification and compression
 
@@ -213,7 +188,7 @@ the same answer as one serving what the build produced. `options.Minify` and
 **Minification is esbuild**, restored as a dev dependency alongside the TypeScript compiler when it
 is switched on, and run the same way: a native binary, no Node, nothing on the server. It never
 fails a build. If the binary is missing, or a package is written in something it refuses, the
-original is served and a warning says so — a larger payload is a worse outcome than a smaller one,
+original is served and a warning says so. A larger payload is a worse outcome than a smaller one,
 and a better outcome than an application that will not start.
 
 It covers everything the browser downloads: your compiled views, the framework, and the npm
@@ -244,13 +219,9 @@ cached for a year.
 
 ### Caching and CDNs
 
-Compiled modules are served from `/_jsx/v{buildId}/...` with a one-year immutable `Cache-Control`.
-The build id is a content hash, so it is safe to put a CDN in front of that path with a long TTL:
-a deployment that changes a view changes the URL.
-
-A deployment that changes *nothing* produces the same build id, so caches survive it. Upgrading
-JsxCore itself always changes it: the version that transformed the assets is part of the hash, so a
-new release cannot serve different content at a URL a browser already holds for a year.
+Compiled modules are served from `/_jsx/v{buildId}/...` with a one-year immutable `Cache-Control`,
+and the build id is a content hash, so a CDN can sit in front of that path with a long TTL. See
+[build ids](how-it-works.md#build-ids-and-caching) for what goes into the hash.
 
 ### Generated model types in CI
 

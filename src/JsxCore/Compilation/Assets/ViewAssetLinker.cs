@@ -10,8 +10,8 @@ namespace JsxCore.Compilation.Assets;
 /// <para>
 /// The file is served by ASP.NET Core, from wwwroot, and is not touched: what a view is importing is
 /// the URL, not the bytes. So a one-line module is generated for each imported asset, exporting that
-/// URL, and the emitted import is pointed at it. TypeScript leaves the specifier exactly as written
-/// — it has no opinion about a scheme it does not know — which is why this runs on the output.
+/// URL, and the emitted import is pointed at it. TypeScript leaves the specifier exactly as
+/// written, having no opinion about a scheme it does not know, which is why this runs on the output.
 /// </para>
 /// <para>
 /// Runs after the compiler and before minification, so the build id is taken over what is actually

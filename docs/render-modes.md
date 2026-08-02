@@ -68,7 +68,10 @@ This is the traditional view engine mode: good for content pages, pages that mus
 JavaScript, anything crawled by a search engine, and HTML email.
 
 [.NET globals](dotnet-interop.md) are available, and hooks return their initial values: `useState`
-gives you the initial state, and effects never run. That is standard SSR behaviour.
+gives the initial state, and effects never run. That is standard SSR behaviour.
+
+The component runs synchronously, so anything needing `await` happens in the endpoint that built the
+model. See [async endpoints](returning-views.md#async-endpoints).
 
 ---
 
@@ -86,10 +89,11 @@ Once on the server, once on the client. Anything server-only has to be guarded:
 
 ```tsx
 import { isServerRender } from "dotnet:rendering";
+import { Inventory } from "dotnet:globals";
 
 export default function Page({ model }: ViewProps<Model>) {
-    // Only exists during the server pass.
-    const extra = isServerRender() ? dotnet.Inventory.getSummary() : null;
+    // Only reachable during the server pass.
+    const extra = isServerRender() ? Inventory.getSummary() : null;
 
     return <p>Running on the {isServerRender() ? "server" : "client"}.</p>;
 }

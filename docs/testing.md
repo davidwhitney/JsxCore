@@ -144,11 +144,15 @@ If you want to render a view without an HTTP pipeline, the pieces are public:
 
 ```csharp
 var layout = CompilationLayout.Create(options, contentRoot);
-var compilation = new JsxCompilationService(options, layout, toolchain, logger);
+
+// The framework is staged as part of compiling, so a renderer built by hand needs it staged too.
+var stager = new PreactVendorStager(layout, NodeModulesLayout.For(contentRoot), logger);
+var compilation = new JsxCompilationService(options, layout, toolchain, logger, stager);
 await compilation.InitialiseAsync();
 
 var locator = new ViewLocator(options, layout, contentRoot);
-var renderer = new JsxServerRenderer(options, compilation, JsxRuntimeLayout.Builtin());
+var runtime = JsxRuntimeLayout.Preact(stager, options.EnableReactCompatibility);
+var renderer = new JsxServerRenderer(options, compilation, runtime);
 
 var result = await renderer.RenderAsync(
     locator.Find("Home/Index", null, null, out _)!,

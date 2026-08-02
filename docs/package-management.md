@@ -2,14 +2,13 @@
 
 ← [Documentation index](README.md)
 
+Installing npm packages without npm: how the native client works, and the `dotnet npm` tool.
+
 ---
 
-JsxCore restores npm packages itself, by talking to the npm registry directly. Nothing shells out
-to npm, and Node does not have to be installed. It resolves versions, fetches and verifies each
-package, unpacks it into `node_modules`, and writes a `package-lock.json` that real `npm ci`
-accepts.
-
-A machine with the .NET SDK and nothing else can build a JsxCore project.
+JsxCore restores npm packages by talking to the registry directly. It resolves versions, fetches
+and verifies each package, unpacks it into `node_modules`, and writes a `package-lock.json` that
+real `npm ci` accepts. A machine with the .NET SDK and nothing else can build a JsxCore project.
 
 For what to do with a package once it is installed, see [npm packages](npm-packages.md).
 
@@ -34,10 +33,9 @@ The lock file is used first, because installing exactly what is pinned is reprod
 the file alone. Resolving against the registry is the fallback, for anything the lock file cannot
 satisfy.
 
-This matters more than it sounds. A missing package does not fail compilation, because the compiler
-only needs types; the build succeeds and the view fails to render later with an error about a
-module. Checking is a handful of file probes, so a build where nothing is missing does no work at
-all.
+A missing package does not fail compilation, because the compiler only needs types, so the build
+succeeds and the view fails to render later. Checking is a handful of file probes, so a build with nothing
+missing does no work.
 
 Set `<JsxCoreAutoInstallDependencies>false</JsxCoreAutoInstallDependencies>` to manage packages
 yourself. The check still runs, but reports what is missing as error `JSX0005` instead of
@@ -165,9 +163,8 @@ $ echo $?
 
 ### It is the same client the build uses
 
-Not a reimplementation with a command line over it. The tool and the build targets are packed from
-one project, so a package added here and a package restored by a build resolve identically and
-write the same lock file. If they ever disagreed, one of them would be wrong.
+The tool and the build targets are packed from one project, so a package added here and a package
+restored by a build resolve identically and write the same lock file.
 
 ---
 

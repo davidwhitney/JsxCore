@@ -25,7 +25,7 @@ public sealed class MinifyStagedAssets(JsMinifier? minifier, params string?[] di
 
         // The staged fingerprints are taken from the files as staged, before this ran, so without a
         // contribution here turning minification on would serve different bytes at an identical
-        // URL — and those URLs are cached for a year.
+        // URL, and those URLs are cached for a year.
         return new ValueTask<StepResult>(new StepResult($"min{minifier!.Version}"));
     }
 }

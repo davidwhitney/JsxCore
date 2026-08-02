@@ -1,7 +1,7 @@
 import type { ComponentChildren } from "preact";
 
 // Static assets stay where they belong in an ASP.NET Core application: in wwwroot, served by
-// UseStaticFiles. Importing one hands back the URL it is served from — here "/favicon.ico" — so the
+// UseStaticFiles. Importing one resolves to the URL it is served from, here "/favicon.ico", so the
 // path is checked when the view compiles instead of being a string nobody verifies.
 import logo from "dotnet:wwwroot/favicon.ico";
 

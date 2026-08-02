@@ -556,7 +556,7 @@
     deployment it matters in.
 
     Done on the copies in the publish output, never in anyone's node_modules, and with each file
-    left the kind of module it already is — forcing ESM onto a CommonJS package cannot convert its
+    left the kind of module it already is: forcing ESM onto a CommonJS package cannot convert its
     require calls, and JsxCore wraps those itself when serving.
   -->
   <Target Name="JsxCoreMinifyPublishedPackages"

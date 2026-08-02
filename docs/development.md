@@ -2,6 +2,8 @@
 
 ← [Documentation index](README.md)
 
+Hot reload, editor support, where generated files live, and what CI does.
+
 ---
 
 ## Hot reload
@@ -59,10 +61,9 @@ the project file:
 X-JsxCore-Framework: preact
 ```
 
-It reports what the running application is actually serving, which is the point: the framework is
-chosen by the build, so a project file edited without a rebuild, or output published from a
-different configuration, shows up here as a disagreement with what you expected. The header is not
-written outside Development.
+It reports what the application is actually serving. The framework is chosen by the build, so a
+project file edited without a rebuild, or output published from a different configuration, shows up
+here as a disagreement. The header is not written outside Development.
 
 ---
 
@@ -93,8 +94,8 @@ JsxCore therefore writes a small `tsconfig.json` **beside your views**:
 }
 ```
 
-Every path in it is **relative**, so it is safe to commit, and you should, because it makes the
-editor work for everyone on the team.
+Every path in it is **relative**, so it is safe to commit, and worth committing: it makes the editor
+work for everyone on the team.
 
 It is produced by the MSBuild target (so a fresh clone works after `dotnet build`) *and* at
 application startup, and it is derived from the same base configuration as the real compiler
@@ -121,7 +122,7 @@ options.GenerateEditorTsConfig = false;
 | Path | What | Commit? |
 |---|---|---|
 | `obj/JsxCore/js/` | Compiled views | No |
-| `obj/JsxCore/types/index.d.ts` | Types generated from your .NET models | No |
+| `obj/JsxCore/types/<Assembly>.d.ts` | Types generated from .NET models, plus `globals.d.ts` | No |
 | `obj/JsxCore/runtime/` | Runtime type declarations, for the compiler | No |
 | `obj/JsxCore/preact/` | Preact, staged from the JsxCore package or node_modules | No |
 | `obj/JsxCore/min/` | Scratch space for minification | No |

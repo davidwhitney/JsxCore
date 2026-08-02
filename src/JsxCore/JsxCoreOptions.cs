@@ -344,8 +344,8 @@ public sealed class DocumentOptions
     /// Content-Security-Policy forbids inline script.
     /// </summary>
     /// <remarks>
-    /// JsxCore writes three inline scripts — the import map, the serialised model, and the module
-    /// that mounts the view — so a policy without <c>unsafe-inline</c> blocks the page entirely
+    /// JsxCore writes three inline scripts (the import map, the serialised model, and the module
+    /// that mounts the view), so a policy without <c>unsafe-inline</c> blocks the page entirely
     /// unless they carry the nonce it names. Return the same value the policy header uses.
     /// <para>
     /// Asked per request, because a nonce that is reused is not a nonce. A null or empty result

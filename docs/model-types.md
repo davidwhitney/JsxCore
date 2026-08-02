@@ -183,8 +183,8 @@ Pointing a source at a whole namespace does not produce a pile of empty interfac
 excludes delegates, attributes, exceptions, static classes, open generic definitions and non-public
 types. `TypesFrom.Types` and `TypesFrom.Matching` are exact and skip nothing.
 
-`TypesFrom.AllUserCode` is the blunt option and is honest about it: it will pick up your services
-and controllers too. Narrow it if that becomes noise.
+`TypesFrom.AllUserCode` is the blunt option: it picks up services and controllers too. Narrow it if
+that becomes noise.
 
 ### Conventional namespace names
 
@@ -234,7 +234,7 @@ never run the application still compiles views that import model types.
 
 **At application startup**, from the types actually loaded in the running process.
 
-Output goes to `obj/JsxCore/types/index.d.ts` by default, so nothing generated appears in your
+Output goes to `obj/JsxCore/types/<Assembly>.d.ts` by default, so nothing generated appears in your
 source tree, and the file is only rewritten when its contents change, which keeps the asset build
 id, and therefore browser caches, stable across restarts.
 
@@ -246,8 +246,8 @@ with the defaults. For an application that has not customised them, which is mos
 identical, and there is a test asserting exactly that.
 
 Customise them and the build's answer is an approximation until the application runs and replaces
-it. If that shows up as type errors on a fresh clone that disappear after running the app, that is
-what you are seeing. Point the output at a location you commit to skip the approximation entirely:
+it, which shows up as type errors on a fresh clone that disappear once the app has run. Point the
+output at a location you commit to skip the approximation entirely:
 
 ```csharp
 options.TypeDefinitions.OutputPath = "Views/generated";

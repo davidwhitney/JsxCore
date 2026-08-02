@@ -16,8 +16,7 @@ This page builds one end to end.
 engine, synchronously: there is no `fetch`, no `await`, and a component that returns a Promise is
 rejected with an explicit error.
 
-That sounds like a limitation and is mostly a simplification, because it forces the question *who
-fetches what* to have one answer:
+That forces the question *who fetches what* to have one answer:
 
 | When | Who fetches | How |
 |---|---|---|
@@ -127,7 +126,7 @@ export default function Index({ model }: ViewProps<ProductsModel>) {
             <h1>Products {refreshing ? <small>updating…</small> : null}</h1>
             <ul>
                 {products.map((product) => (
-                    <li key={product.id}>{product.name} — {product.price.toFixed(2)}</li>
+                    <li key={product.id}>{product.name}: {product.price.toFixed(2)}</li>
                 ))}
             </ul>
         </main>
@@ -137,8 +136,8 @@ export default function Index({ model }: ViewProps<ProductsModel>) {
 
 **`Product` is the same type on both sides.** The API returns the C# record; the generated
 declaration describes it; the view uses it for the model *and* for the `fetch` response. There is no
-hand-written interface mirroring the JSON, and no way for the two to drift — rename a property in
-C# and the view stops compiling.
+hand-written interface mirroring the JSON, and no way for the two to drift: rename a property in C#
+and the view stops compiling.
 
 That is the part worth stealing from this design even if you use nothing else: the API contract is
 checked at compile time, in both languages, from one definition.
@@ -150,7 +149,7 @@ checked at compile time, in both languages, from one definition.
 1. HTML containing the rendered list, so the page is complete before any JavaScript runs.
 2. The serialised model in a `<script type="application/json">` tag.
 3. A module script that hydrates the same component over the existing DOM.
-4. Later, whatever `fetch` returns — plain JSON from your API, no framework involved.
+4. Later, whatever `fetch` returns: plain JSON from your API, no framework involved.
 
 Same-origin, so no CORS and no second host. The API endpoint and the page endpoint are the same kind
 of thing in the same application, sharing DI, authentication and configuration.
@@ -176,8 +175,8 @@ const search = async (term: string) => {
 ```
 
 **Reading .NET during the server pass.** If a deep component needs something the endpoint did not
-fetch, [`dotnet:globals`](dotnet-interop.md) reaches a registered service directly — an in-process
-call, not an HTTP one. Guard it with `isServerRender()`.
+fetch, [`dotnet:globals`](dotnet-interop.md) reaches a registered service directly, as an in-process
+call rather than an HTTP one. Guard it with `isServerRender()`.
 
 ---
 
@@ -190,15 +189,15 @@ call, not an HTTP one. Guard it with `isServerRender()`.
   on mount and rendering an empty list first.
 - **Two round trips if you fetch on mount.** The server already has the data; passing it in the
   model means the page is useful before the API is called at all.
-- **`async` components are rejected.** The error says so explicitly. Fetch in the endpoint, or in an
-  effect.
+- **`async` components are rejected.** The error says so explicitly. Await in the endpoint (see
+  [async endpoints](returning-views.md#async-endpoints)), or fetch in an effect.
 
 ---
 
 ## See also
 
-- [For frontend developers](for-frontend-developers.md) — the Next.js mapping, and MVC controllers
-- [Render modes](render-modes.md) — client, server, or both, in detail
-- [Returning views](returning-views.md) — minimal APIs, controllers, per-response settings
-- [.NET interop](dotnet-interop.md) — calling .NET directly during the server pass
-- [Model types](model-types.md) — how the shared types are generated
+- [For frontend developers](for-frontend-developers.md): the Next.js mapping, and MVC controllers
+- [Render modes](render-modes.md): client, server, or both, in detail
+- [Returning views](returning-views.md): minimal APIs, controllers, per-response settings
+- [.NET interop](dotnet-interop.md): calling .NET directly during the server pass
+- [Model types](model-types.md): how the shared types are generated

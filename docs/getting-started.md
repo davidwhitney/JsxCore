@@ -2,6 +2,9 @@
 
 ← [Documentation index](README.md)
 
+Prerequisites, installing the package, your first view, and what the project looks like
+afterwards.
+
 ---
 
 ## Prerequisites
@@ -40,8 +43,7 @@ JsxCore: fetching @typescript/typescript-linux-x64@7.0.2
 This happens during `dotnet build`, `dotnet publish` and `dotnet run` alike, so a clean checkout
 and a build agent are both covered.
 
-[How the packages get there](how-it-works.md#how-the-packages-get-there) covers the mechanics, and
-how to take them over, when you want them.
+[Package management](package-management.md) covers the mechanics, and how to take them over.
 
 ---
 
@@ -98,7 +100,7 @@ MyApp/
 │       └── Index.tsx
 ├── obj/JsxCore/               ← generated, gitignored
 │   ├── js/                    ← compiled views
-│   ├── types/index.d.ts       ← types generated from your .NET models
+│   ├── types/MyApp.d.ts       ← types generated from your .NET models
 │   └── tsconfig.json          ← the config the compiler actually uses
 ├── package.json               ← typescript, esbuild, and React if you selected it
 └── Program.cs

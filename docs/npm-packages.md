@@ -45,15 +45,11 @@ everything that reads them keeps working, from `npm audit` and `npm ci` to Depen
 
 ### Installing them
 
-`dotnet build` restores whatever `package.json` declares and is not installed, and
-`dotnet npm add marked` adds one without a build. Neither needs npm or Node on the machine.
-
-If you have npm, keep using it: `npm install marked` works exactly as it always did, and the build
-reads what it installed without touching the lock file it wrote.
-
-See **[Package management](package-management.md)** for the command line reference, how the lock
-file is written, how close resolution is to npm's, and
-[what other package managers do](package-management.md#using-npm-or-another-package-manager).
+`dotnet build` restores whatever `package.json` declares and is not installed; `dotnet npm add
+marked` adds one without a build. If you have npm, keep using it: the build reads what npm installed
+and leaves its lock file alone. See
+**[Package management](package-management.md)** for the command line, the lock file, and
+[other package managers](package-management.md#using-npm-or-another-package-manager).
 
 ---
 
@@ -143,11 +139,9 @@ cannot collide with the top-level one.
 Package assets carry the build id like every other JsxCore asset, so they are immutable and cached
 indefinitely.
 
-In a Release build they are also minified, which matters more here than anywhere else: packages are
-usually most of what a browser downloads, and they arrive as npm published them, unminified and
-comment-heavy. Each module is minified on its own, so the graph the browser walks is the same graph
-with the same URLs, only smaller. See
-[Build and deploy](build-and-deploy.md#minification-and-compression).
+A Release build minifies them, which matters more here than anywhere else: packages are usually most
+of what a browser downloads, and they arrive as npm published them. See
+[Build and deploy](build-and-deploy.md#minification-and-compression) for what that saves.
 
 ### Preferring a CDN
 
@@ -180,9 +174,9 @@ the same place, so they have to exist on the server. Two ways:
 dotnet npm ci        # or: npm ci --omit=dev
 ```
 
-**Or let publish carry them**, which happens automatically for everything in `dependencies` — and
-for everything those packages depend on in turn, since a package that resolves and then fails on its
-own import is no better than a missing one. Those package directories are copied under
+**Or let publish carry them**, which happens automatically for everything in `dependencies`, and for
+everything those packages depend on in turn, since a package that resolves and then fails on its own
+import is no better than a missing one. Those package directories are copied under
 `node_modules/` in the publish output, where the runtime finds
 them by walking up from the content root. `devDependencies` are left out, which is the same cut a
 production `npm ci` makes.

@@ -57,8 +57,8 @@ error JSX0007: JsxCore does not know the framework 'vue'.
 React publishes CommonJS and no type declarations, so both are worked around rather than avoided:
 its modules are wrapped for the browser by the same interop that serves any other CommonJS package,
 and its types come from DefinitelyTyped. Both sides also need globals their environment does not
-have — `MessageChannel` and `TextEncoder` in the server engine, `process.env.NODE_ENV` in a browser
-— which JsxCore supplies.
+have (`MessageChannel` and `TextEncoder` in the server engine, `process.env.NODE_ENV` in a browser),
+which JsxCore supplies.
 
 None of that needs configuring. It is why React is the option rather than the default: it is more
 moving parts, a slower render, and two more packages in the publish output, in exchange for being

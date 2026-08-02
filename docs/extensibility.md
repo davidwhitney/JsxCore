@@ -2,6 +2,9 @@
 
 ← [Documentation index](README.md)
 
+The seams: document templates, ambient context, import map entries, view locations, compiler
+options.
+
 ---
 
 ## Replace the whole document
@@ -33,15 +36,16 @@ options.Document.Template = context => $"""
 | `Head` | The view's `head` export, if any |
 | `ModelJson` / `ContextJson` | Already serialised |
 | `ModuleUrl` | Build-id-versioned URL of the compiled view |
+| `StyleSheets` | URLs of the stylesheets this view imports, dependencies first |
 | `ImportMap` | Bare specifier → URL |
 | `ClientSpecifier` | Where the mount helper comes from for the active runtime |
 | `HotReloadEnabled`, `HotReloadClientUrl`, `HotReloadEndpoint` | |
 | `Document` | The effective `DocumentOptions` for this response |
 | `Options` | The whole `JsxCoreOptions` |
 
-A template is responsible for the entire body, so if you write one you must emit the import map,
-the model script and the mount script yourself for client-rendered views. For most customisation
-the individual `DocumentOptions` settings are the better tool.
+A template owns the entire body, so it has to emit the import map, the model script and the mount
+script itself for client-rendered views, and a `<link>` for each entry in `StyleSheets`. For most
+customisation the individual `DocumentOptions` settings are the better tool.
 
 Set `result.DocumentTemplate` to do this for a single response instead.
 
@@ -112,12 +116,9 @@ options.ViewLocationFormats.Add("{ViewsDirectory}/{1}/{0}");
 options.ViewLocationFormats.Add("{ViewsDirectory}/Shared/{0}");
 ```
 
-`{0}` is the view name, `{1}` the controller, `{2}` the area. `{ViewsDirectory}` expands to the
-configured directory. `AreaViewLocationFormats` is the area-aware equivalent and is tried first
-when a request has an area.
-
-Formats are probed in order, and each is tried with every configured extension, so `.tsx` beats
-`.jsx` because of the order in `Extensions`.
+`{0}` is the view name, `{1}` the controller, `{2}` the area, and `{ViewsDirectory}` expands to the
+configured directory. Formats are probed in order, each with every configured extension. See
+[view resolution](returning-views.md#view-resolution) for the defaults.
 
 ---
 
@@ -135,22 +136,20 @@ options.CompilerOptions["paths"] = new Dictionary<string, string[]>
 };
 ```
 
-You are overriding a working configuration, so be aware of what you are changing. In particular,
-`jsx`, `jsxImportSource`, `module`, `moduleResolution` and `rewriteRelativeImportExtensions` are
-load-bearing. Changing them will break either the browser's module resolution or the server
-renderer, or both.
+This overrides a working configuration. `jsx`, `jsxImportSource`, `module`, `moduleResolution` and
+`rewriteRelativeImportExtensions` are load-bearing: changing them breaks the browser's module
+resolution, the server renderer, or both.
 
 ---
 
 ## Coexist with Razor
 
-JSX views are inserted at position `ViewEngineOrder` in MVC's view engine list. `0` (the default)
-means JSX wins; a view that JsxCore cannot find falls through to Razor, so you can migrate a page
-at a time in either direction.
-
 ```csharp
 options.ViewEngineOrder = 1;   // Razor first, JSX as the fallback
 ```
+
+`0`, the default, puts JSX first. See
+[coexisting with Razor](returning-views.md#coexisting-with-razor).
 
 ---
 
@@ -165,15 +164,15 @@ compilation.BuildCompleted += state =>
     logger.LogInformation("Build {Id}: {Errors} error(s) in {Ms}ms",
         state.BuildId, state.Result.Errors.Count, state.Result.Duration.TotalMilliseconds);
 
-await compilation.CompileAsync();          // force a rebuild
-var current = compilation.Current;          // last BuildState, with full diagnostics
-var toolchain = compilation.Toolchain;      // which compiler is in use, or null if precompiled
+await compilation.CompileAsync();      // force a rebuild
+var current = compilation.Current;     // last BuildState, with full diagnostics, or null
+var toolchain = compilation.Toolchain; // the compiler in use, or null when precompiled
 ```
 
 `BuildCompleted` fires after watch-triggered rebuilds, which is what the hot reload service listens
 to. Useful for build dashboards, custom notifications, or invalidating your own caches.
 
-`BuildState.Result.Diagnostics` gives you the parsed TypeScript diagnostics with file, line, column,
+`BuildState.Result.Diagnostics` carries the parsed TypeScript diagnostics, with file, line, column,
 code and message.
 
 ---

@@ -2,6 +2,8 @@
 
 ← [Documentation index](README.md)
 
+What each error means, and what fixes it.
+
 ---
 
 ## Startup failures
@@ -30,7 +32,7 @@ versions do not provide. Raise the range in `package.json` and rebuild, or run
 
 ### `JsxCoreEnvironmentException`: no compiled views were found
 
-The application is serving precompiled views — which a Release build turns on by itself — but the
+The application is serving precompiled views, which a Release build turns on by itself, but the
 output has none. Check that the package's
 build targets ran, that `JsxCoreCompileOnBuild` is not `false`, and that
 `options.WorkingDirectory` matches `JsxCoreWorkingDirectory`.
@@ -175,8 +177,9 @@ client-rendered view.
 
 ### "server rendering is synchronous, but a component returned a Promise"
 
-An `async` component. Server rendering is synchronous by design, because .NET calls return immediately and
-nothing needs awaiting. Do async work in your endpoint and pass the result in the model.
+An `async` component. Server rendering is synchronous by design. Await downstream services in the
+endpoint instead and pass the finished model in: see
+[async endpoints](returning-views.md#async-endpoints).
 
 ### ".NET globals are only available during server rendering"
 
@@ -273,27 +276,15 @@ publish output from a different configuration. See [Runtimes](runtimes.md#switch
 
 ## Limitations
 
-Things to know before you commit to this:
-
-
-- **Server components must be synchronous.** Because .NET calls return immediately there is no need
-  for async, and an async component is rejected with a clear error.
-
-- **Node built-ins are not available.** npm packages resolve from `node_modules` on both sides, but
-  the server runs them in an embedded engine, so a package that requires `fs`, `path` or `crypto`
-  fails. Browser-oriented and pure-JavaScript packages are fine.
-
 - **Jint is an interpreter.** Server rendering is fast enough for typical views but is not V8. Keep
-  heavy computation in .NET, where it belongs.
-
+  heavy computation in .NET.
 - **The render container is owned by JsxCore.** Nodes placed inside it by other scripts may be moved
   or removed.
-
-- **Generated model types are only as good as the build can make them.** They are generated during
-  the build, so a fresh clone type-checks after `dotnet build`, but the build cannot see what
-  `Program.cs` configures. Customise `AutoExport`, the naming policy or `EnumsAsStrings` and the
-  build's answer is an approximation until the application runs. See
-  [Model types](model-types.md#when-generation-happens).
+- **Server components must be synchronous**, and **Node built-ins are unavailable** during server
+  rendering. See [what a view cannot do](writing-views.md#what-a-view-cannot-do) and
+  [what does not work](npm-packages.md#what-does-not-work).
+- **Generated model types are only as good as the build can make them** until the application has
+  run once. See [Model types](model-types.md#when-generation-happens).
 
 ---
 

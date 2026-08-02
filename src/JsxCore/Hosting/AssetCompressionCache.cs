@@ -20,8 +20,8 @@ public enum AssetEncoding
 /// The cache is dropped wholesale when the build id moves, which bounds it to one build's payload.
 /// <para>
 /// This is the one place where doing the work at request time rather than at build time is the
-/// simpler answer: assets arrive from three sources — disk, the assembly manifest, and the npm
-/// graph held in memory — and compressing at the point they are served covers all three without
+/// simpler answer: assets arrive from three sources (disk, the assembly manifest, and the npm
+/// graph held in memory) and compressing at the point they are served covers all three without
 /// each having to grow its own output.
 /// </para>
 /// </remarks>

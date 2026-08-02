@@ -77,7 +77,7 @@ Then write classes as you would anywhere:
 
 ## Tailwind needs Node
 
-**JsxCore installs Tailwind for you without npm** — the packages come from the registry through
+**JsxCore installs Tailwind for you without npm.** The packages come from the registry through
 JsxCore's own client, like everything else.
 
 **Running Tailwind's CLI needs Node**, because it is a Node program. So a machine that builds a
@@ -109,6 +109,6 @@ That writes `wwwroot/app.css` as you type; the browser picks it up on the next r
 
 ## See also
 
-- [Writing views](writing-views.md) — `class` and `className`, the JSX dialect
-- [Build and deploy](build-and-deploy.md) — what publish carries, and minification
-- [npm packages](npm-packages.md) — how packages are restored and served
+- [Writing views](writing-views.md): `class` and `className`, the JSX dialect
+- [Build and deploy](build-and-deploy.md): what publish carries, and minification
+- [npm packages](npm-packages.md): how packages are restored and served

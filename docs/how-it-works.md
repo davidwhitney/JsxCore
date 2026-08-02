@@ -2,6 +2,8 @@
 
 ← [Documentation index](README.md)
 
+Why there is no bundler, what the compilation pipeline does, and where the build id comes from.
+
 ---
 
 ## Why this exists
@@ -78,19 +80,10 @@ does not here, because each module is minified **on its own**: same files, same 
 graph, fewer bytes. Nothing is concatenated, nothing is tree-shaken across module boundaries, and
 the browser still walks the graph itself. Turn it off and the only difference is size.
 
-The tool is [esbuild](https://esbuild.github.io), which is the same shape of thing as the
-TypeScript compiler: a native binary published to npm per platform, restored by JsxCore, run as a
-process, needing no Node. That it can be restored without running install scripts is not luck —
-esbuild's binary lives in a platform-specific package that npm selects with `os` and `cpu`, so
-[the native client](package-management.md) fetching the right one is all that is required, and the
-`postinstall` step JsxCore does not run has nothing left to do.
-
-Minification happens wherever the thing being served is produced. Views are minified by the build,
-for a deployment where nothing recompiles them, and at startup for an application that compiles
-then. Packages are minified as the graph is prepared for the browser — and again by **publish**, on
-the copies going into the output, because esbuild is a development dependency that a server never
-receives. Without that last step a published application would serve packages exactly as npm wrote
-them, which is most of what a browser downloads.
+The tool is [esbuild](https://esbuild.github.io), the same shape of thing as the TypeScript
+compiler: a native binary published to npm per platform, run as a process, needing no Node. See
+[Build and deploy](build-and-deploy.md#minification-and-compression) for what it covers and what it
+saves.
 
 ### Server rendering is in-process
 
@@ -103,83 +96,27 @@ application process. Because there is no process boundary, .NET objects exposed 
 
 ---
 
-## How the packages get there
+## Where the packages come from
 
-None of this is something you have to do: a `dotnet build` does it. It is here for when you want to
-know what the build did, or to take it over.
+`dotnet build` restores what `package.json` declares, from the registry, without npm or Node. That
+is what makes a clean checkout work: the TypeScript compiler is a dev dependency, and nothing else
+would fetch it.
 
-Restoring is checked on every build, not just the first: each one checks that everything
-`package.json` declares is actually in `node_modules` and restores what is not, because a declared
-but uninstalled package produces the worst kind of failure — the build succeeds and the view fails
-to render later. A build where nothing is missing does no work at all.
-
-### Managing the packages yourself
-
-Install them and the build leaves them alone:
-
-```bash
-dotnet npm add typescript --version ^7 --dev    # or: npm install --save-dev typescript@^7
-```
-
-See [package management](package-management.md#on-the-command-line) for that tool.
-
-JsxCore searches for the compiler in `node_modules` starting at the content root and walking
-upwards, so a solution-level install works too. If your content root sits outside the npm project
-(common under test hosts), point it at the right place:
-
-```csharp
-options.AdditionalToolchainSearchPaths.Add(repositoryRoot);
-// or
-options.TypeScriptCompilerPath = "/path/to/node_modules/@typescript/typescript-linux-x64/lib/tsc";
-```
-
-### When the build installs, and when startup does
-
-There are two places this can happen, with different rules.
-
-**During the build**, which is the one that normally fires, because `dotnet run` builds first:
+Two settings decide who does that work:
 
 | | |
 |---|---|
-| Any configuration | Not restricted to Development; a build agent needs this to work |
-| Only when the compiler is missing | Nothing runs on a build where the packages are present |
-| The lock file when there is one | Restores exactly what is pinned and does not rewrite `package-lock.json` |
-| Resolving afresh only as a fallback | When there is no lock file, or restoring from it did not produce a compiler |
-| Never fails the build | It warns with `JSX0001` and leaves compilation to startup |
+| `<JsxCoreAutoInstallDependencies>` | The build restores, in any configuration. On by default |
+| `options.AutoInstallDependencies` | Startup restores, in Development only, for an application launched from prebuilt output |
 
-Turn it off with `<JsxCoreAutoInstallDependencies>false</JsxCoreAutoInstallDependencies>`. Packages
-are restored by JsxCore itself; `<JsxCoreUseNpm>true</JsxCoreUseNpm>` hands the job to the npm on
-your machine instead, and `<JsxCoreNpm>` says which npm that is.
+Neither is fatal on failure. The build warns with `JSX0001` and leaves compilation to startup;
+startup prints the command to run by hand.
 
-**At application startup**, as a fallback for an application launched from prebuilt output where
-the package's build targets never ran:
+Preact needs nothing installed, because it ships inside the JsxCore package. [React](runtimes.md)
+adds `react` and `react-dom`, and a Release build adds `esbuild`.
 
-| | |
-|---|---|
-| Development only | The default is `DependencyInstallMode.Development`. A published application never installs anything |
-| Never when precompiled | Skipped entirely, which a Release build means by default; there is nothing to install and no reason to write to a server's disk |
-| Only what is missing | Nothing runs on subsequent starts |
-| Reported as it happens | Every command is printed before it runs |
-| Never fatal on its own | If the install fails, startup still gives you the command to run by hand |
-
-```csharp
-builder.AddJsxCore(options => options.AutoInstallDependencies = DependencyInstallMode.Never);
-```
-
-Other settings: `PackageManager` to name a strategy, `NpmPath`, `DependencyInstallTimeout`, and
-`OnBootstrapMessage` to route progress somewhere other than the console.
-
-Both paths install `typescript` as a dev dependency, and a Release build adds `esbuild`, which
-[minifies what is served](build-and-deploy.md#minification-and-compression). Preact needs nothing
-installed, because it ships inside the JsxCore package; [React mode](runtimes.md) adds `react` and
-`react-dom` as regular dependencies, and their `@types` packages as dev ones. Packages go in the `package.json` beside the
-project file, and one is created there if it does not exist. That directory is not searched upwards
-from — an unrelated manifest in a parent or home directory is not adopted — so a solution sharing a
-single manifest says so with `<JsxCoreManifestDirectory>`.
-
-Commit the generated `package.json` and `package-lock.json`: they pin your versions, and they let
-the build restore exactly what is pinned rather than resolving afresh. The lock file is a standard
-`lockfileVersion` 3 file, so npm, Dependabot and Renovate all read it.
+See [package management](package-management.md) for the client itself, the lock file, the
+`dotnet npm` tool, and how to hand the job to npm instead.
 
 ---
 
@@ -234,20 +171,11 @@ selected, comes from npm like any other package.
 
 ## What happens on a request
 
-**Client mode.** The server emits an HTML shell containing the serialised model, the import map
-and a module script that mounts the component. The component itself never runs on the server,
-though its `head` export is still evaluated so the document gets a title.
-
-**Server mode.** The component runs in Jint and its markup is written into the response. No
-JavaScript is sent at all.
+A view renders in the browser, on the server, or both, chosen per response. See
+[Render modes](render-modes.md).
 
 Whatever is sent is compressed on the way out when compression is on: Brotli where the client takes
 it, gzip otherwise. That happens at request time rather than during the build, because assets come
-from three places — disk, the assembly manifest, and the npm graph held in memory — and this is the
+from three places (disk, the assembly manifest, and the npm graph held in memory) and this is the
 one point they all pass through. The result is held until the build id moves, so each asset is
 compressed once rather than once per request.
-
-**ServerAndClient.** Both. The markup is produced on the server for first paint, and the same
-component is then mounted in the browser, hydrating the existing DOM rather than replacing it.
-
-See [Render modes](render-modes.md) for the details.

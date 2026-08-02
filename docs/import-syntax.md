@@ -4,7 +4,7 @@
 
 Every import a view can write, and what each one resolves to.
 
-Two kinds are ordinary JavaScript — your own files, and npm packages. The rest are JsxCore's, and
+Two kinds are ordinary JavaScript: your own files, and npm packages. The rest are JsxCore's, and
 all use a scheme rather than a package name, because nothing behind them comes from npm:
 
 | Written | Resolves to |
@@ -31,7 +31,7 @@ browser fetches that. Writing `./Card` without an extension does not work: the c
 alone, and the browser will not probe for a file that resolves it.
 
 Components can live anywhere under the views directory. There is no registration step and no barrel
-file; an export is enough. Only a view — a module returned from an endpoint — needs a default
+file; an export is enough. Only a view, meaning a module returned from an endpoint, needs a default
 export.
 
 An import that resolves outside the views directory is refused.
@@ -78,9 +78,9 @@ against React resolve unchanged. See [Runtimes](runtimes.md).
 
 ## Types from .NET
 
-`dotnet:` is the .NET side of your application: an assembly by name, or one of the two names JsxCore
-reserves. These imports are **types only**, so they are erased during compilation and never reach
-the browser.
+`dotnet:` is the .NET side of the application: an assembly by name, or one of the three names
+JsxCore reserves, which are `globals`, `rendering` and `wwwroot/`. These type imports are erased
+during compilation and never reach the browser.
 
 ### By assembly
 
@@ -91,8 +91,8 @@ function show(product: MyApp.Models.Product) { /* ... */ }
 ```
 
 The default import binds the assembly's **root namespace**, and types are reached through their
-full .NET namespace below it. If the root namespace and the assembly name differ — assembly
-`MyApp.Web`, types in `Contoso.Models` — the qualifier is the namespace, not the assembly:
+full .NET namespace below it. If the root namespace and the assembly name differ (assembly
+`MyApp.Web`, types in `Contoso.Models`), the qualifier is the namespace, not the assembly:
 `import type Contoso from "dotnet:MyApp.Web"`, then `Contoso.Models.Product`.
 
 ### By namespace
@@ -108,8 +108,8 @@ The path after the assembly is the namespace, with `/` for `.`. A namespace that
 assembly name sheds it, so `MyApp.Models` is `dotnet:MyApp/Models` rather than
 `dotnet:MyApp/MyApp/Models`. Nested namespaces nest.
 
-Both forms name the same type — the namespace modules alias the assembly module rather than
-declaring anything twice — so they are interchangeable and assignable to each other.
+Both forms name the same type, because the namespace modules alias the assembly module rather than
+declaring anything twice, so they are interchangeable and assignable to each other.
 
 See [Model types](model-types.md) for what gets exported and how to control it.
 
@@ -157,8 +157,8 @@ export default function Header() {
 }
 ```
 
-The import resolves to the URL the file is served from — `/images/logo.svg` — typed `string`. The
-path after `dotnet:wwwroot/` is relative to the web root, as the URL is.
+The import resolves to the URL the file is served from, here `/images/logo.svg`, typed `string`.
+The path after `dotnet:wwwroot/` is relative to the web root, as the URL is.
 
 Nothing is copied or versioned. The point is the check: a typo becomes a compile error instead of a
 broken image in production. `<img src="/images/logo.svg" />` by hand still works.
@@ -184,7 +184,7 @@ belonging to a component.
 Editing a stylesheet takes effect immediately; it is a static file. Adding or removing an import
 needs a full page load, since hot reload swaps modules, not the head.
 
-CSS Modules — `import styles from "./Card.module.css"`, with mangled class names — are
+CSS Modules, meaning `import styles from "./Card.module.css"` with mangled class names, are
 [not built yet](roadmap.md).
 
 ---
@@ -224,8 +224,8 @@ if (!isServerRender()) {
 | `import { Inventory } from "dotnet:globals"` | No | Yes |
 | `import { isServerRender } from "dotnet:rendering"` | No | Yes |
 | `import { marked } from "marked"` | No | Yes |
-| `import { Card } from "./Card.tsx"` | No | No — a relative URL |
-| `import logo from "dotnet:wwwroot/logo.svg"` | No | No — rewritten to a relative URL |
+| `import { Card } from "./Card.tsx"` | No | No: a relative URL |
+| `import logo from "dotnet:wwwroot/logo.svg"` | No | No: rewritten to a relative URL |
 
 The entries are generated for you. `options.ImportMap` adds your own, and wins over the generated
 ones, which is how to point a package at a CDN. See
@@ -235,7 +235,7 @@ ones, which is how to point a package at a CDN. See
 
 ## See also
 
-- [Writing views](writing-views.md) — the view contract, `head`, hooks, the JSX dialect
-- [Model types](model-types.md) — what `dotnet:<Assembly>` contains and how to control it
-- [.NET interop](dotnet-interop.md) — registering the objects behind `dotnet:globals`
-- [npm packages](npm-packages.md) — what resolves from `node_modules`, on both sides
+- [Writing views](writing-views.md): the view contract, `head`, hooks, the JSX dialect
+- [Model types](model-types.md): what `dotnet:<Assembly>` contains and how to control it
+- [.NET interop](dotnet-interop.md): registering the objects behind `dotnet:globals`
+- [npm packages](npm-packages.md): what resolves from `node_modules`, on both sides

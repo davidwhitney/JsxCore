@@ -1,9 +1,9 @@
 // Everything a framework entry point does that is not actually about the framework.
 //
 // Preact and React differ in about six lines: which module createElement comes from, how a root is
-// attached to a container, and what turns an element into a string. Everything around that — finding
+// attached to a container, and what turns an element into a string. Everything around that: finding
 // the container, parsing the model out of the page, the shape of window.__jsxcore_root, the head
-// export, refusing an async component — is the contract JsxCore has with a view, and is the same
+// export, refusing an async component, is the contract JsxCore has with a view, and is the same
 // whatever renders it. It lives here so there is one copy to change when that contract changes.
 //
 // Staged into each framework's own directory rather than served from one place, so the entries can

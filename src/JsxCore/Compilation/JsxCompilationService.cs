@@ -41,6 +41,18 @@ public sealed class JsxCompilationService(
     public string BuildId => _state?.BuildId ?? "0";
 
     /// <summary>
+    /// The most recent build, with its diagnostics, or null before the first one.
+    /// </summary>
+    /// <remarks>
+    /// The same value <see cref="BuildCompleted"/> carries, readable without having subscribed,
+    /// which is what a health check or a diagnostics endpoint needs.
+    /// </remarks>
+    public BuildState? Current => _state;
+
+    /// <summary>The compiler in use, or null when the application serves precompiled views.</summary>
+    public TypeScriptToolchain? Toolchain => _compiler?.Toolchain;
+
+    /// <summary>
     /// Everything a build does, in order. Gather finds what the project has, prepare puts what the
     /// compiler needs on disk, compile runs it.
     /// </summary>
@@ -139,9 +151,9 @@ public sealed class JsxCompilationService(
             _logger.LogDebug("JsxCore linked {Count} static asset import(s).", linked.Linked);
         }
 
-        // Reported rather than guessed at. Nothing else will say so — the compiler has no opinion
-        // about a scheme it does not know — and it would otherwise surface much later, as a module
-        // the browser cannot load.
+        // Reported rather than guessed at. Nothing else will say so, because the compiler has no
+        // opinion about a scheme it does not know, and it would otherwise surface much later as a
+        // module the browser cannot load.
         foreach (var specifier in linked.Unresolved.Distinct(StringComparer.Ordinal))
         {
             _logger.LogWarning(
