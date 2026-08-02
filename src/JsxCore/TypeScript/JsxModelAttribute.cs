@@ -52,8 +52,21 @@ public sealed class TypeDefinitionOptions
     public IReadOnlyDictionary<string, Type?> GlobalTypes { get; set; } =
         new Dictionary<string, Type?>(StringComparer.Ordinal);
 
-    /// <summary>What views import to reach the types generated from an assembly.</summary>
-    public static string SpecifierFor(string assemblyName) => Scheme + assemblyName;
+    /// <summary>What views import to reach the types generated from .NET.</summary>
+    /// <remarks>
+    /// Named after neither an assembly nor the application, because a namespace is not owned by
+    /// either. A solution with a separate contracts project declares <c>MyApp.Contracts.Models</c>
+    /// in one assembly and consumes it from another, and C# addresses it the same way from both:
+    /// <c>using MyApp.Contracts.Models</c>, with nothing said about where it was compiled. This
+    /// follows that, so moving a type between projects does not move the specifier that reaches it.
+    /// </remarks>
+    public const string TypesSpecifier = Scheme + TypesModuleName;
+
+    /// <summary>The single module holding every generated declaration.</summary>
+    public const string TypesModuleName = "types";
+
+    /// <summary>The file backing <see cref="TypesSpecifier"/>.</summary>
+    public const string TypesFileName = TypesModuleName + ".d.ts";
 
     /// <summary>
     /// The assembly the generated module is named after, which is the application's own.

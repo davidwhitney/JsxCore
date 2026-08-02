@@ -1,6 +1,6 @@
 import { useState, useContext, createContext, useMemo } from "preact/compat";
-import type { CatalogueModel } from "dotnet:SampleApp/Models";
-import type { Product } from "dotnet:SampleApp/Models/Catalogue";
+import type { CatalogueModel } from "dotnet:types/SampleApp/Models";
+import type { Product } from "dotnet:types/SampleApp/Models/Catalogue";
 import { Page, Card } from "../Shared/Layout.tsx";
 
 // Rendered with real Preact. Context, the full hook set and error boundaries all work the way

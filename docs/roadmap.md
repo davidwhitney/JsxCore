@@ -47,43 +47,7 @@ processor installed.
 
 ---
 
-## 2. Type modules per assembly
-
-Every generated type lands in one module named after the application assembly, whatever assembly
-actually declared it. A model from a referenced project ends up at a specifier naming the wrong
-assembly, with its own namespace hanging off it:
-
-```
-dotnet:MyApp.Web/MyApp/Contracts/Models     what you get
-dotnet:MyApp.Contracts/Models               what you would reach for, which does not exist
-```
-
-A solution with a separate contracts or domain project is ordinary, and that is exactly where its
-models live, so this is met more often than its size suggests.
-
-**The work.** One module per declaring assembly, with namespace sub-modules under each, as there
-are today under the single one.
-
-The hard part is what the present design is built to avoid. Everything is declared in one file
-precisely so that references between namespaces resolve without imports, and the namespace modules
-are facades aliasing it. Splitting by assembly means a model in one assembly referencing a type in
-another needs a real generated `import type`.
-
-One property makes that tractable: .NET forbids circular project references, so the import graph
-between generated modules is acyclic by construction. Nothing has to tolerate a cycle, which is the
-usual reason this kind of split turns nasty.
-
-**Decide before writing code.** Whether an assembly declaring no exported types is emitted at all,
-and what a view imports when a type is reachable through two assemblies because one re-exports the
-other.
-
-**How we would know it works:** a model in a referenced assembly is importable from a specifier
-naming that assembly; a model referencing a type across an assembly boundary still type checks; and
-the application's own module no longer contains anything it did not declare.
-
----
-
-## 3. Delete the built-in renderer
+## 2. Delete the built-in renderer
 
 `runtime/client.js`, `server.js`, `dom.js`, `hooks.js`, `jsx-runtime.js` and `jsx-dev-runtime.js`
 are a closed island left from before Preact was vendored. About 1,400 lines including declarations,
@@ -105,7 +69,7 @@ failing at run time.
 
 ---
 
-## 4. A component testing story
+## 3. A component testing story
 
 Vitest or Jest against a `.tsx`. JsxCore cannot provide this without Node, so the honest answer may
 be "render through `WebApplicationFactory` and assert on the markup", which [Testing](testing.md)
@@ -114,7 +78,7 @@ recommendation and writing it down is most of this item.
 
 ---
 
-## 5. Environment variables in views
+## 4. Environment variables in views
 
 `process.env.API_URL`, or `import.meta.env.MODE`. Today `process` exists only inside the CommonJS
 wrapper, so a view referencing it breaks in the browser. That is the exact bug class that broke
@@ -154,6 +118,5 @@ directly, is not on this list. The design notes are in git history if it ever co
 ## Order
 
 Item 1 is the biggest remaining gap between this and what someone arriving from Next.js expects,
-and its ordering half is answered. Item 2 is the one an ordinary solution layout runs into. Item 3
-is deletion, the cheapest of these and the only one that makes the library smaller. Items 4 and 5
-are writing and choosing a shape.
+and its ordering half is answered. Item 2 is deletion, the cheapest of these and the only one that
+makes the library smaller. Items 3 and 4 are writing and choosing a shape.

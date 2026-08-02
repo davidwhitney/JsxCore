@@ -24,7 +24,7 @@ Open a view with a directive and it renders that way wherever it is returned fro
 "use server";
 
 import type { ViewProps } from "dotnet:rendering";
-import type { ReportModel } from "dotnet:MyApp/Models";
+import type { ReportModel } from "dotnet:types/MyApp/Models";
 
 export default function Report({ model }: ViewProps<ReportModel>) {
     return <table>{/* ... */}</table>;

@@ -127,21 +127,20 @@ Controls the HTML wrapper. Every one of these can also be
 | `IncludeFields` | `false` | Include public fields as well as properties |
 | `Add<T>()` | n/a | Register a type explicitly, alongside `AutoExport` |
 
-The specifier is not configurable: the module is named after the assembly it describes. See
-[Model types](model-types.md) for the `TypesFrom` factories.
+The specifier is not configurable. See [Model types](model-types.md) for the `TypesFrom`
+factories.
 
 ### Module specifiers
 
 | Specifier | Holds |
 |---|---|
-| `dotnet:<AssemblyName>` | Types generated from that assembly, reached through their .NET namespace |
-| `dotnet:<AssemblyName>/<Namespace>` | The same types, imported by name from the namespace they live in |
+| `dotnet:types` | Every type generated from .NET, reached through its .NET namespace |
+| `dotnet:types/<Namespace>` | The same types, imported by name from the namespace they live in |
 | `dotnet:globals` | The .NET objects registered with `options.Globals`, one named export each |
 | `dotnet:rendering` | `isServerRender`, and the types a view is handed: `ViewProps`, `HeadDescriptor` |
 | `dotnet:rendering/head` | The `<Head>` component |
 
-One rule: `dotnet:` is the .NET side of the application, meaning an assembly by name or one of the
-two names JsxCore reserves: `globals` and `rendering`. It is not an npm package and
+One rule: `dotnet:` is the .NET side of the application: `types`, `globals` and `rendering`. It is not an npm package and
 does not resolve like one; the browser is told about it through the import map, and TypeScript through
 `paths`. Reserved names are matched first and win over an assembly of the same name, which a
 PascalCase assembly cannot collide with anyway. See [Import syntax](import-syntax.md).

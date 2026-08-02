@@ -50,7 +50,7 @@ app.MapGet("/products", (ProductService products) =>
 // Views/Home/Products.tsx
 "use server";
 
-import type { ProductsModel } from "dotnet:MyApp/Models";
+import type { ProductsModel } from "dotnet:types/MyApp/Models";
 import type { ViewProps } from "dotnet:rendering";
 
 export default function Products({ model }: ViewProps<ProductsModel>) {

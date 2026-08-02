@@ -31,7 +31,7 @@ public class BuildTimeModelTypesTests : IDisposable
         result.Generated.ShouldBeTrue(result.Failure);
         result.TypeCount.ShouldBeGreaterThan(0);
 
-        var declarations = File.ReadAllText(Path.Combine(_root, ModelTypeDeclarations.FileNameFor(AssemblyName)));
+        var declarations = File.ReadAllText(Path.Combine(_root, ModelTypeDeclarations.FileName));
         declarations.ShouldContain("namespace SampleApp.Models");
         declarations.ShouldContain("interface Product");
     }
@@ -46,12 +46,12 @@ public class BuildTimeModelTypesTests : IDisposable
 
         var atRuntime = new TypeScriptDefinitionGenerator(options.TypeDefinitions, options.JsonSerializerOptions)
             .Generate().Files
-            .Single(file => file.RelativePath == ModelTypeDeclarations.FileNameFor(AssemblyName))
+            .Single(file => file.RelativePath == ModelTypeDeclarations.FileName)
             .Contents;
 
         BuildTimeModelTypes.Generate(typeof(Product).Assembly, _root);
 
-        File.ReadAllText(Path.Combine(_root, ModelTypeDeclarations.FileNameFor(AssemblyName))).ShouldBe(atRuntime);
+        File.ReadAllText(Path.Combine(_root, ModelTypeDeclarations.FileName)).ShouldBe(atRuntime);
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public class BuildTimeModelTypesTests : IDisposable
         var result = BuildTimeModelTypes.Generate(typeof(string).Assembly, _root);
 
         result.Generated.ShouldBeFalse();
-        File.Exists(Path.Combine(_root, ModelTypeDeclarations.FileNameFor(AssemblyName))).ShouldBeFalse();
+        File.Exists(Path.Combine(_root, ModelTypeDeclarations.FileName)).ShouldBeFalse();
     }
 
     [Fact]

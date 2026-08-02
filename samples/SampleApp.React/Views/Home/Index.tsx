@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { ViewProps } from "dotnet:rendering";
-import type { IndexModel } from "dotnet:SampleApp.React";
+import type { IndexModel } from "dotnet:types";
 
 export const head = { title: "JsxCore with React" };
 

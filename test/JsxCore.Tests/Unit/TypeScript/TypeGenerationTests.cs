@@ -218,14 +218,18 @@ public class TypeGenerationTests
     [Fact]
     public void Generate_SeveralNamespaces_EmitsOneFileWithANamespaceEach()
     {
-        var file = GenerateFiles(o => o.Add<Outer>()).Files.ShouldHaveSingleItem();
+        var files = GenerateFiles(o => o.Add<Outer>()).Files;
 
-        file.RelativePath.ShouldBe("JsxCore.Tests.d.ts");
-        file.ModuleSpecifier.ShouldBe("dotnet:JsxCore.Tests");
+        // Everything is declared once, in one file, whatever assembly it came from.
+        var declarations = files.Single(file => file.ModuleSpecifier == "dotnet:types");
 
-        // The test models live in JsxCore.Tests, so that is the namespace they mirror.
-        file.Contents.ShouldContain("declare namespace JsxCore.Tests {");
-        file.Contents.ShouldContain("interface Outer {");
+        declarations.RelativePath.ShouldBe("types.d.ts");
+        declarations.Contents.ShouldContain("declare namespace JsxCore.Tests {");
+        declarations.Contents.ShouldContain("interface Outer {");
+
+        // And every namespace gets a facade, including the outermost one, which used to be shed
+        // for matching the assembly name and so had no module at all.
+        files.ShouldContain(file => file.ModuleSpecifier == "dotnet:types/JsxCore/Tests");
     }
 
     [Fact]
@@ -309,7 +313,7 @@ public class TypeGenerationTests
         project.Options.TypeChecking = TypeCheckingMode.Error;
 
         project.AddView("Home/Index.tsx", """
-            import type JsxCore from "dotnet:JsxCore.Tests";
+            import type JsxCore from "dotnet:types";
             export default function Index({ model }: { model: JsxCore.Tests.Outer }) {
                 return <ul>{model.many.map((i) => <li key={i.label}>{i.label}: {i.value}</li>)}</ul>;
             }
@@ -318,7 +322,7 @@ public class TypeGenerationTests
         var build = await project.CompileAsync();
 
         build.Result.Succeeded.ShouldBeTrue(build.Result.FormatDiagnostics());
-        File.Exists(Path.Combine(project.Layout.GeneratedTypesDirectory, "JsxCore.Tests.d.ts")).ShouldBeTrue();
+        File.Exists(Path.Combine(project.Layout.GeneratedTypesDirectory, ModelTypeDeclarations.FileName)).ShouldBeTrue();
     }
 
     [Fact]
@@ -328,7 +332,7 @@ public class TypeGenerationTests
         project.Options.TypeDefinitions.Add<Outer>();
 
         project.AddView("Home/Index.tsx", """
-            import type JsxCore from "dotnet:JsxCore.Tests";
+            import type JsxCore from "dotnet:types";
             export default function Index({ model }: { model: JsxCore.Tests.Outer }) {
                 return <p>{model.doesNotExist}</p>;
             }

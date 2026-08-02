@@ -227,7 +227,7 @@ the difference instead. See [Import syntax](import-syntax.md#static-assets).
 
 ## Type problems
 
-### `Cannot find module 'dotnet:MyApp'`, or a namespace in it is missing
+### `Cannot find module 'dotnet:types'`, or a namespace in it is missing
 
 Declarations are normally generated during the build, from the assembly it produced, so this means
 that did not happen. Either the assembly could not be loaded for inspection, in which case the

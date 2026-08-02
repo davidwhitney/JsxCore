@@ -89,7 +89,7 @@ If your service types live in a `Models` namespace they are already
 [generated for you](model-types.md), so you can often skip the hand-written interface:
 
 ```tsx
-import type MyApp from "dotnet:MyApp";
+import type MyApp from "dotnet:types";
 
 const items = Inventory.getLowStock(20);   // already typed as MyApp.Models.StockItem[]
 ```

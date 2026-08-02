@@ -11,7 +11,7 @@ all use a scheme rather than a package name, because nothing behind them comes f
 |---|---|
 | `"./Card.tsx"`, `"@/Shared/Card.tsx"` | another view or component of yours |
 | `"marked"`, `"preact/hooks"` | an npm package, or the framework |
-| `"dotnet:MyApp"`, `"dotnet:MyApp/Models"` | types generated from your .NET assembly |
+| `"dotnet:types"`, `"dotnet:types/MyApp/Models"` | types generated from your .NET code |
 | `"dotnet:globals"`, `"dotnet:rendering"` | the .NET objects you registered, and the view contract |
 | `"dotnet:rendering/head"` | the `<Head>` component |
 | `"/images/logo.svg"` | a static file of yours, as the URL it is served from |
@@ -93,38 +93,35 @@ against React resolve unchanged. See [Runtimes](runtimes.md).
 
 ## Types from .NET
 
-`dotnet:` is the .NET side of the application: an assembly by name, or one of the three names
-JsxCore reserves, which are `globals`, `rendering` and `wwwroot/`. These type imports are erased
-during compilation and never reach the browser.
-
-### By assembly
-
-```tsx
-import type MyApp from "dotnet:MyApp";
-
-function show(product: MyApp.Models.Product) { /* ... */ }
-```
-
-The default import binds the assembly's **root namespace**, and types are reached through their
-full .NET namespace below it. If the root namespace and the assembly name differ (assembly
-`MyApp.Web`, types in `Contoso.Models`), the qualifier is the namespace, not the assembly:
-`import type Contoso from "dotnet:MyApp.Web"`, then `Contoso.Models.Product`.
+`dotnet:` is the .NET side of the application: `types`, `globals` and `rendering`. These type
+imports are erased during compilation and never reach the browser.
 
 ### By namespace
 
-Usually the one you want, and the one that reads like .NET:
+The usual form, and the one that reads like .NET:
 
 ```tsx
-import type { Product } from "dotnet:MyApp/Models";
-import type { Money } from "dotnet:MyApp/Models/Pricing";
+import type { Product } from "dotnet:types/MyApp/Models";
+import type { Money } from "dotnet:types/MyApp/Models/Pricing";
 ```
 
-The path after the assembly is the namespace, with `/` for `.`. A namespace that repeats the
-assembly name sheds it, so `MyApp.Models` is `dotnet:MyApp/Models` rather than
-`dotnet:MyApp/MyApp/Models`. Nested namespaces nest.
+The path after `dotnet:types` is the .NET namespace, with `/` for `.`. Nested namespaces nest.
 
-Both forms name the same type, because the namespace modules alias the assembly module rather than
-declaring anything twice, so they are interchangeable and assignable to each other.
+**No assembly appears anywhere.** `MyApp.Models.Product` is `dotnet:types/MyApp/Models` whether it
+was declared in the web project or in a contracts project that one references, which is how
+`using MyApp.Models` behaves in C# too. Moving a type between projects does not move the specifier
+that reaches it.
+
+### The whole tree
+
+```tsx
+import type Types from "dotnet:types";
+
+function show(product: Types.MyApp.Models.Product) { /* ... */ }
+```
+
+Everything is declared here, and the namespace modules above are facades aliasing it rather than
+second declarations, so the two forms name the same type and are assignable to each other.
 
 See [Model types](model-types.md) for what gets exported and how to control it.
 
@@ -249,7 +246,7 @@ if (!isServerRender()) {
 
 | Import | Erased at compile time | Needs an import map entry |
 |---|---|---|
-| `import type ... from "dotnet:MyApp"` | Yes | No |
+| `import type ... from "dotnet:types"` | Yes | No |
 | `import { Inventory } from "dotnet:globals"` | No | Yes |
 | `import { isServerRender } from "dotnet:rendering"` | No | Yes |
 | `import { marked } from "marked"` | No | Yes |
@@ -266,6 +263,6 @@ ones, which is how to point a package at a CDN. See
 ## See also
 
 - [Writing views](writing-views.md): the view contract, `head`, hooks, the JSX dialect
-- [Model types](model-types.md): what `dotnet:<Assembly>` contains and how to control it
+- [Model types](model-types.md): what `dotnet:types` contains and how to control it
 - [.NET interop](dotnet-interop.md): registering the objects behind `dotnet:globals`
 - [npm packages](npm-packages.md): what resolves from `node_modules`, on both sides

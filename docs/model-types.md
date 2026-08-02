@@ -33,18 +33,22 @@ public sealed record Product(int Id, string Name, decimal Price, Availability Av
 public enum Availability { InStock, Backordered, Discontinued }
 ```
 
-No attributes. No registration. Import the root namespace in a view:
+No attributes. No registration. Import the type by its namespace:
 
 ```tsx
-import type MyApp from "dotnet:MyApp";
+import type { CatalogueModel } from "dotnet:types/MyApp/Models";
 
-export default function Catalogue({ model }: ViewProps<MyApp.Models.CatalogueModel>) {
+export default function Catalogue({ model }: ViewProps<CatalogueModel>) {
     return <h1>{model.heading}</h1>;
 }
 ```
 
 The scheme is explicit on purpose: `dotnet:` makes it obvious at the import site
 that these types come from .NET and that editing the declaration file is pointless.
+
+**No assembly is named.** A namespace is addressed the same way whichever project declared it,
+which is how `using MyApp.Models` behaves in C#, and it means moving a type between projects does
+not move the specifier that reaches it.
 
 ---
 

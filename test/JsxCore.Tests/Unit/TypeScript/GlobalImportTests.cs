@@ -50,7 +50,7 @@ public class GlobalImportTests
         var declaration = GlobalsDeclaration(("Basket", typeof(Basket)));
 
         declaration.ShouldContain("total(currency: string): JsxCore.Tests.Catalogue.Pricing.Money;");
-        declaration.ShouldContain("""import type JsxCore from "dotnet:JsxCore.Tests";""");
+        declaration.ShouldContain("""import type JsxCore from "dotnet:types";""");
     }
 
     [Fact]
@@ -58,7 +58,7 @@ public class GlobalImportTests
     {
         // Money is reachable only through Basket.Total, so nothing else would have collected it.
         var root = Generate(("Basket", typeof(Basket)))
-            .Single(file => file.ModuleSpecifier == "dotnet:JsxCore.Tests");
+            .Single(file => file.ModuleSpecifier == "dotnet:types");
 
         root.Contents.ShouldContain("interface Money");
     }

@@ -100,7 +100,7 @@ One component, rendered twice: on the server with the model, then in the browser
 // Views/Products/Index.tsx
 import { useState, useEffect } from "preact/hooks";
 import type { ViewProps } from "dotnet:rendering";
-import type { ProductsModel, Product } from "dotnet:MyApp/Models";
+import type { ProductsModel, Product } from "dotnet:types/MyApp/Models";
 
 export const head = { title: "Products" };
 

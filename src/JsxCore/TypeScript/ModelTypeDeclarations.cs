@@ -13,8 +13,8 @@ namespace JsxCore.TypeScript;
 /// </remarks>
 public static class ModelTypeDeclarations
 {
-    /// <summary>A generated declaration file exists for an assembly, named after it.</summary>
-    public static string FileNameFor(string assemblyName) => assemblyName + ".d.ts";
+    /// <summary>The generated declaration file, which every .NET type is declared in.</summary>
+    public static string FileName => TypeDefinitionOptions.TypesFileName;
 
     /// <summary>The ambient stand-in. Pruned by <see cref="GeneratedTypeScript.WriteTo"/> once real declarations arrive.</summary>
     public const string PendingFileName = "pending.d.ts";
