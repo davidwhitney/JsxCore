@@ -29,7 +29,7 @@ public static class HtmlDocumentWriter
 
         WriteTitle(builder, context, document);
         WriteHeadTags(builder, context.Head);
-        WriteImportMap(builder, context.ImportMap);
+        WriteImportMap(builder, context);
 
         if (!string.IsNullOrEmpty(document.HeadContent))
         {
@@ -111,27 +111,42 @@ public static class HtmlDocumentWriter
         }
     }
 
-    private static void WriteImportMap(StringBuilder builder, IReadOnlyDictionary<string, string> imports)
+    private static void WriteImportMap(StringBuilder builder, DocumentContext context)
     {
+        var imports = context.ImportMap;
+
         if (imports.Count == 0)
         {
             return;
         }
 
         var json = JsonSerializer.Serialize(new { imports });
-        builder.Append("<script type=\"importmap\">").Append(EscapeForScript(json)).Append("</script>\n");
+        builder.Append("<script type=\"importmap\"").Append(NonceAttribute(context)).Append('>')
+            .Append(EscapeForScript(json)).Append("</script>\n");
     }
+
+    /// <summary>
+    /// The nonce attribute for an inline script, or nothing when the application supplied none.
+    /// </summary>
+    /// <remarks>
+    /// Every inline script JsxCore writes carries it. Missing one is not a partial failure: a
+    /// Content-Security-Policy blocks that script, and a page whose import map or model is blocked
+    /// does not render at all.
+    /// </remarks>
+    private static string NonceAttribute(DocumentContext context) =>
+        string.IsNullOrEmpty(context.Nonce) ? string.Empty : $" nonce=\"{Escape(context.Nonce)}\"";
 
     private static void WriteModelScript(StringBuilder builder, DocumentContext context, DocumentOptions document)
     {
-        builder.Append("<script type=\"application/json\" id=\"").Append(Escape(document.ModelElementId)).Append("\">")
+        builder.Append("<script type=\"application/json\" id=\"").Append(Escape(document.ModelElementId))
+            .Append('"').Append(NonceAttribute(context)).Append('>')
             .Append(EscapeForScript(context.ModelJson))
             .Append("</script>\n");
     }
 
     private static void WriteMountScript(StringBuilder builder, DocumentContext context, DocumentOptions document)
     {
-        builder.Append("<script type=\"module\">\n")
+        builder.Append("<script type=\"module\"").Append(NonceAttribute(context)).AppendLine(">")
             .Append("import Component from ").Append(JsonSerializer.Serialize(context.ModuleUrl)).Append(";\n")
             .Append("import { mountView } from ").Append(JsonSerializer.Serialize(context.ClientSpecifier)).Append(";\n")
             .Append("window.__jsxcore_context = ").Append(EscapeForScript(context.ContextJson)).Append(";\n")
@@ -154,8 +169,8 @@ public static class HtmlDocumentWriter
             entry = context.ModuleUrl
         });
 
-        builder.Append("<script>window.__jsxcore_hmr = ").Append(EscapeForScript(config)).Append(";</script>\n")
-            .Append("<script type=\"module\" src=")
+        builder.Append("<script").Append(NonceAttribute(context)).Append('>').Append("window.__jsxcore_hmr = ").Append(EscapeForScript(config)).Append(";</script>\n")
+            .Append("<script type=\"module\"").Append(NonceAttribute(context)).Append(" src=")
             .Append(JsonSerializer.Serialize(context.HotReloadClientUrl))
             .Append("></script>\n");
     }

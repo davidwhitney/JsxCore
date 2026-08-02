@@ -74,6 +74,9 @@ public sealed class JsxViewRenderer(
             HotReloadEnabled = _hotReload.Enabled,
             HotReloadClientUrl = $"{assetBase}/runtime/hmr-client.js",
             HotReloadEndpoint = $"{_options.RequestPath}/hmr",
+
+            // Asked per request, because a nonce that is reused is not a nonce.
+            Nonce = (request.Document ?? _options.Document).Nonce?.Invoke(httpContext),
             Options = _options
         };
 

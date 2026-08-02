@@ -93,6 +93,7 @@ Controls the HTML wrapper. Every one of these can also be
 | `Language` | `"en"` | `lang` attribute on `<html>` |
 | `DefaultTitle` | `""` | Title when a view exports none |
 | `HeadContent` | `""` | Raw markup appended to `<head>` |
+| `Nonce` | none | Per-request CSP nonce for the scripts JsxCore writes |
 | `BodyContent` | `""` | Raw markup appended to `<body>` |
 | `BodyAttributes` | empty | Attributes on `<body>` |
 | `Template` | none | Replaces the document writer entirely |

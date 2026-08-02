@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Http;
 using System.Text.Json;
 using JsxCore.Interop;
 using JsxCore.Rendering;
@@ -325,6 +326,21 @@ public sealed class DocumentOptions
 
     /// <summary>Raw markup appended to the document head, after any view-supplied head content.</summary>
     public string HeadContent { get; set; } = "";
+
+    /// <summary>
+    /// Supplies the <c>nonce</c> for the script tags JsxCore writes, for applications whose
+    /// Content-Security-Policy forbids inline script.
+    /// </summary>
+    /// <remarks>
+    /// JsxCore writes three inline scripts — the import map, the serialised model, and the module
+    /// that mounts the view — so a policy without <c>unsafe-inline</c> blocks the page entirely
+    /// unless they carry the nonce it names. Return the same value the policy header uses.
+    /// <para>
+    /// Asked per request, because a nonce that is reused is not a nonce. A null or empty result
+    /// omits the attribute, which is what a policy that does not need one wants.
+    /// </para>
+    /// </remarks>
+    public Func<HttpContext, string?>? Nonce { get; set; }
 
     public string BodyContent { get; set; } = "";
 

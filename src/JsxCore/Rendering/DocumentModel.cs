@@ -50,6 +50,11 @@ public sealed class DocumentContext
 
     public string? HotReloadEndpoint { get; init; }
 
+    /// <summary>
+    /// The Content-Security-Policy nonce for this response, or null when there is none.
+    /// </summary>
+    public string? Nonce { get; init; }
+
     public required JsxCoreOptions Options { get; init; }
 
     /// <summary>
