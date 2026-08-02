@@ -4,9 +4,8 @@
 
 Every import a view can write, and what each one resolves to.
 
-There are four kinds. Two are ordinary JavaScript — your own files, and npm packages. Two are
-JsxCore's, and both use a scheme rather than a package name, because nothing behind them comes
-from npm:
+Two kinds are ordinary JavaScript — your own files, and npm packages. The rest are JsxCore's, and
+all use a scheme rather than a package name, because nothing behind them comes from npm:
 
 | Written | Resolves to |
 |---|---|
@@ -14,6 +13,7 @@ from npm:
 | `"marked"`, `"preact/hooks"` | an npm package, or the framework |
 | `"dotnet:MyApp"`, `"dotnet:MyApp/Models"` | types generated from your .NET assembly |
 | `"dotnet:globals"`, `"dotnet:rendering"` | the .NET objects you registered, and the view contract |
+| `"dotnet:wwwroot/images/logo.svg"` | a static file of yours, as the URL it is served from |
 
 ---
 
@@ -144,6 +144,62 @@ as `any` and sharpen after a run. See [.NET interop](dotnet-interop.md).
 
 ---
 
+## Static assets
+
+Images, fonts and stylesheets live where they always have in an ASP.NET Core application: in
+`wwwroot`, served by `UseStaticFiles()`. `dotnet:wwwroot/` is how a view names one:
+
+```tsx
+import logo from "dotnet:wwwroot/images/logo.svg";
+
+export default function Header() {
+    return <img src={logo} alt="Contoso" />;
+}
+```
+
+What you get back is the **URL the file is served from** — here `/images/logo.svg` — typed as a
+`string`, ready for an `src`, `href` or `background-image`. The path after `dotnet:wwwroot/` is
+relative to your web root, exactly as the URL is.
+
+Nothing is copied and nothing is versioned by JsxCore: it is your file, at your URL, served by your
+static file middleware, and the same one a Razor page or a stylesheet's own `url()` refers to. The
+import exists so that the reference is **checked** — a typo is a compile error rather than a broken
+image in production — and so the path can be written once, next to the markup that uses it.
+
+Any web asset extension works: `.svg`, `.png`, `.jpg`, `.webp`, `.avif`, `.ico`, `.woff2`, `.ttf`,
+`.mp4`, `.pdf`, `.css` and the rest of the usual list. A file that is not there is reported as a
+warning naming the specifier, and the import is left alone rather than pointed at a URL that would
+404 in the browser and nowhere else.
+
+You do not have to use it. `<img src="/images/logo.svg" />` written by hand works exactly as it
+always did, and always will — this is the checked version of that, not a replacement for it.
+
+### Stylesheets
+
+A stylesheet import binds nothing, so JsxCore answers it in the document instead:
+
+```tsx
+import "dotnet:wwwroot/css/card.css";
+```
+
+Every view that reaches that import — directly, or through a component it imports — gets a
+`<link rel="stylesheet">` in its `<head>`, in every render mode, including a server-rendered page
+that runs no JavaScript at all. Order comes from the import graph rather than from what rendered
+first: a component's stylesheet is emitted before the stylesheet of the page importing it, so the
+page can override it, and two pages sharing a stylesheet cannot produce two different cascades.
+
+For a stylesheet every page needs, `options.Document.HeadContent` is still the simpler answer. This
+is for the one that belongs to a component.
+
+Editing the stylesheet itself is immediate — it is a static file, so the browser refetches it.
+*Adding or removing* an import shows up on the next full page load, because hot reload swaps
+modules and the link lives in the document head.
+
+CSS Modules — `import styles from "./Card.module.css"` with mangled class names — are
+[not built yet](roadmap.md).
+
+---
+
 ## The view contract
 
 ```tsx
@@ -180,6 +236,7 @@ if (!isServerRender()) {
 | `import { isServerRender } from "dotnet:rendering"` | No | Yes |
 | `import { marked } from "marked"` | No | Yes |
 | `import { Card } from "./Card.tsx"` | No | No — a relative URL |
+| `import logo from "dotnet:wwwroot/logo.svg"` | No | No — rewritten to a relative URL |
 
 The entries are generated for you. `options.ImportMap` adds your own, and wins over the generated
 ones, which is how to point a package at a CDN. See

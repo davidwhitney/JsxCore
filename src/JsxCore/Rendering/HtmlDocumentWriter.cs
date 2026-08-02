@@ -28,6 +28,10 @@ public static class HtmlDocumentWriter
         builder.Append("<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n");
 
         WriteTitle(builder, context, document);
+
+        // Before the view's own head tags, so a link a view declares for itself comes later in the
+        // cascade and wins.
+        WriteStyleSheets(builder, context);
         WriteHeadTags(builder, context.Head);
         WriteImportMap(builder, context);
 
@@ -108,6 +112,22 @@ public static class HtmlDocumentWriter
                 builder.Append(' ').Append(Escape(name)).Append("=\"").Append(Escape(value)).Append('"');
             }
             builder.Append(selfClosing ? ">\n" : "></" + tag + ">\n");
+        }
+    }
+
+    /// <summary>
+    /// Emits a link element for every stylesheet the view's imports reach.
+    /// </summary>
+    /// <remarks>
+    /// <c>import "dotnet:wwwroot/app.css"</c> binds nothing, so unlike an image it cannot be
+    /// answered by a module that returns a URL: the document is what has to carry it. Written for
+    /// every render mode, including server-only, where no JavaScript runs in the browser at all.
+    /// </remarks>
+    private static void WriteStyleSheets(StringBuilder builder, DocumentContext context)
+    {
+        foreach (var href in context.StyleSheets)
+        {
+            builder.Append("<link rel=\"stylesheet\" href=\"").Append(Escape(href)).Append("\">\n");
         }
     }
 

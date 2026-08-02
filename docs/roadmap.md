@@ -29,51 +29,12 @@ So the rest is not read against a stale picture:
   rendering contract.
 - **Tailwind**, which works today with about fifteen lines of setup. See [Tailwind](tailwind.md).
 - **CSP nonces** on every script JsxCore writes.
+- **Static asset imports**, as `dotnet:wwwroot/images/logo.svg`, which closed what used to be item 1.
+  See [Import syntax](import-syntax.md#static-assets).
 
 ---
 
-## 1. Static asset imports
-
-```tsx
-import logo from "./logo.svg";
-import "./styles.css";
-```
-
-Muscle memory from Vite and webpack, and the most likely "why doesn't this work". Today both fail:
-views can only import JavaScript, and an asset sitting in `Views/` is never served.
-
-**The hard part** is that `./logo.svg` is not JavaScript. TypeScript leaves the specifier alone, so
-the browser fetches `/_jsx/v…/views/logo.svg` expecting a module and gets an image. Vite rewrites
-the specifier at build time, and so must this.
-
-### The work, in order
-
-1. **Stage the assets.** Copy non-`.ts`/`.tsx` files from the views directory into the compiled
-   output, and teach `ContentTypeFor` the extensions — `.svg`, `.png`, `.woff2` and friends. `.css`
-   and `.map` are already handled.
-2. **Generate a shim module per asset**: `logo.svg.js` containing
-   `export default "/_jsx/v…/views/logo.svg"`.
-3. **Rewrite the emitted imports** after compilation, turning `from "./logo.svg"` into
-   `from "./logo.svg.js"`. This is the seam minification already occupies, beside `MinifyDirectory`.
-4. **Generate ambient declarations** so the import type-checks: an `assets.d.ts` declaring `*.svg`,
-   `*.png` and so on as `string`, included the way `pending.d.ts` already is.
-5. **Carry them through publish**, the same shape as the npm dependency closure.
-
-### Decide before writing code
-
-- **Is `import "./styles.css"` in the first pass?** I would say yes: it is half the reason people
-  want this, and it feeds directly into CSS Modules below.
-- **Vite's `?url` and `?raw` suffixes?** Leave them out until someone asks.
-
-### Worth doing regardless
-
-Assets in `wwwroot`, referenced by path with `UseStaticFiles()`, already work. That is not this
-item, but it is what people can do today and it is written down nowhere. A short section in
-[Writing views](writing-views.md) would stop the question being asked at all.
-
----
-
-## 2. CSS Modules, and CSS processing generally
+## 1. CSS Modules, and CSS processing generally
 
 ```tsx
 import styles from "./Card.module.css";
@@ -81,19 +42,29 @@ import styles from "./Card.module.css";
 <div class={styles.card} />
 ```
 
-Needs item 1 first, plus a name-mangling contract: the compiler rewrites class names, the generated
-shim exports the map, and the emitted stylesheet has to agree with both. Tailwind sidesteps this
-entirely, which is part of why it was the right thing to prove first.
+Needs a name-mangling contract: the compiler rewrites class names, the generated module exports the
+map, and the emitted stylesheet has to agree with both. Tailwind sidesteps this entirely, which is
+part of why it was the right thing to prove first.
 
-Three constraints from the earlier design work still hold:
+Two of the three constraints from the earlier design work still hold. The third does not, and is
+worth recording as settled:
 
-- **Ordering.** CSS is order dependent in a way ES modules are not. Two views importing the same
-  stylesheet in different orders must not produce different results, so emission order has to come
-  from the graph rather than from render order.
+- **Ordering is answered.** Static asset imports record the compiled module graph, and the
+  stylesheets a page links are collected from a walk of it — dependencies first, each once. Two
+  views importing the same pair of stylesheets cannot produce two different cascades, and nothing
+  about that depends on render order. Whatever processes CSS inherits this rather than repeating it.
 - **When it runs.** Views compile in tens of milliseconds. A Node-based CSS pipeline is slower, and
   putting it in the synchronous startup path would undo the fast feedback loop; it belongs on the
   watcher's schedule.
 - **Scoping reaches into the JSX transform**, which is what makes this bigger than copying files.
+
+The other open question is **where a processed stylesheet lives, and where it lands**. Today an
+imported stylesheet is a file of yours in `wwwroot`, spelled `dotnet:wwwroot/card.css` and served by
+`UseStaticFiles`, which is why JsxCore neither copies nor versions it. A `.module.css` is not that
+on either side: it is a source file, so it belongs beside the component and is spelled relatively,
+and it is a build output, so it has to be served from somewhere with a build id on it the way a
+compiled view is. That is a second kind of stylesheet in the same feature, and the design should say
+so out loud rather than discover it.
 
 The same pipeline answers Sass and PostCSS, which are otherwise the Tailwind pattern with a
 different binary: an external CLI producing a stylesheet.
@@ -102,6 +73,20 @@ different binary: an external CLI producing a stylesheet.
 does not does not; changing a stylesheet moves the build id and therefore the URL, exactly as
 changing a view does; publish output contains the processed stylesheet and no source, and the
 application serves it with no processor installed.
+
+---
+
+## 2. Static assets, the parts deliberately left out
+
+Named because they will be asked for, not because they are queued:
+
+- **Vite's `?url` and `?raw` suffixes.** Left out until someone asks. `?raw` in particular means
+  reading a file's contents into a module, which is a different feature from naming a URL.
+- **Content hashing.** An imported asset is served by `UseStaticFiles` at its own URL, so it is
+  cached however that middleware is configured, not immutably like a compiled view. An application
+  that wants fingerprinted assets has ASP.NET Core's own static web assets for it.
+- **Assets beside a component.** An image in the views directory is not served, and importing one
+  does not work. Views are a source tree; `wwwroot` is what the application serves.
 
 ---
 
@@ -173,9 +158,10 @@ item here, and it changes the programming model rather than filling a gap.
 
 ## Order
 
-Items 1 and 2 are one piece of work in two stages, and together they close the biggest gap between
-this and what someone arriving from Next.js expects. Item 3 is small and mostly about choosing a
-safe shape. Item 4 is writing rather than building.
+Item 1 is the biggest remaining gap between this and what someone arriving from Next.js expects,
+and the half of it that is about ordering is already answered. Item 2 is a list of things to say no
+to until asked. Item 3 is small and mostly about choosing a safe shape. Item 4 is writing rather
+than building.
 
 Item 6 is worth more than all of them, and should not start until the synchronous-or-not question
 has an answer that survives contact with a real application.

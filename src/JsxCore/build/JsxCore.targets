@@ -26,6 +26,14 @@
     <_JsxCoreWorkingArg>$(JsxCoreWorkingDirectory.TrimEnd('\').TrimEnd('/'))</_JsxCoreWorkingArg>
     <_JsxCoreViewsArg>$(JsxCoreViewsDirectory.TrimEnd('\').TrimEnd('/'))</_JsxCoreViewsArg>
 
+    <!--
+      Where the static file middleware serves from. A view may import a file out of it, and what
+      that import means is "the URL this application already serves it from", so the build has to
+      know where it is to work that out. Set this if the application relocates its web root.
+    -->
+    <JsxCoreWebRootDirectory Condition="'$(JsxCoreWebRootDirectory)' == ''">wwwroot</JsxCoreWebRootDirectory>
+    <_JsxCoreWebRootArg>$(JsxCoreWebRootDirectory.TrimEnd('\').TrimEnd('/'))</_JsxCoreWebRootArg>
+
     <!-- error | warn | off -->
     <JsxCoreTypeChecking Condition="'$(JsxCoreTypeChecking)' == ''">warn</JsxCoreTypeChecking>
 
@@ -470,6 +478,7 @@
   </Target>
 
   <Target Name="JsxCoreRunCompiler" DependsOnTargets="JsxCoreGenerateModelTypes;JsxCoreWriteConfig">
+
     <Exec Command="&quot;$(JsxCoreCompilerPath)&quot; --project &quot;$(JsxCoreWorkingDirectory)tsconfig.json&quot; --pretty false"
           WorkingDirectory="$(MSBuildProjectDirectory)"
           ContinueOnError="true"
@@ -485,6 +494,19 @@
     <Warning Condition="'$(JsxCoreExitCode)' != '0' And '$(JsxCoreTypeChecking)' != 'error'"
              Code="JSX0003"
              Text="JsxCore: TypeScript reported errors in your views. See the output above." />
+
+    <!--
+      An import of "dotnet:wwwroot/images/logo.svg" is emitted exactly as it was written, because
+      TypeScript has no opinion about a scheme it does not know. This writes the module that stands
+      in for each imported asset, exporting the URL the static file middleware serves it from, and
+      records which stylesheets each view pulls in so the document writer can turn them into link
+      elements. After the compiler and before minification, which is the seam minification occupies.
+    -->
+    <Exec Condition="Exists('$(JsxCoreToolPath)')"
+          Command="$(JsxCoreToolCommand) assets --project-dir &quot;$(MSBuildProjectDirectory)&quot; --views &quot;$(_JsxCoreViewsArg)&quot; --working &quot;$(_JsxCoreWorkingArg)&quot; --web-root &quot;$(_JsxCoreWebRootArg)&quot;"
+          WorkingDirectory="$(MSBuildProjectDirectory)"
+          ContinueOnError="true"
+          StandardOutputImportance="normal" />
 
     <!--
       After the compiler, before anything is published or hashed. Views compiled here are what a

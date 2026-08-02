@@ -89,6 +89,11 @@ public sealed class JsxCompilationService(
         {
             var result = await _compiler.CompileAsync(Layout, cancellationToken).ConfigureAwait(false);
 
+            // An asset import is still spelled the way the view wrote it, which no browser can
+            // load. Done whatever the compiler made of the views: a type error does not stop it
+            // emitting, and a page that renders with a broken image is worse than the type error.
+            LinkAssets();
+
             // Between compiling and taking the build id, so the id covers what is served rather
             // than what tsc emitted. Only on success: minifying broken output helps nobody.
             if (minifier is not null && result.Succeeded)
@@ -123,6 +128,39 @@ public sealed class JsxCompilationService(
             _compileLock.Release();
         }
     }
+
+    private void LinkAssets()
+    {
+        var linked = ViewAssetLinker.Link(Layout);
+        _assets = linked.Manifest;
+
+        if (linked.Linked > 0)
+        {
+            _logger.LogDebug("JsxCore linked {Count} static asset import(s).", linked.Linked);
+        }
+
+        // Reported rather than guessed at. Nothing else will say so: the compiler has no opinion
+        // about a scheme it does not know, and the failure would otherwise surface as a module the
+        // browser cannot load, long after the mistake was made.
+        foreach (var specifier in linked.Unresolved.Distinct(StringComparer.Ordinal))
+        {
+            _logger.LogWarning(
+                "JsxCore could not resolve the asset import '{Specifier}': there is no such file " +
+                "under {WebRoot}. The path is relative to your web root, as the URL it is served " +
+                "from is.", specifier, Layout.WebRoot);
+        }
+    }
+
+    private volatile ViewAssetManifest? _assets;
+
+    /// <summary>
+    /// What each compiled module brings with it, for the document writer to turn into link elements.
+    /// </summary>
+    /// <remarks>
+    /// Read from disk when nothing compiled in this process, which is the precompiled case: the
+    /// build recorded it and publishing carried it, exactly as it did the views themselves.
+    /// </remarks>
+    public ViewAssetManifest Assets => _assets ??= ViewAssetManifest.ReadFrom(Layout.OutputDirectory);
 
     private void LogResult(CompilationResult result)
     {

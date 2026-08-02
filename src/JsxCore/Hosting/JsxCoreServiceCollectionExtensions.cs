@@ -66,6 +66,15 @@ public static class JsxCoreServiceCollectionExtensions
 
         var contentRoot = environment.ContentRootPath;
 
+        // Where a view importing "../wwwroot/logo.svg" is understood to be pointing. Taken from the
+        // host rather than assumed, because an application that relocates its web root has already
+        // told it where that is, and the import has to mean the directory the static file
+        // middleware actually serves.
+        if (options.WebRootDirectory == DefaultWebRoot && !string.IsNullOrEmpty(environment.WebRootPath))
+        {
+            options.WebRootDirectory = environment.WebRootPath;
+        }
+
         // Already resolved above; kept for callers that construct options themselves.
         // The convention scans the application's own assembly. Resolving it from the environment
         // rather than Assembly.GetEntryAssembly() keeps it correct under test hosts, where the
@@ -282,6 +291,9 @@ public static class JsxCoreServiceCollectionExtensions
 
         return null;
     }
+
+    /// <summary>What <see cref="JsxCoreOptions.WebRootDirectory"/> says before anyone sets it.</summary>
+    private static readonly string DefaultWebRoot = new JsxCoreOptions().WebRootDirectory;
 
     private static Assembly? ResolveApplicationAssembly(IWebHostEnvironment environment)
     {

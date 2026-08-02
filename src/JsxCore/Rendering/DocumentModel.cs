@@ -38,6 +38,17 @@ public sealed class DocumentContext
 
     public required string ModuleUrl { get; init; }
 
+    /// <summary>
+    /// Stylesheets this view imports, dependencies first, as the URLs they are served from.
+    /// </summary>
+    /// <remarks>
+    /// Taken from the compiled module graph rather than from the order things rendered in, so the
+    /// cascade a page produces is a property of its imports and nothing else. A custom template
+    /// has to write these out itself, the way the built-in writer does, or a view that imports a
+    /// stylesheet will not get it.
+    /// </remarks>
+    public IReadOnlyList<string> StyleSheets { get; init; } = [];
+
     public required string ClientSpecifier { get; init; }
 
     /// <summary>Import map entries to emit, mapping bare specifiers to URLs.</summary>

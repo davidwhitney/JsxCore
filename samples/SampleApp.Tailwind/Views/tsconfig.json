@@ -56,6 +56,7 @@
   "//": "jsxcore-generated: written by JsxCore so editors can resolve 'dotnet:rendering'. Delete or edit this file freely; JsxCore only overwrites a file that still contains the marker above. Compilation itself uses the config in the intermediate output directory, not this one.",
   "include": [
     "**/*",
-    "../obj/JsxCore/types/pending.d.ts"
+    "../obj/JsxCore/types/pending.d.ts",
+    "../obj/JsxCore/jsxcore-assets.d.ts"
   ]
 }

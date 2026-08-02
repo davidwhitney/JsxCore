@@ -67,6 +67,7 @@ public sealed class JsxViewRenderer(
             ModelJson = JsonSerializer.Serialize(request.Model, _options.JsonSerializerOptions),
             ContextJson = JsonSerializer.Serialize(context, _options.JsonSerializerOptions),
             ModuleUrl = $"{assetBase}/views/{request.View.ModuleRelativePath}",
+            StyleSheets = StyleSheetsFor(request.View, buildId),
             Document = request.Document ?? _options.Document,
             TitleOverride = request.Title,
             ImportMap = ImportMapFor(assetBase, buildId),
@@ -128,6 +129,34 @@ public sealed class JsxViewRenderer(
         }
 
         return context;
+    }
+
+    private readonly BuildScopedCache<Dictionary<string, IReadOnlyList<string>>> _styleSheets = new();
+
+    /// <summary>
+    /// The stylesheets a view brings with it, as URLs, worked out once per view per build.
+    /// </summary>
+    /// <remarks>
+    /// The walk is over a graph that only changes when something recompiles, and the answer is the
+    /// same for every request for that view, so it is cached beside the import map rather than
+    /// recomputed per response.
+    /// </remarks>
+    private IReadOnlyList<string> StyleSheetsFor(LocatedView view, string buildId)
+    {
+        var cache = _styleSheets.Get(buildId, () => new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal));
+
+        lock (cache)
+        {
+            if (cache.TryGetValue(view.ModuleRelativePath, out var cached))
+            {
+                return cached;
+            }
+
+            var styles = _compilation.Assets.StylesFor(view.ModuleRelativePath);
+
+            cache[view.ModuleRelativePath] = styles;
+            return styles;
+        }
     }
 
     private IReadOnlyDictionary<string, string> ImportMapFor(string assetBase, string buildId) =>

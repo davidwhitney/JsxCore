@@ -13,7 +13,8 @@ public sealed record CompilationLayout(
     string OutputDirectory,
     string TsConfigPath,
     string ContentRoot,
-    string GeneratedTypesDirectory)
+    string GeneratedTypesDirectory,
+    string WebRoot)
 {
     public static CompilationLayout Create(JsxCoreOptions options, string contentRoot)
     {
@@ -29,7 +30,8 @@ public sealed record CompilationLayout(
             Path.GetFullPath(contentRoot),
             options.TypeDefinitions.OutputPath is { } configured
                 ? ContentRootPath.Resolve(configured, contentRoot)
-                : Path.Combine(working, "types"));
+                : Path.Combine(working, "types"),
+            ContentRootPath.Resolve(options.WebRootDirectory, contentRoot));
     }
 }
 
@@ -95,6 +97,8 @@ public static class TsConfigWriter
         {
             includes.Add(ambientTypes);
         }
+
+        includes.Add(WriteAssetDeclarations(layout, relativeTo: layout.WorkingDirectory));
 
         config["include"] = includes;
         return config;
@@ -236,7 +240,14 @@ public static class TsConfigWriter
                        $"overwrites a file that still contains the marker above. Compilation itself uses " +
                        $"the config in the intermediate output directory, not this one.";
         // "**/*" is relative to the views directory, which the generated declarations sit outside.
-        config["include"] = ambientTypes is null ? new JsonArray("**/*") : new JsonArray("**/*", ambientTypes);
+        var includes = new JsonArray("**/*");
+        if (ambientTypes is not null)
+        {
+            includes.Add(ambientTypes);
+        }
+
+        includes.Add(WriteAssetDeclarations(layout, relativeTo: layout.ViewsDirectory));
+        config["include"] = includes;
 
         return config;
     }
@@ -352,6 +363,25 @@ public static class TsConfigWriter
         paths[TypeDefinitionOptions.Scheme + "*"] = new JsonArray($"{relative}/*.d.ts");
 
         return null;
+    }
+
+    /// <summary>
+    /// Writes the ambient declarations for static asset imports and returns the path to include.
+    /// </summary>
+    /// <remarks>
+    /// Written here rather than by a build step, for the same reason the Preact declarations and the
+    /// pending stand-in are: whatever points the compiler at a file is what has to make sure the
+    /// file is there. Both configurations are produced by this class, so both get it.
+    /// </remarks>
+    private static string WriteAssetDeclarations(CompilationLayout layout, string relativeTo)
+    {
+        Directory.CreateDirectory(layout.WorkingDirectory);
+
+        var path = Path.Combine(layout.WorkingDirectory, ViewAssets.DeclarationFileName);
+        AssetStage.WriteFileIfChanged(path, ViewAssets.DeclarationSource());
+
+        var relative = Normalise(Path.GetRelativePath(relativeTo, path));
+        return !relative.StartsWith('.') && !Path.IsPathRooted(relative) ? "./" + relative : relative;
     }
 
     private static JsonObject MergePaths(JsonObject compilerOptions, JsonObject basePaths)

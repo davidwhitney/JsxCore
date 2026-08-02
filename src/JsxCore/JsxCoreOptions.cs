@@ -79,6 +79,18 @@ public sealed class JsxCoreOptions
     /// </summary>
     public string RequestPath { get; set; } = "/_jsx";
 
+    /// <summary>
+    /// The directory <c>UseStaticFiles</c> serves, relative to the content root (or absolute).
+    /// Defaults to "wwwroot".
+    /// </summary>
+    /// <remarks>
+    /// A view importing a file from here gets the URL the application already serves it from,
+    /// rather than a second copy under JsxCore's own versioned prefix. That keeps one file at one
+    /// URL, and it keeps a stylesheet's own relative <c>url()</c> references working, which they
+    /// would not if the stylesheet were served from somewhere else.
+    /// </remarks>
+    public string WebRootDirectory { get; set; } = "wwwroot";
+
     /// <summary>File extensions treated as views, in probe order.</summary>
     public IList<string> Extensions { get; } = new List<string> { ".tsx", ".jsx" };
 

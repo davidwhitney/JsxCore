@@ -188,7 +188,8 @@ public sealed class JsxAssetMiddleware(
 
     private async Task ServeAsync(HttpContext context, ResolvedAsset asset)
     {
-        context.Response.ContentType = ContentTypeFor(asset.Name);
+        var contentType = ContentTypeFor(asset.Name);
+        context.Response.ContentType = contentType;
 
         // Build-id-scoped URLs never change contents, so they can be cached indefinitely. In
         // development the id changes on every edit, which is what makes that safe.
@@ -199,7 +200,11 @@ public sealed class JsxAssetMiddleware(
             NoTransform = true
         };
 
-        var encoding = _compress
+        // A PNG, a woff2 or an mp4 is already compressed. Doing it again costs CPU on the way out,
+        // memory in the cache, and occasionally makes the response bigger than the file.
+        var compressible = _compress && ViewAssets.IsCompressible(contentType);
+
+        var encoding = compressible
             ? AssetCompressionCache.Negotiate(context.Request.Headers.AcceptEncoding)
             : AssetEncoding.Identity;
 
@@ -219,7 +224,7 @@ public sealed class JsxAssetMiddleware(
             return;
         }
 
-        if (_compress)
+        if (compressible)
         {
             context.Response.Headers.Vary = HeaderNames.AcceptEncoding;
         }
@@ -239,8 +244,12 @@ public sealed class JsxAssetMiddleware(
         ".js" or ".mjs" or ".cjs" => "text/javascript; charset=utf-8",
         ".map" => "application/json; charset=utf-8",
         ".json" => "application/json; charset=utf-8",
-        ".css" => "text/css; charset=utf-8",
         ".ts" or ".tsx" => "text/plain; charset=utf-8",
-        _ => "application/octet-stream"
+
+        // Anything else falls to the table that decides what a static asset is, so this and the
+        // rest of JsxCore cannot disagree about what a file of a given kind is.
+        var extension => ViewAssets.ContentTypes.TryGetValue(extension, out var contentType)
+            ? contentType
+            : "application/octet-stream"
     };
 }

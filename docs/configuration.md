@@ -23,6 +23,7 @@ builder.AddJsxCore(options =>
 | `ViewsDirectory` | `"Views"` | Where views live, relative to the content root |
 | `WorkingDirectory` | `"obj/JsxCore"` | Compiler output; gitignored and hidden from project trees |
 | `RequestPath` | `"/_jsx"` | Base path compiled modules are served from |
+| `WebRootDirectory` | the host's web root, else `"wwwroot"` | What `dotnet:wwwroot/…` imports resolve against |
 | `Extensions` | `.tsx`, `.jsx` | File extensions treated as views, in probe order |
 | `ViewLocationFormats` | `{Views}/{controller}/{view}`, `{Views}/Shared/{view}`, `{Views}/{view}` | How a view name maps to a path |
 | `AreaViewLocationFormats` | area-aware equivalents | Tried first when the request has an area |
@@ -173,6 +174,7 @@ Set these in your `.csproj`. They control [build-time compilation](build-and-dep
 | `JsxCoreViewsDirectory` | `Views` | Where views live |
 | `JsxCoreManifestDirectory` | beside the project | Directory holding the `package.json` to use, for a solution sharing one |
 | `JsxCoreWorkingDirectory` | `$(BaseIntermediateOutputPath)JsxCore\` | Compiler output |
+| `JsxCoreWebRootDirectory` | `wwwroot` | What `dotnet:wwwroot/…` imports resolve against |
 | `JsxCoreAutoInstallDependencies` | `true` | Install missing npm packages during the build |
 | `JsxCoreMinify` | Release only | Minify what is served to the browser, with esbuild |
 | `JsxCoreCompressAssets` | Release only | Compress assets on the way out: Brotli, or gzip |

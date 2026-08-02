@@ -14,7 +14,8 @@ public static class RuntimeAssets
     /// <remarks>
     /// A reserved name under the same scheme as the assemblies, rather than a scheme of its own.
     /// One rule to hold: <c>dotnet:</c> is the .NET side of the application — an assembly by name,
-    /// or one of the two names JsxCore reserves, <c>globals</c> and <c>rendering</c>.
+    /// or one of the names JsxCore reserves: <c>globals</c>, <c>rendering</c>, and <c>wwwroot/</c>
+    /// followed by a path, which is the application's own served files.
     /// <para>
     /// It is the contract with the .NET host that lives here, even though JavaScript implements it:
     /// the server decides what a view is handed and which pass is running.

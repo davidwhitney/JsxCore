@@ -186,6 +186,15 @@ public sealed class JsxProjectFixture : IDisposable
         return this;
     }
 
+    /// <summary>Writes a file anywhere in the throwaway project, such as into its wwwroot.</summary>
+    public JsxProjectFixture AddFile(string relativePath, string contents)
+    {
+        var path = Path.Combine(Root, relativePath.Replace('/', Path.DirectorySeparatorChar));
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        File.WriteAllText(path, contents);
+        return this;
+    }
+
     /// <summary>Prepares the working directory and compiles everything.</summary>
     public async Task<BuildState> CompileAsync()
     {

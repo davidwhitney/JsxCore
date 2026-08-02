@@ -178,12 +178,34 @@ Editors need a little help finding them; see [Development](development.md#editor
 
 ## Static assets
 
-JsxCore renders HTML. It does not process CSS, images or fonts. Serve those with
-`UseStaticFiles()` and reference them normally:
+JsxCore renders HTML. It does not process, bundle or fingerprint CSS, images or fonts: those live
+in `wwwroot` and are served by `UseStaticFiles()`, as in any other ASP.NET Core application.
 
 ```csharp
 app.UseStaticFiles();
+```
 
+A view can then refer to one by hand, which has always worked and always will:
+
+```tsx
+<img src="/images/logo.svg" alt="Contoso" />
+```
+
+Or import it, which is the same thing with the path checked at compile time:
+
+```tsx
+import logo from "dotnet:wwwroot/images/logo.svg";
+
+<img src={logo} alt="Contoso" />
+```
+
+The import gives you back the URL the file is served from. A stylesheet imported this way —
+`import "dotnet:wwwroot/css/card.css"` — becomes a `<link>` in the head of every page that reaches
+it, in every render mode. See [Import syntax](import-syntax.md#static-assets).
+
+For a stylesheet the whole application needs, `options.Document.HeadContent` is simpler:
+
+```csharp
 builder.AddJsxCore(options =>
 {
     options.Document.HeadContent = "<link rel=\"stylesheet\" href=\"/site.css\">";
