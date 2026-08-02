@@ -14,8 +14,8 @@ namespace JsxCore.Compilation.Assets;
 /// — it has no opinion about a scheme it does not know — which is why this runs on the output.
 /// </para>
 /// <para>
-/// After the compiler and before minification, which is the same seam minification occupies: before
-/// the build id is taken, so what is hashed is what is served.
+/// Runs after the compiler and before minification, so the build id is taken over what is actually
+/// served rather than over what tsc emitted.
 /// </para>
 /// </remarks>
 public static partial class ViewAssetLinker

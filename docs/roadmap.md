@@ -46,25 +46,23 @@ Needs a name-mangling contract: the compiler rewrites class names, the generated
 map, and the emitted stylesheet has to agree with both. Tailwind sidesteps this entirely, which is
 part of why it was the right thing to prove first.
 
-Two of the three constraints from the earlier design work still hold. The third does not, and is
-worth recording as settled:
+Of the three constraints from the earlier design work, two still hold:
 
-- **Ordering is answered.** Static asset imports record the compiled module graph, and the
-  stylesheets a page links are collected from a walk of it — dependencies first, each once. Two
-  views importing the same pair of stylesheets cannot produce two different cascades, and nothing
-  about that depends on render order. Whatever processes CSS inherits this rather than repeating it.
 - **When it runs.** Views compile in tens of milliseconds. A Node-based CSS pipeline is slower, and
   putting it in the synchronous startup path would undo the fast feedback loop; it belongs on the
   watcher's schedule.
 - **Scoping reaches into the JSX transform**, which is what makes this bigger than copying files.
 
-The other open question is **where a processed stylesheet lives, and where it lands**. Today an
-imported stylesheet is a file of yours in `wwwroot`, spelled `dotnet:wwwroot/card.css` and served by
-`UseStaticFiles`, which is why JsxCore neither copies nor versions it. A `.module.css` is not that
-on either side: it is a source file, so it belongs beside the component and is spelled relatively,
-and it is a build output, so it has to be served from somewhere with a build id on it the way a
-compiled view is. That is a second kind of stylesheet in the same feature, and the design should say
-so out loud rather than discover it.
+The third — ordering — is settled. Asset imports record the compiled module graph, and the
+stylesheets a page links come from a walk of it: dependencies first, each once, independent of what
+rendered when. Whatever processes CSS inherits that rather than repeating it.
+
+What is left open is **where a processed stylesheet lives, and where it goes**. An imported
+stylesheet today is a file of yours in `wwwroot`, spelled `dotnet:wwwroot/card.css`, which is why
+JsxCore neither copies nor versions it. A `.module.css` is neither: it is a source file, so it
+belongs beside the component and would be spelled relatively, and it is a build output, so it has to
+be served from a URL carrying a build id the way a compiled view is. That is a second kind of
+stylesheet in the same feature, and the design should say so rather than discover it.
 
 The same pipeline answers Sass and PostCSS, which are otherwise the Tailwind pattern with a
 different binary: an external CLI producing a stylesheet.
@@ -80,13 +78,13 @@ application serves it with no processor installed.
 
 Named because they will be asked for, not because they are queued:
 
-- **Vite's `?url` and `?raw` suffixes.** Left out until someone asks. `?raw` in particular means
-  reading a file's contents into a module, which is a different feature from naming a URL.
+- **Vite's `?url` and `?raw` suffixes.** `?raw` in particular reads a file's contents into a module,
+  which is a different feature from naming a URL.
 - **Content hashing.** An imported asset is served by `UseStaticFiles` at its own URL, so it is
-  cached however that middleware is configured, not immutably like a compiled view. An application
-  that wants fingerprinted assets has ASP.NET Core's own static web assets for it.
-- **Assets beside a component.** An image in the views directory is not served, and importing one
-  does not work. Views are a source tree; `wwwroot` is what the application serves.
+  cached however that middleware is configured rather than immutably like a compiled view. ASP.NET
+  Core's own static web assets already fingerprint.
+- **Assets beside a component.** An image in the views directory is not served and cannot be
+  imported. Views are a source tree; `wwwroot` is what the application serves.
 
 ---
 
@@ -159,9 +157,8 @@ item here, and it changes the programming model rather than filling a gap.
 ## Order
 
 Item 1 is the biggest remaining gap between this and what someone arriving from Next.js expects,
-and the half of it that is about ordering is already answered. Item 2 is a list of things to say no
-to until asked. Item 3 is small and mostly about choosing a safe shape. Item 4 is writing rather
-than building.
+and its ordering half is already answered. Item 2 is a list of things to say no to until asked.
+Item 3 is small and mostly about choosing a safe shape. Item 4 is writing rather than building.
 
 Item 6 is worth more than all of them, and should not start until the synchronous-or-not question
 has an answer that survives contact with a real application.

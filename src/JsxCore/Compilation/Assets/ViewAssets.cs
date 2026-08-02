@@ -6,16 +6,16 @@ namespace JsxCore.Compilation.Assets;
 /// <remarks>
 /// <para>
 /// Static assets live where they always have in an ASP.NET Core application: in <c>wwwroot</c>,
-/// served by <c>UseStaticFiles</c>. JsxCore adds nothing to that and copies nothing out of it. What
-/// it adds is the half a frontend developer expects and the framework has no answer for — that
-/// <c>import logo from "/images/logo.svg"</c> resolves, type checks, and hands back the URL the
-/// file is served from.
+/// served by <c>UseStaticFiles</c>. JsxCore copies nothing out of it. What it adds is the half a
+/// frontend developer expects and the framework has no answer for — that
+/// <c>import logo from "dotnet:wwwroot/images/logo.svg"</c> resolves, type checks, and hands back
+/// the URL the file is served from.
 /// </para>
 /// <para>
-/// It has to, because <c>./logo.svg</c> is not JavaScript. TypeScript leaves a specifier it has no
-/// opinion about exactly as written, so the browser fetches an image where it asked for a module and
-/// refuses it. A one-line module is generated for each imported asset instead, exporting its URL,
-/// and the emitted import is pointed at that.
+/// That needs doing because an svg is not JavaScript. TypeScript leaves a specifier it has no
+/// opinion about exactly as written, so the browser would fetch an image where it asked for a
+/// module and refuse it. A one-line module is generated for each imported asset instead, exporting
+/// its URL, and the emitted import is pointed at that.
 /// </para>
 /// </remarks>
 public static class ViewAssets
@@ -24,14 +24,13 @@ public static class ViewAssets
     /// How a view names a file in the application's web root: <c>dotnet:wwwroot/images/logo.svg</c>.
     /// </summary>
     /// <remarks>
-    /// The same scheme as the assemblies and the two names JsxCore reserves, and the same rule:
-    /// <c>dotnet:</c> is the .NET side of the application. wwwroot is exactly that — the directory
-    /// ASP.NET Core serves, which the view is borrowing a URL from rather than a file.
+    /// The same scheme as the assemblies and the other reserved names, under the same rule:
+    /// <c>dotnet:</c> is the .NET side of the application. wwwroot is exactly that.
     /// <para>
-    /// A scheme rather than a relative path because the two are not the same question. A relative
-    /// path says where a file is on this machine; this says which of the application's own served
-    /// files is meant, which is what the answer — a URL — is about. It also cannot be mistaken for
-    /// an import of something beside the view, and it does not change meaning when a view moves.
+    /// A scheme rather than a relative path, because the two ask different questions. A relative
+    /// path says where a file sits on this machine; this names one of the application's own served
+    /// files, which is what a URL is an answer about. It also cannot be mistaken for an import of
+    /// something beside the view, and it does not change meaning when a view moves.
     /// </para>
     /// </remarks>
     public const string Scheme = "dotnet:wwwroot/";
@@ -100,8 +99,8 @@ public static class ViewAssets
     /// Whether a response of this content type is worth compressing on the way out.
     /// </summary>
     /// <remarks>
-    /// Text compresses; a PNG, a woff2 and an mp4 are already compressed, and running them through
-    /// Brotli again spends CPU to make them very slightly larger.
+    /// Text compresses. A PNG or a woff2 is already compressed, and running one through Brotli
+    /// again spends CPU to make it very slightly larger.
     /// </remarks>
     public static bool IsCompressible(string contentType) =>
         contentType.StartsWith("text/", StringComparison.OrdinalIgnoreCase)
@@ -143,7 +142,7 @@ public static class ViewAssets
          """;
 
     /// <summary>
-    /// Ambient declarations so <c>import logo from "/images/logo.svg"</c> type checks.
+    /// Ambient declarations so <c>import logo from "dotnet:wwwroot/images/logo.svg"</c> type checks.
     /// </summary>
     /// <remarks>
     /// A wildcard module per extension rather than one covering everything: a mistyped specifier
@@ -154,7 +153,7 @@ public static class ViewAssets
         var builder = new System.Text.StringBuilder();
 
         builder.AppendLine("// Written by JsxCore. Importing a file from your web root gives you the URL it is");
-        builder.AppendLine("// served from, so it can go straight into an src, href or style attribute:");
+        builder.AppendLine("// served from, so it can go straight into an src or href:");
         builder.AppendLine("//");
         builder.AppendLine("//     import logo from \"dotnet:wwwroot/images/logo.svg\";");
         builder.AppendLine("//     <img src={logo} />");

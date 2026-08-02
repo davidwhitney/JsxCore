@@ -91,7 +91,7 @@ public sealed class JsxCompilationService(
 
             // An asset import is still spelled the way the view wrote it, which no browser can
             // load. Done whatever the compiler made of the views: a type error does not stop it
-            // emitting, and a page that renders with a broken image is worse than the type error.
+            // emitting, and a page that renders with a broken image is the worse outcome.
             LinkAssets();
 
             // Between compiling and taking the build id, so the id covers what is served rather
@@ -139,15 +139,15 @@ public sealed class JsxCompilationService(
             _logger.LogDebug("JsxCore linked {Count} static asset import(s).", linked.Linked);
         }
 
-        // Reported rather than guessed at. Nothing else will say so: the compiler has no opinion
-        // about a scheme it does not know, and the failure would otherwise surface as a module the
-        // browser cannot load, long after the mistake was made.
+        // Reported rather than guessed at. Nothing else will say so — the compiler has no opinion
+        // about a scheme it does not know — and it would otherwise surface much later, as a module
+        // the browser cannot load.
         foreach (var specifier in linked.Unresolved.Distinct(StringComparer.Ordinal))
         {
             _logger.LogWarning(
                 "JsxCore could not resolve the asset import '{Specifier}': there is no such file " +
-                "under {WebRoot}. The path is relative to your web root, as the URL it is served " +
-                "from is.", specifier, Layout.WebRoot);
+                "under {WebRoot}. The path is relative to your web root, exactly as the URL is.",
+                specifier, Layout.WebRoot);
         }
     }
 

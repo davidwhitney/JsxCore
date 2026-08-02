@@ -146,8 +146,8 @@ as `any` and sharpen after a run. See [.NET interop](dotnet-interop.md).
 
 ## Static assets
 
-Images, fonts and stylesheets live where they always have in an ASP.NET Core application: in
-`wwwroot`, served by `UseStaticFiles()`. `dotnet:wwwroot/` is how a view names one:
+Static files live in `wwwroot` and are served by `UseStaticFiles()`, as in any ASP.NET Core
+application. `dotnet:wwwroot/` is how a view names one:
 
 ```tsx
 import logo from "dotnet:wwwroot/images/logo.svg";
@@ -157,43 +157,38 @@ export default function Header() {
 }
 ```
 
-What you get back is the **URL the file is served from** — here `/images/logo.svg` — typed as a
-`string`, ready for an `src`, `href` or `background-image`. The path after `dotnet:wwwroot/` is
-relative to your web root, exactly as the URL is.
+You get back the URL the file is served from — here `/images/logo.svg` — typed as a `string`. The
+path after `dotnet:wwwroot/` is relative to your web root, exactly as that URL is.
 
-Nothing is copied and nothing is versioned by JsxCore: it is your file, at your URL, served by your
-static file middleware, and the same one a Razor page or a stylesheet's own `url()` refers to. The
-import exists so that the reference is **checked** — a typo is a compile error rather than a broken
-image in production — and so the path can be written once, next to the markup that uses it.
+JsxCore copies nothing and versions nothing: it stays your file at your URL, the same one a Razor
+page or a stylesheet's own `url()` refers to. The import exists so the reference is checked, and a
+typo becomes a compile error rather than a broken image in production.
 
-Any web asset extension works: `.svg`, `.png`, `.jpg`, `.webp`, `.avif`, `.ico`, `.woff2`, `.ttf`,
-`.mp4`, `.pdf`, `.css` and the rest of the usual list. A file that is not there is reported as a
-warning naming the specifier, and the import is left alone rather than pointed at a URL that would
-404 in the browser and nowhere else.
+Any web asset extension works — images, fonts, video, `.pdf`, `.css`. A file that is not there is
+reported by name and the import is left as written, rather than pointed at a URL that would 404 in
+the browser and nowhere else.
 
-You do not have to use it. `<img src="/images/logo.svg" />` written by hand works exactly as it
-always did, and always will — this is the checked version of that, not a replacement for it.
+Writing `<img src="/images/logo.svg" />` by hand still works. This is the checked version of it,
+not a replacement.
 
 ### Stylesheets
 
-A stylesheet import binds nothing, so JsxCore answers it in the document instead:
+A stylesheet import binds nothing, so JsxCore answers it in the document:
 
 ```tsx
 import "dotnet:wwwroot/css/card.css";
 ```
 
-Every view that reaches that import — directly, or through a component it imports — gets a
-`<link rel="stylesheet">` in its `<head>`, in every render mode, including a server-rendered page
-that runs no JavaScript at all. Order comes from the import graph rather than from what rendered
-first: a component's stylesheet is emitted before the stylesheet of the page importing it, so the
-page can override it, and two pages sharing a stylesheet cannot produce two different cascades.
+Every view that reaches that import, directly or through a component, gets a
+`<link rel="stylesheet">` in its head, in every render mode. Order comes from the import graph
+rather than from what rendered first, so a component's stylesheet is always emitted before that of
+the page importing it, and the page can override it.
 
-For a stylesheet every page needs, `options.Document.HeadContent` is still the simpler answer. This
-is for the one that belongs to a component.
+For a stylesheet every page needs, `options.Document.HeadContent` is simpler. This is for the one
+that belongs to a component.
 
-Editing the stylesheet itself is immediate — it is a static file, so the browser refetches it.
-*Adding or removing* an import shows up on the next full page load, because hot reload swaps
-modules and the link lives in the document head.
+Editing a stylesheet takes effect immediately, since it is a static file. Adding or removing an
+import needs a full page load: hot reload swaps modules, and the link lives in the head.
 
 CSS Modules — `import styles from "./Card.module.css"` with mangled class names — are
 [not built yet](roadmap.md).

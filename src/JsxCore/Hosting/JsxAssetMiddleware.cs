@@ -200,8 +200,8 @@ public sealed class JsxAssetMiddleware(
             NoTransform = true
         };
 
-        // A PNG, a woff2 or an mp4 is already compressed. Doing it again costs CPU on the way out,
-        // memory in the cache, and occasionally makes the response bigger than the file.
+        // A PNG or a woff2 is already compressed. Doing it again costs CPU and cache, and can
+        // leave the response larger than the file.
         var compressible = _compress && ViewAssets.IsCompressible(contentType);
 
         var encoding = compressible
