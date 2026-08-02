@@ -191,13 +191,12 @@ searched. See [Using npm packages](npm-packages.md).
 
 ### "could not resolve the asset import 'dotnet:wwwroot/…'"
 
-There is no such file under your web root. The path after `dotnet:wwwroot/` is relative to that
-directory: `wwwroot/images/logo.svg` is `dotnet:wwwroot/images/logo.svg`, and the browser gets
-`/images/logo.svg`.
+No such file under the web root. The path after `dotnet:wwwroot/` is relative to that directory:
+`wwwroot/images/logo.svg` is `dotnet:wwwroot/images/logo.svg`, served as `/images/logo.svg`.
 
-The import is left as written rather than pointed at a URL that would 404, so it fails to load in
-the browser too. If your web root is not `wwwroot`, set `JsxCoreWebRootDirectory` in the project
-file so the build resolves against the directory the application actually serves. See
+The import is left as written rather than rewritten to a URL that 404s, so it fails to load in the
+browser too. If the web root is not `wwwroot`, set `JsxCoreWebRootDirectory` so the build resolves
+against the directory the application serves. See
 [Import syntax](import-syntax.md#static-assets).
 
 ---

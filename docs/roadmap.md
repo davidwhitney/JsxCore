@@ -29,8 +29,8 @@ So the rest is not read against a stale picture:
   rendering contract.
 - **Tailwind**, which works today with about fifteen lines of setup. See [Tailwind](tailwind.md).
 - **CSP nonces** on every script JsxCore writes.
-- **Static asset imports**, as `dotnet:wwwroot/images/logo.svg`, which closed what used to be item 1.
-  See [Import syntax](import-syntax.md#static-assets).
+- **[Static asset imports](import-syntax.md#static-assets)**, as `dotnet:wwwroot/images/logo.svg`,
+  resolving to the URL `UseStaticFiles` serves the file from.
 
 ---
 
@@ -43,34 +43,32 @@ import styles from "./Card.module.css";
 ```
 
 Needs a name-mangling contract: the compiler rewrites class names, the generated module exports the
-map, and the emitted stylesheet has to agree with both. Tailwind sidesteps this entirely, which is
-part of why it was the right thing to prove first.
+map, the emitted stylesheet agrees with both. Tailwind sidesteps this, which is part of why it was
+the right thing to prove first.
 
-Of the three constraints from the earlier design work, two still hold:
+Two constraints from the earlier design work still hold:
 
-- **When it runs.** Views compile in tens of milliseconds. A Node-based CSS pipeline is slower, and
-  putting it in the synchronous startup path would undo the fast feedback loop; it belongs on the
+- **When it runs.** Views compile in tens of milliseconds; a Node-based CSS pipeline does not.
+  In the synchronous startup path it would undo the fast feedback loop, so it belongs on the
   watcher's schedule.
 - **Scoping reaches into the JSX transform**, which is what makes this bigger than copying files.
 
-The third — ordering — is settled. Asset imports record the compiled module graph, and the
-stylesheets a page links come from a walk of it: dependencies first, each once, independent of what
-rendered when. Whatever processes CSS inherits that rather than repeating it.
+The third, ordering, is settled: asset imports record the compiled module graph, and a page's
+stylesheets come from a walk of it — dependencies first, each once, independent of render order.
+CSS processing inherits that.
 
-What is left open is **where a processed stylesheet lives, and where it goes**. An imported
-stylesheet today is a file of yours in `wwwroot`, spelled `dotnet:wwwroot/card.css`, which is why
-JsxCore neither copies nor versions it. A `.module.css` is neither: it is a source file, so it
-belongs beside the component and would be spelled relatively, and it is a build output, so it has to
-be served from a URL carrying a build id the way a compiled view is. That is a second kind of
-stylesheet in the same feature, and the design should say so rather than discover it.
+Open: **where a processed stylesheet lives, and where it goes.** An imported stylesheet today is a
+file in `wwwroot`, spelled `dotnet:wwwroot/card.css`, which is why JsxCore neither copies nor
+versions it. A `.module.css` is neither: a source file, so it belongs beside the component and would
+be spelled relatively, and a build output, so it needs a URL carrying a build id. Two kinds of
+stylesheet in one feature, and the design should say which is which.
 
-The same pipeline answers Sass and PostCSS, which are otherwise the Tailwind pattern with a
-different binary: an external CLI producing a stylesheet.
+The same pipeline answers Sass and PostCSS: the Tailwind pattern with a different binary.
 
-**How we would know it works:** a view importing a stylesheet renders a link to it and a view that
-does not does not; changing a stylesheet moves the build id and therefore the URL, exactly as
-changing a view does; publish output contains the processed stylesheet and no source, and the
-application serves it with no processor installed.
+**How we would know it works:** a view importing a stylesheet renders a link to it and one that does
+not does not; changing a stylesheet moves the build id and therefore the URL, as changing a view
+does; publish output contains the processed stylesheet and no source, and serves it with no
+processor installed.
 
 ---
 
@@ -78,11 +76,11 @@ application serves it with no processor installed.
 
 Named because they will be asked for, not because they are queued:
 
-- **Vite's `?url` and `?raw` suffixes.** `?raw` in particular reads a file's contents into a module,
-  which is a different feature from naming a URL.
-- **Content hashing.** An imported asset is served by `UseStaticFiles` at its own URL, so it is
-  cached however that middleware is configured rather than immutably like a compiled view. ASP.NET
-  Core's own static web assets already fingerprint.
+- **Vite's `?url` and `?raw` suffixes.** `?raw` reads a file's contents into a module, which is a
+  different feature from naming a URL.
+- **Content hashing.** An imported asset is served by `UseStaticFiles` at its own URL, cached
+  however that middleware is configured rather than immutably like a compiled view. ASP.NET Core's
+  static web assets already fingerprint.
 - **Assets beside a component.** An image in the views directory is not served and cannot be
   imported. Views are a source tree; `wwwroot` is what the application serves.
 
@@ -157,8 +155,8 @@ item here, and it changes the programming model rather than filling a gap.
 ## Order
 
 Item 1 is the biggest remaining gap between this and what someone arriving from Next.js expects,
-and its ordering half is already answered. Item 2 is a list of things to say no to until asked.
-Item 3 is small and mostly about choosing a safe shape. Item 4 is writing rather than building.
+and its ordering half is answered. Item 2 is a list of things to say no to until asked. Item 3 is
+small and mostly about choosing a safe shape. Item 4 is writing rather than building.
 
 Item 6 is worth more than all of them, and should not start until the synchronous-or-not question
 has an answer that survives contact with a real application.

@@ -238,9 +238,9 @@ Worth knowing before you commit:
   synchronous. Fetch in the endpoint.
 - **No `next/image`, `next/link` or `next/font`.** Plain HTML, plus `UseStaticFiles()`.
 - **Assets live in `wwwroot`, not beside the component.**
-  `import logo from "dotnet:wwwroot/images/logo.svg"` hands back the URL it is served from, and an
-  imported stylesheet becomes a `<link>` in the head — but ASP.NET Core serves the file, so nothing
-  is bundled or fingerprinted. See [Import syntax](import-syntax.md#static-assets). CSS Modules are
+  [`import logo from "dotnet:wwwroot/images/logo.svg"`](import-syntax.md#static-assets) resolves to
+  the URL it is served from, and an imported stylesheet becomes a `<link>` in the head. ASP.NET Core
+  serves the file; nothing is bundled or fingerprinted. CSS Modules are
   [not built yet](roadmap.md).
 - **No API routes to write**, because you are already in the API. The endpoint that renders the page
   and the endpoint that returns JSON are the same kind of thing.

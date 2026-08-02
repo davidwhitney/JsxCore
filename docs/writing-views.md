@@ -178,20 +178,20 @@ Editors need a little help finding them; see [Development](development.md#editor
 
 ## Static assets
 
-JsxCore renders HTML; it does not process assets. Those live in `wwwroot` and are served by
-`UseStaticFiles()`, as in any other ASP.NET Core application.
+JsxCore renders HTML; it does not process assets. Those live in `wwwroot`, served by
+`UseStaticFiles()`.
 
 ```csharp
 app.UseStaticFiles();
 ```
 
-A view can refer to one by hand:
+Reference one by hand:
 
 ```tsx
 <img src="/images/logo.svg" alt="Contoso" />
 ```
 
-Or import it, which is the same thing with the path checked at compile time:
+Or import it, which is the same URL with the path checked at compile time:
 
 ```tsx
 import logo from "dotnet:wwwroot/images/logo.svg";
@@ -199,8 +199,7 @@ import logo from "dotnet:wwwroot/images/logo.svg";
 <img src={logo} alt="Contoso" />
 ```
 
-The import hands back the URL the file is served from. A stylesheet imported this way becomes a
-`<link>` in the head of every page that reaches it. See
+An imported stylesheet becomes a `<link>` in the head of every page that reaches it. See
 [Import syntax](import-syntax.md#static-assets).
 
 For a stylesheet the whole application needs, `options.Document.HeadContent` is simpler:
