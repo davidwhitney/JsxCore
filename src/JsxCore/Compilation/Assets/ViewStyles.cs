@@ -149,18 +149,28 @@ public sealed class ViewStyles(
         }
 
         var staging = ViewAssets.PathUnder(_output, ViewAssets.DistDirectory + "/.staging");
+
+        // Written to and read from separate directories. esbuild refuses to write over a file it
+        // was given as an input, so an entry and its own output cannot share a name in one place.
+        // That refusal is invisible on macOS, where the temporary directory is reached through a
+        // symlink: esbuild resolves the input through it and compares two spellings of one path,
+        // finds them different, and writes anyway.
+        var inputs = Path.Combine(staging, "in");
+        var outputs = Path.Combine(staging, "out");
+
         var entries = new List<(string Specifier, string Entry, string Name)>();
 
         // Ordered, so the names esbuild disambiguates are the same from one build to the next.
         var ordered = sources.OrderBy(pair => pair.Value, StringComparer.Ordinal).ToList();
 
-        Directory.CreateDirectory(staging);
+        Directory.CreateDirectory(inputs);
+        Directory.CreateDirectory(outputs);
 
         for (var index = 0; index < ordered.Count; index++)
         {
             var (specifier, source) = ordered[index];
             var name = index.ToString();
-            var entry = Path.Combine(staging, name + ".js");
+            var entry = Path.Combine(inputs, name + ".js");
 
             // An entry per stylesheet rather than one for all of them, so each keeps its own
             // output and a view links only what it actually imports.
@@ -168,14 +178,14 @@ public sealed class ViewStyles(
             entries.Add((specifier, entry, name));
         }
 
-        if (!Run(entries.Select(entry => entry.Entry), staging))
+        if (!Run(entries.Select(entry => entry.Entry), inputs, outputs))
         {
             yield break;
         }
 
         foreach (var (specifier, _, name) in entries)
         {
-            var css = Path.Combine(staging, name + ".css");
+            var css = Path.Combine(outputs, name + ".css");
             if (!File.Exists(css))
             {
                 // A stylesheet that produced nothing, which an empty file does.
@@ -190,7 +200,7 @@ public sealed class ViewStyles(
             _written.Add(Path.GetFullPath(target));
 
             var names = sources[specifier].EndsWith(ModuleSuffix, StringComparison.OrdinalIgnoreCase)
-                ? ReadNames(Path.Combine(staging, name + ".js"))
+                ? ReadNames(Path.Combine(outputs, name + ".js"))
                 : null;
 
             yield return new KeyValuePair<string, ProcessedStyle>(
@@ -247,7 +257,7 @@ public sealed class ViewStyles(
         return null;
     }
 
-    private bool Run(IEnumerable<string> entries, string outputDirectory)
+    private bool Run(IEnumerable<string> entries, string inputDirectory, string outputDirectory)
     {
         var result = esbuild!.Run(
             [
@@ -255,7 +265,10 @@ public sealed class ViewStyles(
                 "--bundle",
                 $"--loader:{ModuleSuffix}=local-css",
                 $"--outdir={outputDirectory}",
-                $"--outbase={outputDirectory}",
+
+                // Against the inputs, so each entry keeps its own name in the output rather than
+                // being placed relative to whatever parent the paths happen to share.
+                $"--outbase={inputDirectory}",
                 "--format=esm",
                 "--log-level=warning"
             ],

@@ -44,7 +44,7 @@ public sealed class JsxProjectFixture : IDisposable
     /// </param>
     public static JsxProjectFixture Create(JsFramework framework = JsFramework.Preact)
     {
-        var root = Path.Combine(Path.GetTempPath(), "jsxcore-tests", Guid.NewGuid().ToString("n")[..12]);
+        var root = Path.Combine(TemporaryRoot(), "jsxcore-tests", Guid.NewGuid().ToString("n")[..12]);
         Directory.CreateDirectory(root);
 
         var fixture = new JsxProjectFixture(root, framework);
@@ -125,6 +125,42 @@ public sealed class JsxProjectFixture : IDisposable
         }
 
         return TypeScriptToolchainLocator.Locate(root);
+    }
+
+    /// <summary>
+    /// The temporary directory, with any symlink in its path resolved.
+    /// </summary>
+    /// <remarks>
+    /// macOS reaches its temporary directory through <c>/var</c>, which is a link to
+    /// <c>/private/var</c>; Linux and Windows do not. That difference is not cosmetic. esbuild
+    /// resolves the input paths it is handed and compares them against the output path as written,
+    /// so on macOS the two spellings of one directory look like two directories and a refusal to
+    /// overwrite never fires. A stylesheet pipeline that failed outright on every other platform
+    /// passed here for exactly that reason. Resolving the path makes every platform run the same
+    /// build.
+    /// </remarks>
+    private static string TemporaryRoot()
+    {
+        var directory = new DirectoryInfo(Path.GetTempPath());
+        var trailing = new Stack<string>();
+
+        while (directory is not null)
+        {
+            if (directory.ResolveLinkTarget(returnFinalTarget: true) is { } target)
+            {
+                return trailing.Aggregate(target.FullName, Path.Combine);
+            }
+
+            if (directory.Parent is null)
+            {
+                break;
+            }
+
+            trailing.Push(directory.Name);
+            directory = directory.Parent;
+        }
+
+        return Path.GetTempPath();
     }
 
     /// <summary>Walks up from the test assembly to the repository root, which holds node_modules.</summary>
