@@ -146,9 +146,9 @@ public sealed class JsxProjectFixture : IDisposable
 
         while (directory is not null)
         {
-            if (directory.ResolveLinkTarget(returnFinalTarget: true) is { } target)
+            if (LinkTargetOf(directory) is { } target)
             {
-                return trailing.Aggregate(target.FullName, Path.Combine);
+                return trailing.Aggregate(target, Path.Combine);
             }
 
             if (directory.Parent is null)
@@ -161,6 +161,23 @@ public sealed class JsxProjectFixture : IDisposable
         }
 
         return Path.GetTempPath();
+    }
+
+    /// <summary>Where a directory really is, or null when it is not a link.</summary>
+    /// <remarks>
+    /// Never throws. The walk above ends at a drive root, and Windows will not answer this question
+    /// about one: asking about <c>C:\</c> raises rather than reporting that it is not a link.
+    /// </remarks>
+    private static string? LinkTargetOf(DirectoryInfo directory)
+    {
+        try
+        {
+            return directory.ResolveLinkTarget(returnFinalTarget: true)?.FullName;
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 
     /// <summary>Walks up from the test assembly to the repository root, which holds node_modules.</summary>

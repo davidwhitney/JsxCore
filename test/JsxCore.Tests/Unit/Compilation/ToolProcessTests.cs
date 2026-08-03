@@ -12,15 +12,22 @@ namespace JsxCore.Tests.Unit.Compilation;
 /// </remarks>
 public class ToolProcessTests
 {
-    private static readonly string Shell = OperatingSystem.IsWindows() ? "cmd.exe" : "/bin/sh";
+    private static readonly bool Windows = OperatingSystem.IsWindows();
 
-    private static string[] Script(string command) =>
-        OperatingSystem.IsWindows() ? ["/c", command] : ["-c", command];
+    /// <summary>
+    /// PowerShell rather than cmd on Windows. cmd needs its own separators and has quoting rules
+    /// that an argument list does not survive; PowerShell takes a script as one argument and means
+    /// what it says.
+    /// </summary>
+    private static string Shell => Windows ? "powershell.exe" : "/bin/sh";
+
+    private static string[] Script(string posix, string powershell) =>
+        Windows ? ["-NoProfile", "-Command", powershell] : ["-c", posix];
 
     [Fact]
     public void Run_ToolSucceeds_ReportsWhatItSaid()
     {
-        var result = ToolProcess.Run(Shell, Script("echo hello"));
+        var result = ToolProcess.Run(Shell, Script("echo hello", "Write-Output hello"));
 
         result.Succeeded.ShouldBeTrue();
         result.Outcome.ShouldBe(ToolOutcome.Exited);
@@ -30,7 +37,9 @@ public class ToolProcessTests
     [Fact]
     public void Run_ToolFails_CarriesTheExitCodeAndTheError()
     {
-        var result = ToolProcess.Run(Shell, Script("echo trouble 1>&2; exit 3"));
+        var result = ToolProcess.Run(Shell, Script(
+            "echo trouble 1>&2; exit 3",
+            "[Console]::Error.WriteLine('trouble'); exit 3"));
 
         result.Succeeded.ShouldBeFalse();
         result.Outcome.ShouldBe(ToolOutcome.Exited);
@@ -51,7 +60,8 @@ public class ToolProcessTests
     [Fact]
     public void Run_ToolOutlivesItsTimeout_IsKilledAndReported()
     {
-        var result = ToolProcess.Run(Shell, Script("sleep 30"), timeout: TimeSpan.FromMilliseconds(300));
+        var result = ToolProcess.Run(
+            Shell, Script("sleep 30", "Start-Sleep -Seconds 30"), timeout: TimeSpan.FromMilliseconds(300));
 
         result.Outcome.ShouldBe(ToolOutcome.TimedOut);
         result.Succeeded.ShouldBeFalse();
@@ -65,9 +75,13 @@ public class ToolProcessTests
         // most systems, so this is comfortably past it on both streams at once.
         var result = ToolProcess.Run(
             Shell,
-            Script("i=0; while [ $i -lt 400 ]; do echo aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa; " +
-                   "echo bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb 1>&2; i=$((i+1)); done"),
-            timeout: TimeSpan.FromSeconds(30));
+            Script(
+                "i=0; while [ $i -lt 400 ]; do echo aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa; " +
+                "echo bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb 1>&2; i=$((i+1)); done",
+                "1..400 | ForEach-Object { " +
+                "[Console]::Out.WriteLine('aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa'); " +
+                "[Console]::Error.WriteLine('bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb') }"),
+            timeout: TimeSpan.FromSeconds(60));
 
         result.Succeeded.ShouldBeTrue();
         result.StandardOutput.Length.ShouldBeGreaterThan(16_000);
@@ -81,7 +95,7 @@ public class ToolProcessTests
         // being abandoned should not be reported as a tool that misbehaved.
         using var cancellation = new CancellationTokenSource();
         var running = ToolProcess.RunAsync(
-            Shell, Script("sleep 30"), cancellationToken: cancellation.Token);
+            Shell, Script("sleep 30", "Start-Sleep -Seconds 30"), cancellationToken: cancellation.Token);
 
         await cancellation.CancelAsync();
 
