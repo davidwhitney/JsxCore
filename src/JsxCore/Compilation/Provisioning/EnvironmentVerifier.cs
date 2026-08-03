@@ -6,10 +6,15 @@ namespace JsxCore.Compilation.Provisioning;
 
 public static class EnvironmentVerifier
 {
+    /// <param name="warn">
+    /// Where a problem that is not fatal goes. Null discards them, which is what a caller checking
+    /// an environment rather than starting an application wants.
+    /// </param>
     public static TypeScriptToolchain? Verify(
         JsxCoreOptions options,
         string contentRoot,
-        string? bootstrapFailure = null)
+        string? bootstrapFailure = null,
+        Action<string>? warn = null)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentException.ThrowIfNullOrWhiteSpace(contentRoot);
@@ -44,7 +49,7 @@ public static class EnvironmentVerifier
                 $"npm:{Environment.NewLine}{Environment.NewLine}    npm install --save-dev typescript@^7{Environment.NewLine}");
         }
 
-        VerifyViewsDirectory(options, contentRoot);
+        WarnIfViewsDirectoryIsMissing(options, contentRoot, warn);
         VerifyWorkingDirectory(options, contentRoot);
         VerifyRuntimePackages(options, contentRoot, bootstrapFailure);
 
@@ -115,16 +120,18 @@ public static class EnvironmentVerifier
     }
 
     /// <summary>
-    /// Confirms that precompiled views were compiled against the runtime the application is
-    /// configured to use.
+    /// Notes a missing views directory without failing, because an application can render views
+    /// that do not live in one.
     /// </summary>
     /// <remarks>
-    /// Elements built by one JSX factory cannot be rendered by another's renderer. The result
-    /// is silently empty markup rather than an error, which is a miserable thing to debug. The build
-    /// that produced the output has its own runtime setting (the JsxCoreRuntime MSBuild property),
-    /// so the two can be configured independently and therefore can disagree.
+    /// A view can be named by absolute path, which <see cref="ViewLocator"/> resolves directly
+    /// without consulting the views directory at all. A minimal API returning views that way is a
+    /// supported arrangement, and it should not have to create a directory it never reads to
+    /// satisfy a check. So this reports and continues: a name that genuinely resolves to nothing
+    /// still fails, at the point of use, with every path it tried.
     /// </remarks>
-    private static void VerifyViewsDirectory(JsxCoreOptions options, string contentRoot)
+    private static void WarnIfViewsDirectoryIsMissing(
+        JsxCoreOptions options, string contentRoot, Action<string>? warn)
     {
         var viewsPath = ContentRootPath.Resolve(options.ViewsDirectory, contentRoot);
         if (Directory.Exists(viewsPath))
@@ -132,9 +139,10 @@ public static class EnvironmentVerifier
             return;
         }
 
-        throw new JsxCoreEnvironmentException(
-            $"JsxCore is configured to load views from '{viewsPath}', but that directory does not exist." +
-            $"{Environment.NewLine}Create it, or set JsxCoreOptions.ViewsDirectory to the correct location.");
+        warn?.Invoke(
+            $"JsxCore is configured to load views from '{viewsPath}', but that directory does not exist. " +
+            $"Views named by absolute path still work. If that is not what you intended, create the " +
+            $"directory or set JsxCoreOptions.ViewsDirectory to the correct location.");
     }
 
     private static void VerifyWorkingDirectory(JsxCoreOptions options, string contentRoot)

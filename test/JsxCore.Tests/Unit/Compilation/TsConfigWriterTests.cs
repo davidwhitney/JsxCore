@@ -67,4 +67,37 @@ public class TsConfigWriterTests
         includes.ShouldContain(i => i.EndsWith("*.tsx"));
         includes.ShouldContain(i => i.EndsWith("*.jsx"));
     }
+
+    [Fact]
+    public async Task Compilation_WithNoViewsDirectory_Succeeds()
+    {
+        // An application naming its views by absolute path need not have a views directory at all.
+        // The compiler still has inputs, because the generated declarations are in the include set,
+        // so this is a clean build rather than "no inputs were found".
+        var root = Path.Combine(Path.GetTempPath(), "jsxcore-noviews", Guid.NewGuid().ToString("n")[..8]);
+        Directory.CreateDirectory(root);
+
+        try
+        {
+            var options = new JsxCoreOptions
+            {
+                TypeScriptCompilerPath = JsxProjectFixture.Toolchain.ExecutablePath,
+                CompileOnStartup = false,
+                WatchForChanges = false,
+                HotReload = false
+            };
+
+            var layout = CompilationLayout.Create(options, root);
+            TsConfigWriter.WriteIfChanged(options, layout);
+
+            var result = await new TypeScriptCompiler(JsxProjectFixture.Toolchain).CompileAsync(layout);
+
+            result.Succeeded.ShouldBeTrue();
+            result.Diagnostics.ShouldBeEmpty();
+        }
+        finally
+        {
+            Directory.Delete(root, recursive: true);
+        }
+    }
 }

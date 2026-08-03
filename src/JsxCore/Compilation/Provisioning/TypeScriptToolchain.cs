@@ -1,6 +1,4 @@
-using System.Diagnostics;
 using System.Runtime.InteropServices;
-using System.Text;
 using System.Text.RegularExpressions;
 using JsxCore.Compilation.Modules;
 
@@ -120,28 +118,16 @@ public static partial class TypeScriptToolchainLocator
 
     private static string RunVersion(string executablePath)
     {
-        var startInfo = new ProcessStartInfo(executablePath)
+        var result = ToolProcess.Run(executablePath, ["--version"], timeout: TimeSpan.FromSeconds(15));
+
+        return result.Outcome switch
         {
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
+            ToolOutcome.TimedOut =>
+                throw new TimeoutException($"'{executablePath} --version' did not complete within 15 seconds."),
+            ToolOutcome.CouldNotStart =>
+                throw new InvalidOperationException($"Could not start '{executablePath}'."),
+            _ => result.Output
         };
-        startInfo.ArgumentList.Add("--version");
-
-        using var process = Process.Start(startInfo)
-            ?? throw new InvalidOperationException($"Could not start '{executablePath}'.");
-
-        var stdout = process.StandardOutput.ReadToEnd();
-        var stderr = process.StandardError.ReadToEnd();
-
-        if (!process.WaitForExit(15_000))
-        {
-            try { process.Kill(entireProcessTree: true); } catch { /* best effort */ }
-            throw new TimeoutException($"'{executablePath} --version' did not complete within 15 seconds.");
-        }
-
-        return new StringBuilder(stdout).Append(stderr).ToString();
     }
 
     [GeneratedRegex(@"(?:Version\s+)?((\d+)\.\d+\.\d+[^\s]*)", RegexOptions.IgnoreCase)]

@@ -247,7 +247,7 @@ Full reference in [package management](package-management.md#on-the-command-line
 
 | Type | Thrown when |
 |---|---|
-| `JsxCoreEnvironmentException` | Something needed is missing at registration: the toolchain, the views directory, a writable working directory, or compiled output when the application is serving precompiled views |
+| `JsxCoreEnvironmentException` | Something needed is missing at startup: the toolchain, the views directory, a writable working directory, or compiled output when the application is serving precompiled views |
 | `JsxCompilationException` | Compilation failed and `TypeChecking` is `Error` |
 | `JsxViewNotFoundException` | A view could not be located; carries every path probed |
 | `JsxRenderException` | Server-side rendering threw; carries the JavaScript stack trace |

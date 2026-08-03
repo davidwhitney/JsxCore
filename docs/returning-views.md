@@ -76,12 +76,25 @@ View names resolve through `ViewLocationFormats`, which default to:
 {ViewsDirectory}/{view}
 ```
 
-with `.tsx` tried before `.jsx`. Explicit paths work too:
+with `.tsx` tried before `.jsx`.
+
+**The extension decides how a name is read.** Without one it is a view name and goes through the
+formats above. With one it is a file, and is opened:
 
 ```csharp
-this.Jsx("Home/Index", model);              // views-directory relative
-this.Jsx("~/Views/Home/Index.tsx", model);  // content-root relative
+this.Jsx("Home/Index", model);                 // a view name
+this.Jsx("Home/Index.tsx", model);             // a file, under the views directory
+this.Jsx("~/Pages/Home.tsx", model);           // a file, from the content root
+this.Jsx("/srv/app/Views/Home/Index.tsx");     // a file, by absolute path
 ```
+
+That rule is what makes a leading slash mean something definite. Everywhere except Windows an
+absolute path and a views-relative name are spelled identically, so the slash cannot tell them
+apart: `/Home/Index` is a view name and `/srv/app/Views/Home/Index.tsx` is a path. `~/` is always a
+path, with or without an extension, because saying so is the whole reason it exists.
+
+A file named by path is opened where it is named and nowhere else, so a missing one is an error
+rather than something retried as a view name.
 
 A view that cannot be found throws `JsxViewNotFoundException`, whose message lists every path
 probed.

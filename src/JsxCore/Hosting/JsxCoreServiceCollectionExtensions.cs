@@ -22,10 +22,11 @@ public static class JsxCoreServiceCollectionExtensions
     /// Registers the JSX/TSX view engine.
     /// </summary>
     /// <remarks>
-    /// The environment is verified here, synchronously, and a missing or unusable TypeScript
-    /// toolchain throws <see cref="JsxCoreEnvironmentException"/> immediately. Failing at
-    /// registration is deliberate: the alternative is an application that starts cleanly and then
-    /// fails on the first request for a view, with far less context about what is wrong.
+    /// Registration itself touches neither the network nor the file system. Packages are restored
+    /// and the TypeScript toolchain verified when the host starts, which is still before the first
+    /// request, so a missing or unusable toolchain throws
+    /// <see cref="JsxCoreEnvironmentException"/> and stops the application rather than surfacing
+    /// later as a view that will not render.
     /// </remarks>
     /// <param name="environment">The hosting environment, used for the content root and to pick development defaults.</param>
     /// <param name="configure">Optional configuration callback.</param>
@@ -88,22 +89,24 @@ public static class JsxCoreServiceCollectionExtensions
             registration => registration.Value.ServiceType,
             StringComparer.Ordinal);
 
-        // Install anything missing before checking, so a first run does not fail on a package the
-        // developer had no way to know they needed.
-        var bootstrapFailure = TryInstallDependencies(options, environment, contentRoot);
-
-        // Fail fast, with a message that names the missing dependency and how to install it.
-        var toolchain = EnvironmentVerifier.Verify(options, contentRoot, bootstrapFailure);
         var layout = CompilationLayout.Create(options, contentRoot);
         var nodeModules = NodeModulesLayout.For(contentRoot, options.AdditionalToolchainSearchPaths);
 
         services.TryAddSingleton(options);
         services.TryAddSingleton(layout);
         services.TryAddSingleton(nodeModules);
-        if (toolchain is not null)
-        {
-            services.TryAddSingleton(toolchain);
-        }
+
+        // Restoring packages and verifying the compiler is deferred to the provider, which the
+        // startup service runs before anything else. Registration stays free of file system and
+        // network work, which is what lets it be logged, cancelled, and awaited.
+        services.TryAddSingleton(provider => new JsxToolchainProvider(
+            options, environment, contentRoot,
+            provider.GetRequiredService<ILogger<JsxToolchainProvider>>()));
+
+        services.TryAddSingleton(provider =>
+            provider.GetRequiredService<JsxToolchainProvider>().Value
+            ?? throw new JsxCoreEnvironmentException(
+                "JsxCore has no TypeScript toolchain, because this application serves precompiled views."));
 
         services.TryAddSingleton<JsxServerRendererReset>();
 
@@ -146,7 +149,7 @@ public static class JsxCoreServiceCollectionExtensions
         services.TryAddSingleton(provider => new JsxCompilationService(
             options,
             layout,
-            toolchain,
+            provider.GetRequiredService<JsxToolchainProvider>().Value,
             provider.GetRequiredService<ILogger<JsxCompilationService>>(),
             framework == JsFramework.React ? null : provider.GetRequiredService<PreactVendorStager>(),
             framework == JsFramework.React ? provider.GetRequiredService<ReactEntryStager>() : null,
@@ -222,45 +225,6 @@ public static class JsxCoreServiceCollectionExtensions
     }
 
     /// <summary>
-    /// Runs the npm bootstrapper if configuration allows it, returning why it failed or null.
-    /// </summary>
-    /// <remarks>
-    /// Never fatal by itself: whatever happens here, the verifier runs next and produces an
-    /// actionable message. Skipped entirely for precompiled applications, which have no toolchain
-    /// to install and no business writing to the file system on a server.
-    /// </remarks>
-    private static string? TryInstallDependencies(
-        JsxCoreOptions options,
-        IWebHostEnvironment environment,
-        string contentRoot)
-    {
-        var allowed = options.AutoInstallDependencies switch
-        {
-            DependencyInstallMode.Always => true,
-            DependencyInstallMode.Development => environment.IsDevelopment(),
-            _ => false
-        };
-
-        if (!allowed || options.PrecompiledOnly == true)
-        {
-            return null;
-        }
-
-        // Registration happens before logging is configured, so progress goes to the console.
-        var report = options.OnBootstrapMessage ?? Console.WriteLine;
-
-        try
-        {
-            var bootstrapper = new NpmBootstrapper(report, options.DependencyInstallTimeout, options.NpmPath);
-            return bootstrapper.EnsureDependencies(options, contentRoot).Failure;
-        }
-        catch (Exception ex)
-        {
-            return ex.Message;
-        }
-    }
-
-    /// <summary>
     /// The minifier, or null with a warning when esbuild is not there.
     /// </summary>
     /// <remarks>
@@ -332,15 +296,28 @@ public static class JsxCoreServiceCollectionExtensions
     }
 }
 
+/// <remarks>
+/// Everything is resolved inside <see cref="StartAsync"/> rather than injected. The host builds
+/// every hosted service before it starts any of them, and constructing the compilation service is
+/// what triggers provisioning, so injecting it would put a package restore back before the first
+/// line of startup ran.
+/// </remarks>
 internal sealed class JsxCoreStartupService(
-    JsxCompilationService compilation,
-    JsxHotReloadService hotReload,
-    ViewLocator locator,
+    IServiceProvider services,
+    JsxToolchainProvider toolchains,
     JsxCoreOptions options)
     : IHostedService
 {
     public async Task StartAsync(CancellationToken cancellationToken)
     {
+        // First, and on its own, so that restoring packages and verifying the compiler are the
+        // things that fail when they fail, with a logger to say so.
+        await toolchains.EnsureAsync(cancellationToken).ConfigureAwait(false);
+
+        var compilation = services.GetRequiredService<JsxCompilationService>();
+        var hotReload = services.GetRequiredService<JsxHotReloadService>();
+        var locator = services.GetRequiredService<ViewLocator>();
+
         // A rebuild is when a view name can start or stop resolving, so it is when the locator's
         // answers stop being true.
         compilation.BuildCompleted += _ => locator.Invalidate();

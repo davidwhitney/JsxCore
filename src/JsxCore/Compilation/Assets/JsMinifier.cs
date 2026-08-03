@@ -1,5 +1,3 @@
-using System.Diagnostics;
-using System.Text;
 using Microsoft.Extensions.Logging;
 
 namespace JsxCore.Compilation.Assets;
@@ -124,67 +122,32 @@ public sealed class JsMinifier(EsbuildToolchain toolchain, ILogger logger)
     /// </summary>
     private bool Run(IReadOnlyList<string> arguments, string workingDirectory, bool preserveFormat = false)
     {
-        var startInfo = new ProcessStartInfo(_toolchain.ExecutablePath)
-        {
-            WorkingDirectory = workingDirectory,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false
-        };
-
-        foreach (var argument in arguments)
-        {
-            startInfo.ArgumentList.Add(argument);
-        }
-
-        startInfo.ArgumentList.Add("--minify");
-
         // Modules in, modules out, for what JsxCore compiled: those are ESM and saying so keeps a
         // file that happens to look like a script from coming back as one. Never for a package,
         // where the format is the package's to decide.
-        if (!preserveFormat)
+        string[] format = preserveFormat ? [] : ["--format=esm"];
+
+        var result = _toolchain.Run(
+            [.. arguments, "--minify", .. format, "--log-level=warning"], workingDirectory);
+
+        switch (result.Outcome)
         {
-            startInfo.ArgumentList.Add("--format=esm");
-        }
-        startInfo.ArgumentList.Add("--log-level=warning");
+            case ToolOutcome.Exited when result.ExitCode == 0:
+                return true;
 
-        try
-        {
-            using var process = Process.Start(startInfo);
-            if (process is null)
-            {
-                return false;
-            }
-
-            // Both streams are drained before waiting: filling either pipe while the other is
-            // unread deadlocks a process that writes enough to fill it.
-            var error = new StringBuilder();
-            var errorReader = Task.Run(() => error.Append(process.StandardError.ReadToEnd()));
-            process.StandardOutput.ReadToEnd();
-            errorReader.Wait(TimeSpan.FromMinutes(2));
-
-            if (!process.WaitForExit((int)TimeSpan.FromMinutes(2).TotalMilliseconds))
-            {
+            case ToolOutcome.TimedOut:
                 _logger.LogWarning("JsxCore gave up waiting for esbuild; assets are served unminified.");
                 return false;
-            }
 
-            if (process.ExitCode == 0)
-            {
-                return true;
-            }
+            case ToolOutcome.CouldNotStart:
+                _logger.LogWarning("JsxCore could not run esbuild: {Reason}", result.StandardError);
+                return false;
 
-            _logger.LogWarning(
-                "JsxCore could not minify with esbuild (exit code {ExitCode}); assets are served " +
-                "unminified.{NewLine}{Error}", process.ExitCode, Environment.NewLine, error.ToString());
-
-            return false;
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
-                                              or System.ComponentModel.Win32Exception)
-        {
-            _logger.LogWarning("JsxCore could not run esbuild: {Reason}", exception.Message);
-            return false;
+            default:
+                _logger.LogWarning(
+                    "JsxCore could not minify with esbuild (exit code {ExitCode}); assets are served " +
+                    "unminified.{NewLine}{Error}", result.ExitCode, Environment.NewLine, result.Output);
+                return false;
         }
     }
 }

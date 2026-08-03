@@ -57,7 +57,7 @@ using JsxCore.Hosting;
 using JsxCore.Mvc;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.AddJsxCore();          // verifies the toolchain; throws if it is missing
+builder.AddJsxCore();          // registers everything; the toolchain is verified at startup
 
 var app = builder.Build();
 app.UseJsxCore();              // serves compiled modules, and hot reload in development
@@ -114,8 +114,10 @@ is worth committing. See [Development](development.md#editor-support).
 
 ## Startup verification
 
-`AddJsxCore()` verifies the environment **synchronously, at registration**, and throws
-`JsxCoreEnvironmentException` if anything it needs is missing.
+JsxCore verifies the environment **when the host starts**, and throws
+`JsxCoreEnvironmentException` if anything it needs is missing. That is before the first request, so
+a broken environment stops the application rather than showing up later as a view that will not
+render.
 
 It checks that a TypeScript compiler is present and new enough, that the views directory exists,
 and that the working directory is writable. A failure tells you what is missing, every path it

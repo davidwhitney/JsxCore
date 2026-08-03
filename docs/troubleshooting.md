@@ -167,9 +167,13 @@ If there are no diagnostics, confirm the view has a **default export that is a f
 
 ### `JsxViewNotFoundException`
 
-The message lists every location probed. View names resolve through `ViewLocationFormats`;
-`"Home/Index"` and `"~/Views/Home/Index.tsx"` are both valid. Check the file extension is in
-`options.Extensions`.
+The message lists every location probed. A name without an extension resolves through
+`ViewLocationFormats`; one with an extension is a file path. So `"Home/Index"`,
+`"Home/Index.tsx"` and `"~/Views/Home/Index.tsx"` are all valid, and they are not looked for in
+the same places. See [view resolution](returning-views.md#view-resolution).
+
+Check the file extension is in `options.Extensions`: that list is what an extension is recognised
+against, so a view named `.ts` rather than `.tsx` reads as a name, not a path.
 
 ### `JsxRenderException` with a JavaScript stack trace
 

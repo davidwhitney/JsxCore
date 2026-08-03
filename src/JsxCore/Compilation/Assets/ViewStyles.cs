@@ -1,4 +1,3 @@
-using System.Diagnostics;
 using JsxCore.Compilation.Modules;
 
 namespace JsxCore.Compilation.Assets;
@@ -42,7 +41,7 @@ public sealed class ViewStyles(
     Action<string>? report = null)
 {
     /// <summary>Where processed stylesheets are written, within the compiled output.</summary>
-    public const string Directory = "_css";
+    public const string DirectoryName = "_css";
 
     private const string ModuleSuffix = ".module.css";
 
@@ -144,13 +143,13 @@ public sealed class ViewStyles(
             yield break;
         }
 
-        var staging = Path.Combine(_output, Directory, ".staging");
+        var staging = Path.Combine(_output, DirectoryName, ".staging");
         var entries = new List<(string Specifier, string Entry, string Name)>();
 
         // Ordered, so the names esbuild disambiguates are the same from one build to the next.
         var ordered = sources.OrderBy(pair => pair.Value, StringComparer.Ordinal).ToList();
 
-        System.IO.Directory.CreateDirectory(staging);
+        Directory.CreateDirectory(staging);
 
         for (var index = 0; index < ordered.Count; index++)
         {
@@ -179,9 +178,9 @@ public sealed class ViewStyles(
             }
 
             var relative = UrlFor(specifier, sources[specifier]);
-            var target = Path.Combine(_output, Directory, relative.Replace('/', Path.DirectorySeparatorChar));
+            var target = Path.Combine(_output, DirectoryName, relative.Replace('/', Path.DirectorySeparatorChar));
 
-            System.IO.Directory.CreateDirectory(Path.GetDirectoryName(target)!);
+            Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             AssetStage.WriteFileIfChanged(target, File.ReadAllBytes(css));
 
             var names = sources[specifier].EndsWith(ModuleSuffix, StringComparison.OrdinalIgnoreCase)
@@ -189,7 +188,7 @@ public sealed class ViewStyles(
                 : null;
 
             yield return new KeyValuePair<string, ProcessedStyle>(
-                specifier, new ProcessedStyle($"{Directory}/{relative}", Rooted: false, names));
+                specifier, new ProcessedStyle($"{DirectoryName}/{relative}", Rooted: false, names));
         }
 
         Delete(staging);
@@ -244,57 +243,36 @@ public sealed class ViewStyles(
 
     private bool Run(IEnumerable<string> entries, string outputDirectory)
     {
-        var startInfo = new ProcessStartInfo(esbuild!.ExecutablePath)
+        var result = esbuild!.Run(
+            [
+                .. entries,
+                "--bundle",
+                $"--loader:{ModuleSuffix}=local-css",
+                $"--outdir={outputDirectory}",
+                $"--outbase={outputDirectory}",
+                "--format=esm",
+                "--log-level=warning"
+            ],
+            outputDirectory);
+
+        switch (result.Outcome)
         {
-            WorkingDirectory = outputDirectory,
-            RedirectStandardOutput = true,
-            RedirectStandardError = true,
-            UseShellExecute = false,
-            CreateNoWindow = true
-        };
+            case ToolOutcome.Exited when result.ExitCode == 0:
+                return true;
 
-        foreach (var entry in entries)
-        {
-            startInfo.ArgumentList.Add(entry);
-        }
-
-        startInfo.ArgumentList.Add("--bundle");
-        startInfo.ArgumentList.Add($"--loader:{ModuleSuffix}=local-css");
-        startInfo.ArgumentList.Add($"--outdir={outputDirectory}");
-        startInfo.ArgumentList.Add($"--outbase={outputDirectory}");
-        startInfo.ArgumentList.Add("--format=esm");
-        startInfo.ArgumentList.Add("--log-level=warning");
-
-        try
-        {
-            using var process = System.Diagnostics.Process.Start(startInfo);
-            if (process is null)
-            {
-                return false;
-            }
-
-            var error = process.StandardError.ReadToEnd();
-            process.StandardOutput.ReadToEnd();
-
-            if (!process.WaitForExit((int)TimeSpan.FromMinutes(2).TotalMilliseconds))
-            {
+            case ToolOutcome.TimedOut:
                 report?.Invoke("JsxCore gave up waiting for esbuild while processing stylesheets.");
                 return false;
-            }
 
-            if (process.ExitCode == 0)
-            {
-                return true;
-            }
+            case ToolOutcome.CouldNotStart:
+                report?.Invoke(
+                    $"JsxCore could not run esbuild to process stylesheets: {result.StandardError}");
+                return false;
 
-            report?.Invoke($"JsxCore could not process stylesheets with esbuild:{Environment.NewLine}{error}");
-            return false;
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
-                                              or System.ComponentModel.Win32Exception)
-        {
-            report?.Invoke($"JsxCore could not run esbuild to process stylesheets: {exception.Message}");
-            return false;
+            default:
+                report?.Invoke(
+                    $"JsxCore could not process stylesheets with esbuild:{Environment.NewLine}{result.Output}");
+                return false;
         }
     }
 
@@ -302,9 +280,9 @@ public sealed class ViewStyles(
     {
         try
         {
-            if (System.IO.Directory.Exists(directory))
+            if (Directory.Exists(directory))
             {
-                System.IO.Directory.Delete(directory, recursive: true);
+                Directory.Delete(directory, recursive: true);
             }
         }
         catch (IOException)

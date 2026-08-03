@@ -101,11 +101,16 @@ public sealed class ViewLocator(JsxCoreOptions options, CompilationLayout layout
             ? _options.ViewLocationFormats
             : _options.AreaViewLocationFormats.Concat(_options.ViewLocationFormats);
 
+        // "/Home/Index" is a view name written with a leading slash, not a path. Trimmed here
+        // because a format is a relative shape and would otherwise produce a doubled separator,
+        // which the guard below then skips, leaving the name resolving to nothing.
+        var name = viewName.TrimStart('/');
+
         foreach (var format in formats)
         {
             var relative = format
                 .Replace("{ViewsDirectory}", _options.ViewsDirectory, StringComparison.Ordinal)
-                .Replace("{0}", viewName, StringComparison.Ordinal)
+                .Replace("{0}", name, StringComparison.Ordinal)
                 .Replace("{1}", controllerName ?? string.Empty, StringComparison.Ordinal)
                 .Replace("{2}", areaName ?? string.Empty, StringComparison.Ordinal);
 
@@ -123,39 +128,80 @@ public sealed class ViewLocator(JsxCoreOptions options, CompilationLayout layout
         }
     }
 
-    private static bool IsExplicitPath(string viewName) =>
+    /// <summary>
+    /// Whether a name is a file to open rather than a view to look up.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The extension decides it. <c>Home/Index</c> is a view name and goes through the location
+    /// formats, so it picks up the Shared fallback and the controller and area shapes;
+    /// <c>Home/Index.tsx</c> names a file and is opened.
+    /// </para>
+    /// <para>
+    /// That is what makes a leading slash unambiguous. Everywhere except Windows an absolute path
+    /// and a views-relative name are spelled the same way, so nothing about the slash can tell them
+    /// apart: <c>/Home/Index</c> is a view, and <c>/srv/app/Views/Home/Index.tsx</c> is a path.
+    /// <c>~/</c> is always a path, with or without an extension, because it exists to say so.
+    /// </para>
+    /// </remarks>
+    private bool IsExplicitPath(string viewName) =>
         viewName.StartsWith("~/", StringComparison.Ordinal)
-        || viewName.StartsWith('/')
-        || Path.IsPathRooted(viewName);
+        || HasViewExtension(viewName)
+        || (Path.IsPathRooted(viewName) && !viewName.StartsWith('/'));
+
+    private bool HasViewExtension(string viewName) =>
+        _options.Extensions.Any(extension => viewName.EndsWith(extension, StringComparison.OrdinalIgnoreCase));
 
     private IEnumerable<string> ExplicitPathCandidates(string viewName)
     {
-        if (Path.IsPathRooted(viewName) && !viewName.StartsWith('/'))
+        var hasExtension = HasViewExtension(viewName);
+
+        // Rooted, so it names one file and there is nowhere else to look. Covers both an absolute
+        // path and a Windows drive path; "~/" is not rooted and falls through.
+        if (Path.IsPathRooted(viewName))
         {
-            yield return Path.GetFullPath(viewName);
+            foreach (var candidate in WithExtensions(root: null, viewName, hasExtension))
+            {
+                yield return candidate;
+            }
+
             yield break;
         }
 
         var trimmed = viewName.TrimStart('~').TrimStart('/');
-        var hasExtension = _options.Extensions.Any(e => trimmed.EndsWith(e, StringComparison.OrdinalIgnoreCase));
 
-        // "~/Views/Home/Index.tsx" is content-root relative; "/Home/Index" is views-relative.
+        // "~/Views/Home/Index.tsx" is content-root relative. Anything else is relative to the views
+        // directory first, since that is where views live, and to the content root after.
         var roots = viewName.StartsWith("~/", StringComparison.Ordinal)
             ? new[] { _contentRoot }
             : [_layout.ViewsDirectory, _contentRoot];
 
         foreach (var root in roots)
         {
-            if (hasExtension)
+            foreach (var candidate in WithExtensions(root, trimmed, hasExtension))
             {
-                yield return Path.GetFullPath(Path.Combine(root, trimmed.Replace('/', Path.DirectorySeparatorChar)));
-                continue;
+                yield return candidate;
             }
+        }
+    }
 
-            foreach (var extension in _options.Extensions)
-            {
-                yield return Path.GetFullPath(Path.Combine(root, trimmed.Replace('/', Path.DirectorySeparatorChar) + extension));
-            }
+    /// <summary>
+    /// The path, or the path with each configured extension when it was named without one.
+    /// </summary>
+    private IEnumerable<string> WithExtensions(string? root, string path, bool hasExtension)
+    {
+        var native = path.Replace('/', Path.DirectorySeparatorChar);
+        var combined = root is null ? native : Path.Combine(root, native);
+
+        if (hasExtension)
+        {
+            yield return Path.GetFullPath(combined);
+            yield break;
+        }
+
+        foreach (var extension in _options.Extensions)
+        {
+            yield return Path.GetFullPath(combined + extension);
         }
     }
 

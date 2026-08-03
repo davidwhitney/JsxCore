@@ -107,6 +107,39 @@ public sealed class JsxAssetMiddleware(
     internal sealed record ResolvedAsset(string Name, string? FilePath, byte[]? Content);
 
     /// <summary>
+    /// Where each kind of asset comes from, keyed by the segment that names it.
+    /// </summary>
+    /// <remarks>
+    /// A table rather than a chain of comparisons so the segments an application serves are stated
+    /// in one place and cannot be reordered by accident. Built on first use because a primary
+    /// constructor cannot reach its own instance methods from a field initialiser.
+    /// </remarks>
+    private IReadOnlyDictionary<string, Func<string, ResolvedAsset?>> Sources => _sources ??= BuildSources();
+
+    private IReadOnlyDictionary<string, Func<string, ResolvedAsset?>>? _sources;
+
+    private Dictionary<string, Func<string, ResolvedAsset?>> BuildSources()
+    {
+        var sources = new Dictionary<string, Func<string, ResolvedAsset?>>(StringComparer.Ordinal)
+        {
+            [RuntimeSegment] = ResolveRuntimeAsset,
+            [NpmSegment] = ResolveNpmAsset
+        };
+
+        // A staged runtime (Preact copied out of node_modules) is served from its own directory
+        // under a segment it names itself. Added before the views entry, because that is the
+        // precedence it has always had.
+        if (_runtime.Directory is { } directory)
+        {
+            sources.TryAdd(_runtime.AssetSegment, relative => ResolveUnder(directory, relative));
+        }
+
+        sources.TryAdd(ViewsSegment, relative => ResolveUnder(_compilation.Layout.OutputDirectory, relative));
+
+        return sources;
+    }
+
+    /// <summary>
     /// Maps "/v{buildId}/views/..." onto compiled files, and "/v{buildId}/runtime/..." onto the
     /// runtime embedded in this assembly. Returns null when the path is not one of ours, escapes
     /// its root, or does not exist.
@@ -124,51 +157,43 @@ public sealed class JsxAssetMiddleware(
             return null;
         }
 
-        var relative = string.Join('/', segments.Skip(2));
+        return Sources.TryGetValue(segments[1], out var source)
+            ? source(string.Join('/', segments.Skip(2)))
+            : null;
+    }
 
-        // The built-in runtime never touches disk: it is served out of the assembly manifest.
-        if (segments[1] == RuntimeSegment)
+    /// <summary>
+    /// The built-in runtime, which never touches disk: it is served out of the assembly manifest.
+    /// </summary>
+    private ResolvedAsset? ResolveRuntimeAsset(string relative)
+    {
+        if (RuntimeAssets.TryGetContent(relative) is { } content)
         {
-            var content = RuntimeAssets.TryGetContent(relative);
-            if (content is not null)
-            {
-                return new ResolvedAsset(relative, null, content);
-            }
-
-            // Not everything in the runtime directory is embedded: dotnet:globals is generated from
-            // what the application registered, so it exists only on disk.
-            return ResolveUnder(_compilation.Layout.RuntimeDirectory, relative);
+            return new ResolvedAsset(relative, null, content);
         }
 
-        // npm packages are served only where a view actually reaches them, and in the form the
-        // browser needs, so this goes through the prepared manifest rather than to disk.
-        if (segments[1] == NpmSegment)
-        {
-            var assetBase = $"{_options.RequestPath}/v{_compilation.BuildId}";
-            var manifest = _npmGraph?.ForBuild(
-                _compilation.BuildId,
-                _compilation.Layout.OutputDirectory,
-                assetBase,
-                _runtime.BuildImportMap(assetBase).Keys.ToList(),
-                _runtime.ClientDependencies);
+        // Not everything in the runtime directory is embedded: dotnet:globals is generated from
+        // what the application registered, so it exists only on disk.
+        return ResolveUnder(_compilation.Layout.RuntimeDirectory, relative);
+    }
 
-            return manifest is not null && manifest.Assets.TryGetValue(relative, out var package)
-                ? new ResolvedAsset(relative, null, Encoding.UTF8.GetBytes(package.Content))
-                : null;
-        }
+    /// <summary>
+    /// An npm package, served only where a view actually reaches it and in the form the browser
+    /// needs, so this goes through the prepared manifest rather than to disk.
+    /// </summary>
+    private ResolvedAsset? ResolveNpmAsset(string relative)
+    {
+        var assetBase = $"{_options.RequestPath}/v{_compilation.BuildId}";
+        var manifest = _npmGraph?.ForBuild(
+            _compilation.BuildId,
+            _compilation.Layout.OutputDirectory,
+            assetBase,
+            _runtime.BuildImportMap(assetBase).Keys.ToList(),
+            _runtime.ClientDependencies);
 
-        // A staged runtime (Preact copied out of node_modules) is served from its directory.
-        if (_runtime.Directory is { } runtimeDirectory && segments[1] == _runtime.AssetSegment)
-        {
-            return ResolveUnder(runtimeDirectory, relative);
-        }
-
-        if (segments[1] != ViewsSegment)
-        {
-            return null;
-        }
-
-        return ResolveUnder(_compilation.Layout.OutputDirectory, relative);
+        return manifest is not null && manifest.Assets.TryGetValue(relative, out var package)
+            ? new ResolvedAsset(relative, null, Encoding.UTF8.GetBytes(package.Content))
+            : null;
     }
 
     private ResolvedAsset? ResolveUnder(string root, string relative)

@@ -1,11 +1,15 @@
-using System.Diagnostics;
 using System.Text.RegularExpressions;
 using JsxCore.Compilation.Modules;
 using JsxCore.Compilation.Provisioning;
 
 namespace JsxCore.Compilation.Assets;
 
-public sealed record EsbuildToolchain(string ExecutablePath, string Version);
+public sealed record EsbuildToolchain(string ExecutablePath, string Version)
+{
+    /// <summary>Runs this esbuild, returning what it did rather than throwing.</summary>
+    public ToolResult Run(IEnumerable<string> arguments, string workingDirectory) =>
+        ToolProcess.Run(ExecutablePath, arguments, workingDirectory);
+}
 
 /// <summary>
 /// Finds the esbuild binary, which minifies what is served to the browser.
@@ -57,32 +61,14 @@ public static partial class EsbuildToolchainLocator
     /// </summary>
     private static EsbuildToolchain? Probe(string path)
     {
-        try
-        {
-            using var process = Process.Start(new ProcessStartInfo(path, "--version")
-            {
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false
-            });
-
-            if (process is null)
-            {
-                return null;
-            }
-
-            var output = process.StandardOutput.ReadToEnd();
-            process.StandardError.ReadToEnd();
-            process.WaitForExit(10_000);
-
-            var match = VersionPattern().Match(output);
-            return match.Success ? new EsbuildToolchain(path, match.Value) : null;
-        }
-        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
-                                              or System.ComponentModel.Win32Exception)
+        var result = ToolProcess.Run(path, ["--version"], timeout: TimeSpan.FromSeconds(10));
+        if (!result.Succeeded)
         {
             return null;
         }
+
+        var match = VersionPattern().Match(result.StandardOutput);
+        return match.Success ? new EsbuildToolchain(path, match.Value) : null;
     }
 
     [GeneratedRegex(@"\d+\.\d+\.\d+")]

@@ -1,4 +1,3 @@
-using System.Text.RegularExpressions;
 using JsxCore.Compilation.Modules;
 
 namespace JsxCore.Compilation.Assets;
@@ -19,7 +18,7 @@ namespace JsxCore.Compilation.Assets;
 /// served rather than over what tsc emitted.
 /// </para>
 /// </remarks>
-public static partial class ViewAssetLinker
+public static class ViewAssetLinker
 {
     /// <summary>What a linking run did, and what it could not resolve.</summary>
     /// <param name="Unresolved">Rooted asset imports naming a file the web root does not hold.</param>
@@ -81,39 +80,39 @@ public static partial class ViewAssetLinker
         var manifest = new ViewManifest();
         var linked = 0;
 
-        // Read once, rewrite once. A stylesheet cannot be pointed at until it has been processed,
-        // and processing is one batch for the whole application, so the modules are collected
-        // before any of them is rewritten.
+        // Scanned once, rewritten once. A stylesheet cannot be pointed at until it has been
+        // processed, and processing is one batch for the whole application, so every module is
+        // read and scanned before any of them is rewritten.
         var modules = Directory
             .EnumerateFiles(context.Output, "*.js", SearchOption.AllDirectories)
             .Where(path => !context.IsGenerated(path))
             .OrderBy(path => path, StringComparer.Ordinal)
-            .Select(path => (Path: path, Source: ReadOrNull(path)))
-            .Where(module => module.Source is not null)
+            .Select(ScannedModule.Read)
+            .OfType<ScannedModule>()
             .ToList();
 
-        var styles = ProcessStyles(context, modules!, viewsDirectory, esbuild, npm, report);
+        var styles = ProcessStyles(context, modules, viewsDirectory, esbuild, npm, report);
 
-        foreach (var (file, source) in modules)
+        foreach (var module in modules)
         {
-            var module = new ModuleLinker(context, file, styles);
-            var rewritten = Specifier().Replace(source, module.Rewrite);
+            var linker = new ModuleLinker(context, module.Path, styles);
+            var rewritten = ModuleSpecifiers.Rewrite(module.Source, module.Specifiers, linker.Rewrite);
 
-            linked += module.Linked;
+            linked += linker.Linked;
 
-            // Read before rewriting: the prologue is untouched either way, but this is the one
-            // point the compiler's own output is in hand.
-            var mode = ViewDirectives.Parse(source);
+            // The prologue is untouched either way, but this is the one point the compiler's own
+            // output is in hand.
+            var mode = ViewDirectives.Parse(module.Source);
 
-            if (module.Imports.Count > 0 || module.Styles.Count > 0 || mode is not null)
+            if (linker.Imports.Count > 0 || linker.Styles.Count > 0 || mode is not null)
             {
-                manifest.Modules[context.RelativeToOutput(file)] =
-                    new ViewModule(module.Imports, module.Styles, mode);
+                manifest.Modules[context.RelativeToOutput(module.Path)] =
+                    new ViewModule(linker.Imports, linker.Styles, mode);
             }
 
-            if (rewritten != source)
+            if (!ReferenceEquals(rewritten, module.Source))
             {
-                AssetStage.WriteFileIfChanged(file, rewritten!);
+                AssetStage.WriteFileIfChanged(module.Path, rewritten);
             }
         }
 
@@ -123,15 +122,24 @@ public static partial class ViewAssetLinker
         return new Result(linked, manifest, context.Unresolved, context.Misplaced);
     }
 
-    private static string? ReadOrNull(string path)
+    /// <summary>A compiled module, its text, and the specifiers it imports from.</summary>
+    /// <remarks>
+    /// The scan is the expensive part and every stage wants the same answer, so it is done once
+    /// here rather than repeated by each of them.
+    /// </remarks>
+    private sealed record ScannedModule(string Path, string Source, IReadOnlyList<ModuleSpecifier> Specifiers)
     {
-        try
+        public static ScannedModule? Read(string path)
         {
-            return File.ReadAllText(path);
-        }
-        catch (IOException)
-        {
-            return null;
+            try
+            {
+                var source = File.ReadAllText(path);
+                return new ScannedModule(path, source, ModuleSpecifiers.Scan(source));
+            }
+            catch (IOException)
+            {
+                return null;
+            }
         }
     }
 
@@ -141,7 +149,7 @@ public static partial class ViewAssetLinker
     /// </summary>
     private static IReadOnlyDictionary<string, ProcessedStyle> ProcessStyles(
         LinkContext context,
-        IReadOnlyList<(string Path, string Source)> modules,
+        IReadOnlyList<ScannedModule> modules,
         string? viewsDirectory,
         EsbuildToolchain? esbuild,
         NodeModuleResolver? npm,
@@ -152,19 +160,11 @@ public static partial class ViewAssetLinker
             return new Dictionary<string, ProcessedStyle>(StringComparer.Ordinal);
         }
 
-        var imports = new List<(string, string)>();
-
-        foreach (var (path, source) in modules)
-        {
-            foreach (Match match in Specifier().Matches(source))
-            {
-                var specifier = match.Groups["spec"].Value;
-                if (specifier.EndsWith(".css", StringComparison.OrdinalIgnoreCase))
-                {
-                    imports.Add((specifier, path));
-                }
-            }
-        }
+        var imports = modules
+            .SelectMany(module => module.Specifiers
+                .Where(specifier => specifier.Value.EndsWith(".css", StringComparison.OrdinalIgnoreCase))
+                .Select(specifier => (specifier.Value, module.Path)))
+            .ToList();
 
         var pipeline = new ViewStyles(context.Output, viewsDirectory, esbuild, npm, report);
         var processed = pipeline.Process(imports);
@@ -341,9 +341,12 @@ public static partial class ViewAssetLinker
         public List<string> Styles { get; } = [];
         public int Linked { get; private set; }
 
-        public string Rewrite(Match match)
+        /// <summary>
+        /// What this specifier should become, or null to leave it exactly as the compiler wrote it.
+        /// </summary>
+        public string? Rewrite(ModuleSpecifier match)
         {
-            var specifier = match.Groups["spec"].Value;
+            var specifier = match.Value;
 
             // A sibling module, which is the graph the stylesheet order comes from.
             if (specifier.EndsWith(".js", StringComparison.OrdinalIgnoreCase))
@@ -353,15 +356,13 @@ public static partial class ViewAssetLinker
                     Imports.Add(import);
                 }
 
-                return match.Value;
+                return null;
             }
 
             // A stylesheet, wherever it came from: the web root, beside a view, or a package.
             if (specifier.EndsWith(".css", StringComparison.OrdinalIgnoreCase))
             {
-                return styles.TryGetValue(specifier, out var style)
-                    ? RewriteStyle(match, specifier, style)
-                    : match.Value;
+                return styles.TryGetValue(specifier, out var style) ? RewriteStyle(specifier, style) : null;
             }
 
             if (ViewAssets.PathFor(specifier) is not { } assetPath || !ViewAssets.IsAsset(assetPath))
@@ -371,15 +372,15 @@ public static partial class ViewAssetLinker
                 if (ViewAssets.IsMisplacedAsset(specifier))
                 {
                     context.RecordMisplaced(specifier);
-                    return match.Value;
+                    return null;
                 }
 
-                return RewriteAlias(match, specifier);
+                return RewriteAlias(specifier);
             }
 
             if (context.Generate(specifier, assetPath) is not { } generated)
             {
-                return match.Value;
+                return null;
             }
 
             if (assetPath.EndsWith(".css", StringComparison.OrdinalIgnoreCase))
@@ -387,18 +388,7 @@ public static partial class ViewAssetLinker
                 Styles.Add(generated.Url);
             }
 
-            Linked++;
-
-            // Relative rather than the scheme it came in as: the browser resolves it against the
-            // module's own URL, which already carries the build id, so nothing has to be told where
-            // this application serves its modules from.
-            var relative = Path.GetRelativePath(_directory, generated.ModulePath)
-                .Replace(Path.DirectorySeparatorChar, '/');
-
-            return match.Groups["lead"].Value
-                   + match.Groups["quote"].Value
-                   + (relative.StartsWith('.') ? relative : "./" + relative)
-                   + match.Groups["quote"].Value;
+            return PointAt(generated.ModulePath);
         }
 
         /// <summary>
@@ -410,47 +400,46 @@ public static partial class ViewAssetLinker
         /// map esbuild produced. An ordinary stylesheet binds nothing, so its module exists only
         /// to give the import something to resolve to.
         /// </remarks>
-        private string RewriteStyle(Match match, string specifier, ProcessedStyle style)
+        private string? RewriteStyle(string specifier, ProcessedStyle style)
         {
-            var generated = context.GenerateStyleModule(specifier, style);
-            if (generated is null)
+            if (context.GenerateStyleModule(specifier, style) is not { } generated)
             {
-                return match.Value;
+                return null;
             }
 
             Styles.Add(style.Url);
-            Linked++;
-
-            var relative = Path.GetRelativePath(_directory, generated)
-                .Replace(Path.DirectorySeparatorChar, '/');
-
-            return match.Groups["lead"].Value
-                   + match.Groups["quote"].Value
-                   + (relative.StartsWith('.') ? relative : "./" + relative)
-                   + match.Groups["quote"].Value;
+            return PointAt(generated);
         }
 
         /// <summary>
         /// Turns an aliased specifier into a relative path to the compiled module it names, which
         /// is what both the browser and the server module loader can resolve.
         /// </summary>
-        private string RewriteAlias(Match match, string specifier)
+        private string? RewriteAlias(string specifier)
         {
             if (specifier.StartsWith('.') || context.ResolveAlias(specifier) is not { } module)
             {
-                return match.Value;
+                return null;
             }
 
             Imports.Add(module);
+            return PointAt(Path.Combine(context.Output, module));
+        }
+
+        /// <summary>
+        /// The specifier that reaches <paramref name="target"/> from this module.
+        /// </summary>
+        /// <remarks>
+        /// Relative rather than the scheme it came in as: the browser resolves it against the
+        /// module's own URL, which already carries the build id, so nothing has to be told where
+        /// this application serves its modules from.
+        /// </remarks>
+        private string PointAt(string target)
+        {
             Linked++;
 
-            var relative = Path.GetRelativePath(_directory, Path.Combine(context.Output, module))
-                .Replace(Path.DirectorySeparatorChar, '/');
-
-            return match.Groups["lead"].Value
-                   + match.Groups["quote"].Value
-                   + (relative.StartsWith('.') ? relative : "./" + relative)
-                   + match.Groups["quote"].Value;
+            var relative = Path.GetRelativePath(_directory, target).Replace(Path.DirectorySeparatorChar, '/');
+            return relative.StartsWith('.') ? relative : "./" + relative;
         }
 
         /// <summary>
@@ -470,10 +459,4 @@ public static partial class ViewAssetLinker
         }
     }
 
-    /// <summary>
-    /// Matches the specifier of a static or dynamic import, and of a re-export, which reaches here
-    /// through its <c>from</c>.
-    /// </summary>
-    [GeneratedRegex(@"(?<lead>\b(?:from|import)\b\s*\(?\s*)(?<quote>[""'])(?<spec>[^""'\n]*)\k<quote>")]
-    private static partial Regex Specifier();
 }

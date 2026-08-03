@@ -102,32 +102,20 @@ public sealed class NpmPackageManager(
         var startInfo = StartInfoFor(npm, arguments);
         startInfo.WorkingDirectory = directory;
 
-        try
+        var result = ToolProcess.Run(startInfo, _timeout);
+
+        return result.Outcome switch
         {
-            using var process = Process.Start(startInfo)
-                ?? throw new JsxCoreException($"JsxCore could not start '{npm}'.");
+            ToolOutcome.Exited when result.ExitCode == 0 => PackageOperationResult.Ok(description),
 
-            var output = new StringBuilder();
-            process.OutputDataReceived += (_, e) => { if (e.Data is not null) output.AppendLine(e.Data); };
-            process.ErrorDataReceived += (_, e) => { if (e.Data is not null) output.AppendLine(e.Data); };
-            process.BeginOutputReadLine();
-            process.BeginErrorReadLine();
+            ToolOutcome.TimedOut => PackageOperationResult.Failed(
+                description, $"'npm {arguments[0]}' did not finish within {_timeout.TotalSeconds:0} seconds."),
 
-            if (!process.WaitForExit((int)_timeout.TotalMilliseconds))
-            {
-                try { process.Kill(entireProcessTree: true); } catch (InvalidOperationException) { }
-                return PackageOperationResult.Failed(
-                    description, $"'npm {arguments[0]}' did not finish within {_timeout.TotalSeconds:0} seconds.");
-            }
+            ToolOutcome.CouldNotStart => PackageOperationResult.Failed(
+                description, $"JsxCore could not start '{npm}': {result.StandardError}"),
 
-            return process.ExitCode == 0
-                ? PackageOperationResult.Ok(description)
-                : PackageOperationResult.Failed(description, Summarise(output.ToString()));
-        }
-        catch (Exception ex) when (ex is not JsxCoreException)
-        {
-            return PackageOperationResult.Failed(description, ex.Message);
-        }
+            _ => PackageOperationResult.Failed(description, Summarise(result.Output))
+        };
     }
 
     /// <summary>
@@ -180,24 +168,8 @@ public sealed class NpmPackageManager(
     private static string Quote(string value) =>
         value.Length > 0 && !value.Contains(' ') ? value : $"\"{value}\"";
 
-    private static bool CanRun(string executable)
-    {
-        try
-        {
-            using var process = Process.Start(StartInfoFor(executable, ["--version"]));
-            if (process is null)
-            {
-                return false;
-            }
-
-            process.WaitForExit(15_000);
-            return process.HasExited && process.ExitCode == 0;
-        }
-        catch (Exception)
-        {
-            return false;
-        }
-    }
+    private static bool CanRun(string executable) =>
+        ToolProcess.Run(StartInfoFor(executable, ["--version"]), TimeSpan.FromSeconds(15)).Succeeded;
 
     private static string Summarise(string output)
     {

@@ -9,6 +9,7 @@ using JsxCore.Compilation.Provisioning;
 using JsxCore.Compilation.Modules;
 using JsxCore.Compilation.Pipeline.Steps;
 using JsxCore.Compilation.Pipeline.Steps.Compile;
+using JsxCore.Compilation.Pipeline.Steps.Emit;
 using JsxCore.Compilation.Pipeline.Steps.Gather;
 using JsxCore.Compilation.Pipeline.Steps.Prepare;
 
@@ -36,6 +37,7 @@ public sealed class JsxCompilationService(
 
     private ViewWatcher? _watcher;
     private volatile BuildState? _state;
+    private volatile ViewManifest? _views;
     private string _runtimeHash = string.Empty;
     private bool _disposed;
 
@@ -77,6 +79,18 @@ public sealed class JsxCompilationService(
             await CompileAsync(token).ConfigureAwait(false);
         }));
 
+    /// <summary>
+    /// Everything that happens to the compiler's output before it is served, in order.
+    /// </summary>
+    /// <remarks>
+    /// A separate pipeline from the one above because it runs on a different schedule: preparing
+    /// happens once, and this happens again on every file change. Same shape, so a stage here is
+    /// declared, ordered and skipped the same way one there is.
+    /// </remarks>
+    private BuildPipeline CreateEmitPipeline() => new(
+        new LinkAssets(styleToolchain, npm),
+        new MinifyCompiledViews(minifier));
+
     public async Task InitialiseAsync(CancellationToken cancellationToken = default)
     {
         var context = new BuildContext(_options, Layout, _logger, Precompiled: _compiler is null);
@@ -104,23 +118,11 @@ public sealed class JsxCompilationService(
         {
             var result = await _compiler.CompileAsync(Layout, cancellationToken).ConfigureAwait(false);
 
-            // An asset import is still spelled the way the view wrote it, which no browser can
-            // load. Done whatever the compiler made of the views: a type error does not stop it
-            // emitting, and a page that renders with a broken image is the worse outcome.
-            LinkAssets();
+            var context = new BuildContext(_options, Layout, _logger, Precompiled: false);
+            context.Compiled(result);
 
-            // Between compiling and taking the build id, so the id covers what is served rather
-            // than what tsc emitted. Only on success: minifying broken output helps nobody.
-            if (minifier is not null && result.Succeeded)
-            {
-                var count = minifier.MinifyDirectory(Layout.OutputDirectory);
-                if (count > 0)
-                {
-                    _logger.LogInformation(
-                        "JsxCore minified {Count} compiled view(s) with esbuild {Version}.",
-                        count, minifier.Version);
-                }
-            }
+            await CreateEmitPipeline().RunAsync(context, cancellationToken).ConfigureAwait(false);
+            _views = context.Views;
 
             var state = new BuildState(NextBuildId(result), result);
 
@@ -143,41 +145,6 @@ public sealed class JsxCompilationService(
             _compileLock.Release();
         }
     }
-
-    private void LinkAssets()
-    {
-        var linked = ViewAssetLinker.Link(
-            Layout, styleToolchain, npm, message => _logger.LogWarning("{Message}", message));
-        _views = linked.Manifest;
-
-        if (linked.Linked > 0)
-        {
-            _logger.LogDebug("JsxCore linked {Count} static asset import(s).", linked.Linked);
-        }
-
-        // Reported rather than guessed at. Nothing else will say so, because the compiler has no
-        // opinion about a scheme it does not know, and it would otherwise surface much later as a
-        // module the browser cannot load.
-        foreach (var specifier in linked.Unresolved.Distinct(StringComparer.Ordinal))
-        {
-            _logger.LogWarning(
-                "JsxCore could not resolve the asset import '{Specifier}': there is no such file " +
-                "under {WebRoot}. The path is the URL, so it starts at your web root.",
-                specifier, Layout.WebRoot);
-        }
-
-        // Type checks, resolves to nothing. The ambient declarations cannot tell a rooted specifier
-        // from a relative one, so this is the only place the difference can be reported.
-        foreach (var specifier in linked.Misplaced.Distinct(StringComparer.Ordinal))
-        {
-            _logger.LogWarning(
-                "JsxCore left the asset import '{Specifier}' as written, because only a rooted " +
-                "path names something it serves. Put the file under {WebRoot} and import it as the " +
-                "URL it is served from, as in \"/images/logo.svg\".", specifier, Layout.WebRoot);
-        }
-    }
-
-    private volatile ViewManifest? _views;
 
     /// <summary>
     /// What the linker recorded about each compiled module: its stylesheets, and the render mode
