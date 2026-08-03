@@ -25,9 +25,9 @@ public readonly record struct ModuleSpecifier(int Start, int Length, string Valu
 /// </para>
 /// <para>
 /// So this walks the source instead: strings, template literals, comments and regular expressions
-/// are recognised and skipped, and a specifier is only reported where an import could actually
-/// appear. Not a JavaScript parser, and it does not need to be. It has one question to answer, over
-/// input the TypeScript compiler produced rather than input anyone hand-wrote.
+/// are recognised and skipped, and a specifier is only reported where an import could appear. Not a
+/// JavaScript parser and it does not need to be, having one question to answer over input the
+/// compiler produced rather than input anyone hand-wrote.
 /// </para>
 /// </remarks>
 public static class ModuleSpecifiers

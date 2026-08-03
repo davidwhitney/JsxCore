@@ -1,6 +1,7 @@
 using System.Net;
 using Microsoft.AspNetCore.Builder;
 using System.Text.RegularExpressions;
+using JsxCore.Compilation.Assets;
 using JsxCore.Tests.Fixtures;
 using Shouldly;
 
@@ -56,9 +57,9 @@ public class StaticAssetTests
 
         // The scheme never reaches a browser, which has nothing to resolve it with.
         compiled.ShouldNotContain("dotnet:wwwroot");
-        compiled.ShouldContain("_static/images/logo.svg.js");
+        compiled.ShouldContain("_dist/modules/assets/images/logo.svg.js");
 
-        var module = Path.Combine(project.Layout.OutputDirectory, "_static", "images", "logo.svg.js");
+        var module = ViewAssets.PathUnder(project.Layout.OutputDirectory, ViewAssets.ModuleDirectory + "/assets/images/logo.svg.js");
         (await File.ReadAllTextAsync(module)).ShouldContain("\"/images/logo.svg\"");
     }
 
@@ -216,7 +217,7 @@ public class StaticAssetTests
         var linked = JsxCore.Compilation.Assets.ViewAssetLinker.Link(project.Layout);
 
         linked.Unresolved.ShouldContain("/../secrets.txt");
-        Directory.Exists(Path.Combine(project.Layout.OutputDirectory, "_static")).ShouldBeFalse();
+        Directory.Exists(ViewAssets.PathUnder(project.Layout.OutputDirectory, ViewAssets.DistDirectory)).ShouldBeFalse();
     }
 
     [Fact]
@@ -225,7 +226,7 @@ public class StaticAssetTests
         using var project = ProjectWithLogo();
         await project.CompileAsync();
 
-        var module = Path.Combine(project.Layout.OutputDirectory, "_static", "images", "logo.svg.js");
+        var module = ViewAssets.PathUnder(project.Layout.OutputDirectory, ViewAssets.ModuleDirectory + "/assets/images/logo.svg.js");
         File.Exists(module).ShouldBeTrue();
 
         project.AddView("Home/Index.tsx", "export default function Index() { return <p>plain</p>; }");

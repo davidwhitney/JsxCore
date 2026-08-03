@@ -7,9 +7,9 @@ namespace JsxCore.TypeScript;
 /// </summary>
 /// <remarks>
 /// Two phases, in two classes. <see cref="TypeCollector"/> decides what has to be declared, walking
-/// the model graph until it closes; <see cref="TypeScriptEmitter"/> writes it out. They are
-/// separate because they used to be interleaved, and emission adding to the set it was midway
-/// through printing meant a type could be referenced after the file describing it had been written.
+/// the model graph until it closes; <see cref="TypeScriptEmitter"/> writes it out. Separate because
+/// they used to be interleaved, and emission adding to the set it was midway through printing meant
+/// a type could be referenced after the file describing it had been written.
 /// </remarks>
 public sealed class TypeScriptDefinitionGenerator(TypeDefinitionOptions options, JsonSerializerOptions json)
 {

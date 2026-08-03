@@ -169,7 +169,8 @@ public static class JsxCoreServiceCollectionExtensions
                 options.EnableReactCompatibility));
 
 
-        services.TryAddSingleton(provider => new ViewLocator(options, layout, contentRoot));
+        services.TryAddSingleton(provider => new ViewLocator(
+            options, layout, contentRoot, provider.GetRequiredService<ILogger<ViewLocator>>()));
 
 
         services.TryAddSingleton(provider => new NodeModuleResolver(provider.GetRequiredService<NodeModulesLayout>()));

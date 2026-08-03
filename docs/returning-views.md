@@ -88,10 +88,10 @@ this.Jsx("~/Pages/Home.tsx", model);           // a file, from the content root
 this.Jsx("/srv/app/Views/Home/Index.tsx");     // a file, by absolute path
 ```
 
-That rule is what makes a leading slash mean something definite. Everywhere except Windows an
-absolute path and a views-relative name are spelled identically, so the slash cannot tell them
-apart: `/Home/Index` is a view name and `/srv/app/Views/Home/Index.tsx` is a path. `~/` is always a
-path, with or without an extension, because saying so is the whole reason it exists.
+Everywhere except Windows an absolute path and a views-relative name are spelled identically, so
+a leading slash settles nothing on its own: `/Home/Index` is a view name and
+`/srv/app/Views/Home/Index.tsx` is a path. `~/` is always a path, with or without an extension,
+since saying so is what it is for.
 
 A file named by path is opened where it is named and nowhere else, so a missing one is an error
 rather than something retried as a view name.

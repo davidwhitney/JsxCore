@@ -42,14 +42,31 @@ public static class ViewAssets
     public const string ManifestFileName = "jsxcore-views.json";
 
     /// <summary>
-    /// Where the generated modules live, within the compiled output.
+    /// Everything the linker generates, within the compiled output.
     /// </summary>
     /// <remarks>
-    /// Gathered in one directory rather than written beside each asset, because the asset is in
-    /// wwwroot and JsxCore does not write there: wwwroot is the application's, and a build that
-    /// leaves generated files in it is a build that leaves files in source control.
+    /// <para>
+    /// One root, so cleaning is one operation over one tree. It used to be two, and only one of
+    /// them was ever pruned: a stylesheet a view stopped importing stayed on disk, and stayed
+    /// served, because nothing walked the directory it was in.
+    /// </para>
+    /// <para>
+    /// Gathered here rather than written beside each asset, because the asset is in wwwroot and
+    /// JsxCore does not write there: wwwroot is the application's, and a build that leaves
+    /// generated files in it is a build that leaves files in source control.
+    /// </para>
     /// </remarks>
-    public const string ModuleDirectory = "_static";
+    public const string DistDirectory = "_dist";
+
+    /// <summary>Modules generated so that an asset or stylesheet import resolves to something.</summary>
+    public const string ModuleDirectory = DistDirectory + "/modules";
+
+    /// <summary>Processed stylesheets, which are served as they are.</summary>
+    public const string StyleDirectory = DistDirectory + "/css";
+
+    /// <summary>A path under the compiled output, from one of the relative names above.</summary>
+    public static string PathUnder(string root, string relative) =>
+        Path.Combine(root, relative.Replace('/', Path.DirectorySeparatorChar));
 
     /// <summary>
     /// Extensions that can be imported, mapped to the content type they are served with.

@@ -33,7 +33,7 @@ public class StylesheetTests
         var html = await host.GetStringAsync("/server/Index");
 
         var href = LinksIn(html).ShouldHaveSingleItem();
-        href.ShouldContain("/_css/Home/page.css");
+        href.ShouldContain("/_dist/css/Home/page.css");
 
         var response = await host.Client.GetAsync(href);
         (await response.Content.ReadAsStringAsync()).ShouldContain("rebeccapurple");
@@ -167,5 +167,56 @@ public class StylesheetTests
         var linked = JsxCore.Compilation.Assets.ViewAssetLinker.Link(project.Layout);
 
         linked.Misplaced.ShouldContain("./missing.css");
+    }
+
+    [Fact]
+    public async Task Stylesheet_NoLongerImported_IsRemovedFromTheOutput()
+    {
+        // Everything generated lives under one root so that one sweep cleans it. Before that, only
+        // the module directory was pruned, and an orphaned stylesheet stayed on disk and stayed
+        // served for as long as the build id it was published under remained current.
+        using var project = JsxProjectFixture.Create();
+        project.AddView("Home/page.css", ".page { color: rebeccapurple; }");
+        project.AddView("Home/Index.tsx", """
+            import "./page.css";
+            export default function Index() { return <p>styled</p>; }
+            """);
+
+        await project.CompileAsync();
+
+        var stylesheet = JsxCore.Compilation.Assets.ViewAssets.PathUnder(
+            project.Layout.OutputDirectory,
+            JsxCore.Compilation.Assets.ViewAssets.StyleDirectory + "/Home/page.css");
+
+        File.Exists(stylesheet).ShouldBeTrue();
+
+        project.AddView("Home/Index.tsx", """
+            export default function Index() { return <p>plain</p>; }
+            """);
+
+        await project.CompileAsync();
+
+        File.Exists(stylesheet).ShouldBeFalse();
+    }
+
+    [Fact]
+    public async Task Stylesheet_ThatChanged_MovesTheBuildId()
+    {
+        // Asset URLs carry the build id and are served immutable for a year, so anything the
+        // browser fetches has to be part of the hash. Stylesheets were not, and a release that
+        // changed only CSS reused a URL that browsers had been told to keep.
+        using var project = JsxProjectFixture.Create();
+        project.AddView("Home/page.css", ".page { color: red; }");
+        project.AddView("Home/Index.tsx", """
+            import "./page.css";
+            export default function Index() { return <p>styled</p>; }
+            """);
+
+        var before = await project.CompileAsync();
+
+        project.AddView("Home/page.css", ".page { color: blue; }");
+        var after = await project.CompileAsync();
+
+        after.BuildId.ShouldNotBe(before.BuildId);
     }
 }

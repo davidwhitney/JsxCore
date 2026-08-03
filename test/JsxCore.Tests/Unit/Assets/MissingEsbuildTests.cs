@@ -60,7 +60,7 @@ public class MissingEsbuildTests
         reported.ShouldContain(message => message.Contains("esbuild", StringComparison.Ordinal));
 
         // Nothing was written that a page would link, and no scoped names were invented.
-        Directory.Exists(Path.Combine(project.Layout.OutputDirectory, ViewStyles.DirectoryName))
+        Directory.Exists(ViewAssets.PathUnder(project.Layout.OutputDirectory, ViewAssets.StyleDirectory))
             .ShouldBeFalse();
 
         result.Manifest.StylesFor("Home/Index.js").ShouldBeEmpty();

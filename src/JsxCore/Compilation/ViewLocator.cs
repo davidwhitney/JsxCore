@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 
 namespace JsxCore.Compilation;
 
@@ -7,8 +8,14 @@ public sealed record LocatedView(string ViewName, string SourcePath, string Rela
     public string ModuleRelativePath => RelativePath + ".js";
 }
 
-public sealed class ViewLocator(JsxCoreOptions options, CompilationLayout layout, string contentRoot)
+public sealed class ViewLocator(
+    JsxCoreOptions options,
+    CompilationLayout layout,
+    string contentRoot,
+    ILogger<ViewLocator>? logger = null)
 {
+    private readonly ILogger<ViewLocator>? _logger = logger;
+
     private readonly JsxCoreOptions _options = options ?? throw new ArgumentNullException(nameof(options));
     private readonly CompilationLayout _layout = layout ?? throw new ArgumentNullException(nameof(layout));
     private readonly string _contentRoot = contentRoot ?? throw new ArgumentNullException(nameof(contentRoot));
@@ -39,19 +46,57 @@ public sealed class ViewLocator(JsxCoreOptions options, CompilationLayout layout
             searched.Add(candidate);
             if (File.Exists(candidate))
             {
-                return Remember(viewName, controllerName, areaName, Create(viewName, candidate));
+                if (Create(viewName, candidate) is { } located)
+                {
+                    return Remember(viewName, controllerName, areaName, located);
+                }
+
+                // Outside the views tree, so nothing compiled it and nothing can serve it. Not
+                // found rather than fatal: another view engine is entitled to claim a name this one
+                // cannot, and taking the request down would end that. Said out loud all the same,
+                // because a file that exists and is passed over is not something to work out from
+                // silence.
+                WarnOnce(viewName, candidate);
+                continue;
             }
 
             // A published application has compiled output but no sources, so fall back to looking
             // for what the source would have compiled to.
-            if (CompiledFor(candidate) is not null)
+            if (CompiledFor(candidate) is { } && RelativePathFor(candidate) is { } relative)
             {
                 return Remember(viewName, controllerName, areaName,
-                    new LocatedView(viewName, candidate, RelativePathFor(candidate)));
+                    new LocatedView(viewName, candidate, relative));
             }
         }
 
         return null;
+    }
+
+    private readonly HashSet<string> _warned = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Explains a file that was found and could not be used, once per file.
+    /// </summary>
+    /// <remarks>
+    /// Once, because resolution is not cached when it fails: without this a request in a loop for a
+    /// view that cannot render would say so on every one of them.
+    /// </remarks>
+    private void WarnOnce(string viewName, string path)
+    {
+        lock (_warned)
+        {
+            if (!_warned.Add(path))
+            {
+                return;
+            }
+        }
+
+        _logger?.LogWarning(
+            "JsxCore found '{Path}' for the view '{ViewName}', but it is outside the views directory " +
+            "'{ViewsDirectory}'. JsxCore compiles that directory, so a file above it has no compiled " +
+            "module and cannot be rendered; the view is being treated as not found. Move it under the " +
+            "views directory, or set JsxCoreOptions.ViewsDirectory to a directory that contains it.",
+            path, viewName, _layout.ViewsDirectory);
     }
 
     private LocatedView Remember(string viewName, string? controller, string? area, LocatedView view)
@@ -62,8 +107,7 @@ public sealed class ViewLocator(JsxCoreOptions options, CompilationLayout layout
 
     private string? CompiledFor(string sourcePath)
     {
-        var relative = RelativePathFor(sourcePath);
-        if (relative.StartsWith("..", StringComparison.Ordinal))
+        if (RelativePathFor(sourcePath) is not { } relative)
         {
             return null;
         }
@@ -75,16 +119,34 @@ public sealed class ViewLocator(JsxCoreOptions options, CompilationLayout layout
         return File.Exists(compiled) ? compiled : null;
     }
 
-    private string RelativePathFor(string sourcePath)
+    /// <summary>
+    /// Where a source file sits within the views tree, without its extension, or null when it does
+    /// not sit within it at all.
+    /// </summary>
+    /// <remarks>
+    /// The compiler's root is the views directory, and every URL a module is served from is derived
+    /// from this path, so a file above the root has no module and no URL. Answering null rather
+    /// than a path full of "../" is what lets that be reported where it can be explained.
+    /// </remarks>
+    private string? RelativePathFor(string sourcePath)
     {
         var full = Path.GetFullPath(sourcePath);
         var relative = Path.GetRelativePath(_layout.ViewsDirectory, full).Replace('\\', '/');
+
+        // Rooted means there was no relative route at all, which on Windows is a different drive.
+        if (relative == ".." || relative.StartsWith("../", StringComparison.Ordinal) || Path.IsPathRooted(relative))
+        {
+            return null;
+        }
+
         var extension = Path.GetExtension(relative);
         return extension.Length == 0 ? relative : relative[..^extension.Length];
     }
 
-    private LocatedView Create(string viewName, string sourcePath) =>
-        new(viewName, Path.GetFullPath(sourcePath), RelativePathFor(sourcePath));
+    private LocatedView? Create(string viewName, string sourcePath) =>
+        RelativePathFor(sourcePath) is { } relative
+            ? new LocatedView(viewName, Path.GetFullPath(sourcePath), relative)
+            : null;
 
     private IEnumerable<string> CandidatePaths(string viewName, string? controllerName, string? areaName)
     {
@@ -214,9 +276,10 @@ public sealed class ViewLocator(JsxCoreOptions options, CompilationLayout layout
 
         foreach (var path in Directory.EnumerateFiles(_layout.ViewsDirectory, "*", SearchOption.AllDirectories))
         {
-            if (_options.Extensions.Any(e => path.EndsWith(e, StringComparison.OrdinalIgnoreCase)))
+            if (_options.Extensions.Any(e => path.EndsWith(e, StringComparison.OrdinalIgnoreCase))
+                && Create(Path.GetFileNameWithoutExtension(path), path) is { } view)
             {
-                yield return Create(Path.GetFileNameWithoutExtension(path), path);
+                yield return view;
             }
         }
     }

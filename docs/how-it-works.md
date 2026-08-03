@@ -131,8 +131,10 @@ Compiled modules are served from:
 /_jsx/v{buildId}/preact/preact.js
 ```
 
-The build id is a content hash, and it lives in the **path** rather than a query string. That does
-three useful things:
+The build id is a content hash **of everything the build produced**, not only the modules:
+a processed stylesheet is served from the same versioned prefix and cached just as long, so it has
+to move the id when it changes. It lives in the **path** rather than a query string. That does three
+useful things:
 
 1. **Assets are immutable.** They are served with a one-year `Cache-Control`, safely, because a
    change produces a different URL.

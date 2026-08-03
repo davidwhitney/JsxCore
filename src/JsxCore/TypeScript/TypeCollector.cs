@@ -3,14 +3,8 @@ using System.Reflection;
 namespace JsxCore.TypeScript;
 
 /// <summary>
-/// Works out which .NET types have to be declared, and under what name.
+/// Works out which .NET types have to be declared, and under what name. Writes no TypeScript.
 /// </summary>
-/// <remarks>
-/// The first half of generation. Nothing here writes TypeScript: it walks the model graph and
-/// produces the set of types the emitter then describes. Everything reachable is collected before
-/// anything is written, because a reference can only be emitted for a type that is already known,
-/// and a model graph is not walked in the order it will be printed.
-/// </remarks>
 internal sealed class TypeCollector(TypeDefinitionOptions options, ModelMembers members)
 {
     private readonly Dictionary<Type, DeclaredType> _declared = [];

@@ -175,6 +175,13 @@ the same places. See [view resolution](returning-views.md#view-resolution).
 Check the file extension is in `options.Extensions`: that list is what an extension is recognised
 against, so a view named `.ts` rather than `.tsx` reads as a name, not a path.
 
+If the file plainly exists, check the log for a warning naming it. A view **outside the views
+directory** is passed over: JsxCore compiles that directory, so a file above it has no compiled
+module and nothing to serve it from. It is treated as not found rather than as an error, so that
+[another view engine](returning-views.md#coexisting-with-razor) can still claim the name. Move the
+file under the views directory, or point `JsxCoreOptions.ViewsDirectory` at a directory that
+contains it.
+
 ### `JsxRenderException` with a JavaScript stack trace
 
 The component threw. The message carries the JavaScript stack, mapped to the compiled module. Most

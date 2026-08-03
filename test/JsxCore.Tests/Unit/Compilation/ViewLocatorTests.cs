@@ -8,7 +8,11 @@ namespace JsxCore.Tests.Unit.Compilation;
 
 public class ViewLocatorTests
 {
-    private static (ViewLocator Locator, string Root) Setup(params string[] files)
+    private readonly List<string> Warnings = [];
+
+    private (ViewLocator Locator, string Root) Setup(params string[] files) => Setup(files, withLogger: false);
+
+    private (ViewLocator Locator, string Root) Setup(string[] files, bool withLogger)
     {
         var root = Path.Combine(Path.GetTempPath(), "jsxcore-locator", Guid.NewGuid().ToString("n")[..8]);
         foreach (var file in files)
@@ -19,7 +23,9 @@ public class ViewLocatorTests
         }
 
         var options = new JsxCoreOptions();
-        return (new ViewLocator(options, CompilationLayout.Create(options, root), root), root);
+        var logger = withLogger ? new CollectingLogger<ViewLocator>(Warnings) : null;
+
+        return (new ViewLocator(options, CompilationLayout.Create(options, root), root, logger), root);
     }
 
     [Fact]
@@ -155,5 +161,33 @@ public class ViewLocatorTests
 
         locator.EnumerateAll().Select(v => v.RelativePath).OrderBy(p => p)
             .ShouldBe(["Home/Index", "Shared/Card"]);
+    }
+
+    [Fact]
+    public void Find_PathOutsideTheViewsDirectory_IsNotFoundRatherThanFatal()
+    {
+        // Nothing compiled it, because the compiler's root is the views directory, so it could
+        // never render. Not found rather than an exception: another view engine is entitled to
+        // claim a name this one cannot, and throwing here would end that.
+        var (locator, root) = Setup("Views/Home/Index.tsx", "Elsewhere/Stray.tsx");
+
+        locator.Find(Path.Combine(root, "Elsewhere", "Stray.tsx"), null, null, out _).ShouldBeNull();
+    }
+
+    [Fact]
+    public void Find_PathOutsideTheViewsDirectory_SaysSo()
+    {
+        // Falling through silently would leave a file that plainly exists looking like a typo.
+        var (locator, root) = Setup(["Views/Home/Index.tsx", "Elsewhere/Stray.tsx"], withLogger: true);
+        var stray = Path.Combine(root, "Elsewhere", "Stray.tsx");
+
+        locator.Find(stray, null, null, out _).ShouldBeNull();
+
+        // And only once, however many times it is asked: resolution is not cached when it fails.
+        locator.Find(stray, null, null, out _).ShouldBeNull();
+
+        var warning = Warnings.ShouldHaveSingleItem();
+        warning.ShouldContain("outside the views directory");
+        warning.ShouldContain("Stray.tsx");
     }
 }

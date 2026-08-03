@@ -28,6 +28,7 @@ public enum AssetEncoding
 public sealed class AssetCompressionCache
 {
     private readonly ConcurrentDictionary<(string BuildId, string Name, AssetEncoding Encoding), byte[]> _entries = new();
+    private readonly object _gate = new();
     private string? _buildId;
 
     /// <summary>Encodings this cache will produce, best first.</summary>
@@ -55,11 +56,17 @@ public sealed class AssetCompressionCache
     {
         ArgumentNullException.ThrowIfNull(content);
 
-        // A new build invalidates everything: the same name now means different bytes.
-        if (!string.Equals(_buildId, buildId, StringComparison.Ordinal))
+        // A new build invalidates everything: the same name now means different bytes. Entries are
+        // keyed by build id as well, so a stale one could never be served; the lock is here because
+        // requests either side of a rebuild would otherwise take turns clearing what the other had
+        // just compressed.
+        lock (_gate)
         {
-            _entries.Clear();
-            _buildId = buildId;
+            if (!string.Equals(_buildId, buildId, StringComparison.Ordinal))
+            {
+                _entries.Clear();
+                _buildId = buildId;
+            }
         }
 
         return _entries.GetOrAdd((buildId, name, encoding), _ => Compress(content(), encoding));

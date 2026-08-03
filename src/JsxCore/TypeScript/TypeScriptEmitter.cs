@@ -6,13 +6,9 @@ using System.Text.Json.Serialization;
 namespace JsxCore.TypeScript;
 
 /// <summary>
-/// Writes the TypeScript for a set of collected types.
+/// Writes the TypeScript for a set of collected types. Discovers nothing: the set it is handed is
+/// closed, so every reference it writes names something already declared.
 /// </summary>
-/// <remarks>
-/// The second half of generation. Nothing here discovers anything: the set it is handed is closed,
-/// so every reference it writes names something already declared. That separation is what lets the
-/// output be reasoned about without reflection being in the picture.
-/// </remarks>
 internal sealed class TypeScriptEmitter(
     TypeDefinitionOptions options,
     JsonSerializerOptions json,

@@ -191,7 +191,10 @@ public sealed class JsxCompilationService(
 
         if (Directory.Exists(Layout.OutputDirectory))
         {
-            foreach (var file in Directory.EnumerateFiles(Layout.OutputDirectory, "*.js", SearchOption.AllDirectories)
+            // Every file, not just the modules. A stylesheet is served from a build-id URL and
+            // cached for a year like everything else, so a release that changed only CSS used to
+            // reuse a URL the browser had already been told never to revalidate.
+            foreach (var file in Directory.EnumerateFiles(Layout.OutputDirectory, "*", SearchOption.AllDirectories)
                          .OrderBy(f => f, StringComparer.Ordinal))
             {
                 hash.AppendData(Encoding.UTF8.GetBytes(Path.GetRelativePath(Layout.OutputDirectory, file)));
@@ -249,7 +252,9 @@ public sealed class JsxCompilationService(
 
         _watcher = new ViewWatcher(
             Layout.ViewsDirectory,
-            _options.Extensions.Concat([".ts", ".js", ".json"]).ToList(),
+            // Stylesheets too: one beside a component is compiled into the output like a view,
+                // so editing it has to rebuild for the same reason editing a .tsx does.
+                _options.Extensions.Concat([".ts", ".js", ".json", ".css"]).ToList(),
             _logger);
 
         _watcher.Changed += RecompileFromWatcherAsync;

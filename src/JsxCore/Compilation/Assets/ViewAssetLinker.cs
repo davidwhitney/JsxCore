@@ -169,6 +169,13 @@ public static class ViewAssetLinker
         var pipeline = new ViewStyles(context.Output, viewsDirectory, esbuild, npm, report);
         var processed = pipeline.Process(imports);
 
+        // Kept so the sweep at the end of linking does not delete what was just produced: these are
+        // written by the style pipeline rather than by the context that owns the tree.
+        foreach (var path in pipeline.Written)
+        {
+            context.Keep(path);
+        }
+
         foreach (var specifier in pipeline.Unresolved)
         {
             context.RecordMisplaced(specifier);
@@ -232,7 +239,10 @@ public static class ViewAssetLinker
                 : null;
         }
 
-        private readonly string _generatedRoot = Path.Combine(output, ViewAssets.ModuleDirectory);
+        // Everything generated lives under one root, so what to keep and what to delete is one
+        // question asked once rather than one per kind of output.
+        private readonly string _distRoot = ViewAssets.PathUnder(output, ViewAssets.DistDirectory);
+        private readonly string _moduleRoot = ViewAssets.PathUnder(output, ViewAssets.ModuleDirectory);
         private readonly HashSet<string> _written = new(StringComparer.OrdinalIgnoreCase);
         private readonly List<string> _unresolved = [];
 
@@ -246,7 +256,7 @@ public static class ViewAssetLinker
 
         public void RecordMisplaced(string specifier) => _misplaced.Add(specifier);
 
-        public bool IsGenerated(string path) => Under(path, _generatedRoot);
+        public bool IsGenerated(string path) => Under(path, _distRoot);
 
         public string RelativeToOutput(string path) =>
             Path.GetRelativePath(Output, path).Replace(Path.DirectorySeparatorChar, '/');
@@ -277,7 +287,7 @@ public static class ViewAssetLinker
             // and "images/logo.svg" cannot become two URLs for one file.
             var url = "/" + Path.GetRelativePath(webRoot, file).Replace(Path.DirectorySeparatorChar, '/');
 
-            var module = Path.Combine(_generatedRoot, url.TrimStart('/').Replace('/', Path.DirectorySeparatorChar) + ".js");
+            var module = ModulePath("assets/" + url.TrimStart('/'));
 
             Directory.CreateDirectory(Path.GetDirectoryName(module)!);
             AssetStage.WriteFileIfChanged(module, ViewAssets.ModuleSource(url));
@@ -291,22 +301,39 @@ public static class ViewAssetLinker
         /// </summary>
         public string? GenerateStyleModule(string specifier, ProcessedStyle style)
         {
-            var key = (style.Rooted ? style.Url.TrimStart('/') : style.Url)
-                .Replace('/', Path.DirectorySeparatorChar);
+            // Two kinds, kept apart. One names a URL the application already serves, alongside the
+            // other assets that do; the other names a stylesheet this build produced. Sharing a
+            // subtree would let a wwwroot path and a views path collide on the same module.
+            var key = style.Rooted
+                ? "assets/" + style.Url.TrimStart('/')
+                : "styles/" + style.Url[(ViewAssets.StyleDirectory.Length + 1)..];
 
-            var module = Path.Combine(_generatedRoot, key + ".js");
+            var module = ModulePath(key);
 
-            System.IO.Directory.CreateDirectory(Path.GetDirectoryName(module)!);
+            Directory.CreateDirectory(Path.GetDirectoryName(module)!);
             AssetStage.WriteFileIfChanged(module, ViewAssets.StyleModuleSource(style.Url, style.Names));
             _written.Add(Path.GetFullPath(module));
 
             return module;
         }
 
-        /// <summary>Removes modules written for assets nothing imports any more.</summary>
+        private string ModulePath(string key) =>
+            Path.Combine(_moduleRoot, key.Replace('/', Path.DirectorySeparatorChar) + ".js");
+
+        /// <summary>Keeps a file this run produced, so pruning does not take it away again.</summary>
+        public void Keep(string path) => _written.Add(Path.GetFullPath(path));
+
+        /// <summary>
+        /// Removes everything under the generated root that this run did not write.
+        /// </summary>
+        /// <remarks>
+        /// One sweep over one tree, which is the whole point of there being one tree. It covers
+        /// modules for assets nothing imports any more, stylesheets no view reaches, and the
+        /// staging directory left behind by a run of esbuild that failed part way.
+        /// </remarks>
         public void PruneGenerated()
         {
-            if (!Directory.Exists(_generatedRoot))
+            if (!Directory.Exists(_distRoot))
             {
                 return;
             }
@@ -314,16 +341,29 @@ public static class ViewAssetLinker
             try
             {
                 foreach (var stale in Directory
-                             .EnumerateFiles(_generatedRoot, "*", SearchOption.AllDirectories)
+                             .EnumerateFiles(_distRoot, "*", SearchOption.AllDirectories)
                              .Where(path => !_written.Contains(Path.GetFullPath(path)))
                              .ToList())
                 {
                     File.Delete(stale);
                 }
+
+                // Deepest first, so a directory emptied by the sweep above is gone before its
+                // parent is considered.
+                foreach (var directory in Directory
+                             .EnumerateDirectories(_distRoot, "*", SearchOption.AllDirectories)
+                             .OrderByDescending(path => path.Length)
+                             .ToList())
+                {
+                    if (!Directory.EnumerateFileSystemEntries(directory).Any())
+                    {
+                        Directory.Delete(directory);
+                    }
+                }
             }
             catch (IOException)
             {
-                // Left behind is only ever a module nothing imports.
+                // Left behind is only ever something nothing imports.
             }
         }
     }

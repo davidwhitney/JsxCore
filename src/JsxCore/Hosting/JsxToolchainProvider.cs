@@ -9,17 +9,11 @@ namespace JsxCore.Hosting;
 /// Installs the packages a build needs and confirms the TypeScript toolchain is usable, once.
 /// </summary>
 /// <remarks>
-/// <para>
-/// This used to happen inside <c>AddJsxCore</c>, which meant a package restore ran during service
+/// This used to happen inside <c>AddJsxCore</c>, so a package restore ran during service
 /// registration: before the host existed, before logging was configured, with no cancellation and
-/// nothing to await. Progress went to the console because there was no logger to send it to.
-/// </para>
-/// <para>
-/// Now it happens when the host starts, which is still before the first request is served, so a
-/// missing toolchain still stops the application rather than surfacing as a failed view. The work
-/// is done once and cached: whichever of the startup service or a service factory asks first pays
-/// for it, and the rest read the answer.
-/// </para>
+/// nothing to await. It now happens at startup, still before the first request, so a missing
+/// toolchain stops the application rather than surfacing as a failed view. Done once and cached,
+/// so whichever of the startup service or a service factory asks first pays for it.
 /// </remarks>
 public sealed class JsxToolchainProvider(
     JsxCoreOptions options,

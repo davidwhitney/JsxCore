@@ -40,8 +40,6 @@ public sealed class ViewStyles(
     NodeModuleResolver? npm,
     Action<string>? report = null)
 {
-    /// <summary>Where processed stylesheets are written, within the compiled output.</summary>
-    public const string DirectoryName = "_css";
 
     private const string ModuleSuffix = ".module.css";
 
@@ -51,6 +49,13 @@ public sealed class ViewStyles(
     /// <summary>Specifiers that named no stylesheet anything could find.</summary>
     public IReadOnlyList<string> Unresolved => _unresolved;
     private readonly List<string> _unresolved = [];
+
+    /// <summary>
+    /// Full paths of the stylesheets this run wrote, so the linker can keep them and delete
+    /// whatever it did not write.
+    /// </summary>
+    public IReadOnlyCollection<string> Written => _written;
+    private readonly List<string> _written = [];
 
     /// <summary>
     /// Resolves and processes every stylesheet specifier, keyed by the module that imported it so
@@ -143,7 +148,7 @@ public sealed class ViewStyles(
             yield break;
         }
 
-        var staging = Path.Combine(_output, DirectoryName, ".staging");
+        var staging = ViewAssets.PathUnder(_output, ViewAssets.DistDirectory + "/.staging");
         var entries = new List<(string Specifier, string Entry, string Name)>();
 
         // Ordered, so the names esbuild disambiguates are the same from one build to the next.
@@ -178,17 +183,18 @@ public sealed class ViewStyles(
             }
 
             var relative = UrlFor(specifier, sources[specifier]);
-            var target = Path.Combine(_output, DirectoryName, relative.Replace('/', Path.DirectorySeparatorChar));
+            var target = ViewAssets.PathUnder(_output, ViewAssets.StyleDirectory + "/" + relative);
 
             Directory.CreateDirectory(Path.GetDirectoryName(target)!);
             AssetStage.WriteFileIfChanged(target, File.ReadAllBytes(css));
+            _written.Add(Path.GetFullPath(target));
 
             var names = sources[specifier].EndsWith(ModuleSuffix, StringComparison.OrdinalIgnoreCase)
                 ? ReadNames(Path.Combine(staging, name + ".js"))
                 : null;
 
             yield return new KeyValuePair<string, ProcessedStyle>(
-                specifier, new ProcessedStyle($"{DirectoryName}/{relative}", Rooted: false, names));
+                specifier, new ProcessedStyle($"{ViewAssets.StyleDirectory}/{relative}", Rooted: false, names));
         }
 
         Delete(staging);

@@ -35,7 +35,7 @@ public class LinkedModuleTests
         var emitted = await LinkAndRead(project, "Home/Index.js");
 
         emitted.ShouldContain("import \"/images/logo.svg\"");
-        emitted.ShouldNotContain("_static");
+        emitted.ShouldNotContain("_dist");
     }
 
     [Fact]
@@ -55,11 +55,11 @@ public class LinkedModuleTests
         var emitted = await LinkAndRead(project, "Home/Index.js");
 
         // Rewritten to the generated module.
-        emitted.ShouldContain("_static/images/logo.svg.js");
+        emitted.ShouldContain("_dist/modules/assets/images/logo.svg.js");
 
         // And the sample is untouched, so it still names the file it was talking about.
         emitted.ShouldContain("/images/other.svg");
-        emitted.ShouldNotContain("_static/images/other.svg.js");
+        emitted.ShouldNotContain("other.svg.js");
     }
 
     [Fact]
@@ -74,6 +74,6 @@ public class LinkedModuleTests
 
         var linked = await LinkAndRead(project, "Home/Index.js");
 
-        linked.ShouldNotContain("_static");
+        linked.ShouldNotContain("_dist");
     }
 }

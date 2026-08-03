@@ -40,18 +40,12 @@ public sealed record ToolResult(
 /// Runs one of the native binaries JsxCore drives: the TypeScript compiler, esbuild, npm.
 /// </summary>
 /// <remarks>
-/// <para>
 /// There is one of these because getting it right is fiddly and getting it wrong is invisible.
 /// Both pipes have to be drained while the process runs, or a tool that writes enough to fill one
-/// blocks forever waiting for a reader that is itself blocked on the other. A timeout has to be
-/// applied to the wait rather than after a blocking read, or it can never fire. And a process that
-/// outlives its timeout has to be killed, or the build leaks it.
-/// </para>
-/// <para>
-/// Every caller degrades rather than throwing, so this reports failure in the result instead of
-/// raising: a tool that will not start is a thing to explain, and the callers all have a better
-/// message for it than an exception would carry.
-/// </para>
+/// blocks forever waiting for a reader that is itself blocked on the other. A timeout has to apply
+/// to the wait rather than to a blocking read, or it can never fire. A process that outlives its
+/// timeout has to be killed, or the build leaks it. And none of it may throw, because every caller
+/// degrades rather than failing a build.
 /// </remarks>
 public static class ToolProcess
 {
@@ -97,9 +91,9 @@ public static class ToolProcess
                 return new ToolResult(ToolOutcome.TimedOut, -1, Drain(standardOutput), Drain(standardError));
             }
 
-            // Exiting closes both pipes, which is what completes the reads above.
-            Task.WaitAll([standardOutput, standardError], DrainGrace);
-
+            // Exiting closes both pipes, which is what completes the reads above. Waiting for them
+            // is Drain's job: Task.WaitAll would do it too, and would throw the AggregateException
+            // of a torn-down pipe straight through the contract that says this never raises.
             return new ToolResult(
                 ToolOutcome.Exited, process.ExitCode, Drain(standardOutput), Drain(standardError));
         }
@@ -209,16 +203,19 @@ public static class ToolProcess
     }
 
     /// <summary>Whatever a stream produced, or nothing when it never finished.</summary>
+    /// <remarks>
+    /// Never throws. Losing the tail of a message costs a line of a diagnostic; letting it out
+    /// would cost the build, which is the outcome every caller here is written to avoid.
+    /// </remarks>
     private static string Drain(Task<string> read)
     {
         try
         {
             return read.Wait(DrainGrace) ? read.Result : string.Empty;
         }
-        catch (AggregateException)
+        catch (Exception exception) when (exception is AggregateException or OperationCanceledException)
         {
-            // A pipe torn down under a killed process, which costs the tail of a message we are
-            // already reporting as a failure.
+            // A pipe torn down under a killed process, or a read cancelled with the caller's token.
             return string.Empty;
         }
     }

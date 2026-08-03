@@ -226,7 +226,7 @@
     as having no inputs.
   -->
   <ItemGroup>
-    <JsxCoreViewFile Include="$(JsxCoreViewsDirectory)/**/*.tsx;$(JsxCoreViewsDirectory)/**/*.jsx;$(JsxCoreViewsDirectory)/**/*.ts;$(JsxCoreViewsDirectory)/**/*.js"
+    <JsxCoreViewFile Include="$(JsxCoreViewsDirectory)/**/*.tsx;$(JsxCoreViewsDirectory)/**/*.jsx;$(JsxCoreViewsDirectory)/**/*.ts;$(JsxCoreViewsDirectory)/**/*.js;$(JsxCoreViewsDirectory)/**/*.css"
                      Exclude="$(JsxCoreViewsDirectory)/**/node_modules/**/*" />
   </ItemGroup>
 

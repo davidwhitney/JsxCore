@@ -109,12 +109,12 @@ public class ModuleSpecifierTests
             source,
             ModuleSpecifiers.Scan(source),
             specifier => specifier.Value.EndsWith(".css", StringComparison.Ordinal)
-                ? "./_static/page.css.js"
+                ? "./_dist/modules/styles/page.css.js"
                 : null);
 
         rewritten.ShouldBe("""
             import { Card } from "../Shared/Card.js";
-            import "./_static/page.css.js";
+            import "./_dist/modules/styles/page.css.js";
             """);
     }
 

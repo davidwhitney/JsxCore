@@ -161,12 +161,15 @@ public sealed class JsxServerRenderer(
     /// </remarks>
     internal const string ServerFlag = "__jsxcore_server";
 
+    /// <summary>The object the registered .NET globals are installed on, for one render.</summary>
+    private const string GlobalsName = "__jsxcore_dotnet";
+
     private void InstallGlobals(Engine engine, IServiceProvider services)
     {
         var registrations = _options.Globals.Registrations;
         if (registrations.Count == 0)
         {
-            engine.SetValue("__jsxcore_dotnet", JsValue.Undefined);
+            engine.SetValue(GlobalsName, JsValue.Undefined);
             return;
         }
 
@@ -176,7 +179,7 @@ public sealed class JsxServerRenderer(
             globals.Set(name, JsValue.FromObject(engine, registration.Factory(services)));
         }
 
-        engine.SetValue("__jsxcore_dotnet", globals);
+        engine.SetValue(GlobalsName, globals);
     }
 
     private PooledEngine Rent(string buildId)
@@ -187,7 +190,9 @@ public sealed class JsxServerRenderer(
             {
                 return candidate;
             }
-            // Built against superseded output; let it go.
+
+            // Built against superseded output.
+            Discard(candidate);
         }
 
         return new PooledEngine(CreateEngine(), buildId);
@@ -195,9 +200,33 @@ public sealed class JsxServerRenderer(
 
     private void Return(PooledEngine engine)
     {
-        if (!_disposed && engine.BuildId == _compilation.BuildId)
+        if (_disposed || engine.BuildId != _compilation.BuildId)
         {
-            _pool.Add(engine);
+            Discard(engine);
+            return;
+        }
+
+        // The globals were resolved from the request's own scope, and that scope is about to end.
+        // Left in place they stay reachable for as long as the engine sits in the pool, which for
+        // a quiet application is indefinitely.
+        engine.Engine.SetValue(GlobalsName, JsValue.Undefined);
+
+        _pool.Add(engine);
+    }
+
+    /// <summary>
+    /// Lets an engine go. <see cref="Engine"/> is disposable, so this is not the same as dropping
+    /// the reference, whatever it happens to hold today.
+    /// </summary>
+    private static void Discard(PooledEngine engine)
+    {
+        try
+        {
+            engine.Engine.Dispose();
+        }
+        catch (Exception exception) when (exception is ObjectDisposedException or InvalidOperationException)
+        {
+            // Already gone, which is the outcome this wanted.
         }
     }
 
@@ -249,9 +278,9 @@ public sealed class JsxServerRenderer(
     /// <summary>Discards pooled engines, for example after a recompilation.</summary>
     public void Reset()
     {
-        while (_pool.TryTake(out _))
+        while (_pool.TryTake(out var engine))
         {
-            // Engines hold no unmanaged resources; dropping the reference is enough.
+            Discard(engine);
         }
     }
 
