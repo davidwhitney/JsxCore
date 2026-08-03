@@ -55,8 +55,13 @@ public class IsServerRenderTests
     {
         // Nothing sets the flag in a browser, so the same view reports the other side there. The
         // markup never reaches the server in this mode, which is what this asserts.
+        //
+        // The directive is dropped without naming the newline after it. The line endings in a raw
+        // string literal are the ones in this file as checked out, so matching on "\n" quietly
+        // matched nothing wherever git had written CRLF, and the view kept the "use server" this
+        // was removing.
         using var project = JsxProjectFixture.Create();
-        project.AddView("Home/Index.tsx", View.Replace("\"use server\";\n", ""));
+        project.AddView("Home/Index.tsx", View.Replace("\"use server\";", string.Empty));
 
         await using var host = await JsxTestHost.StartAsync(project);
         var html = await host.GetStringAsync("/client/Index");
