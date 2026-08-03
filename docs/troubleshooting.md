@@ -89,6 +89,19 @@ so there is nothing left to do and nothing to warn about.
 If the machine is one esbuild publishes no binary for, set `JsxCoreMinify` to `false` rather than
 carrying the warning.
 
+### "could not process stylesheets with esbuild"
+
+Different from the entry above, and treated differently. There esbuild was absent; here it was found
+and refused the work, so the stylesheets a view imports were never produced and the imports point at
+nothing. **The build fails.** A published application never links again, so a build that carried on
+would ship pages whose class names match no stylesheet.
+
+The message carries what esbuild said, which is usually a stylesheet its parser rejected.
+
+An application that compiles at startup logs the same thing as an error and keeps serving. A page
+that renders unstyled is worth more than a server that will not start, and the build is where this
+is meant to be caught.
+
 ### `warning JSX0001` during build, and no compiled views
 
 The build could not find the TypeScript compiler and could not install it either. Usual causes:

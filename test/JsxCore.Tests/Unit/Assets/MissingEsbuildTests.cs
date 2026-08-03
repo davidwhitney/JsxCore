@@ -28,22 +28,14 @@ public class MissingEsbuildTests
         File.WriteAllText(path, contents);
     }
 
-    private static (IReadOnlyList<string> Reported, ViewAssetLinker.Result Result) LinkWithoutEsbuild(
-        JsxProjectFixture project)
-    {
-        var reported = new List<string>();
-
-        var result = ViewAssetLinker.Link(
+    private static ViewAssetLinker.Result LinkWithoutEsbuild(JsxProjectFixture project) =>
+        ViewAssetLinker.Link(
             project.Layout.OutputDirectory,
             project.Layout.WebRoot,
             project.Layout.ViewsDirectory,
             aliases: null,
             esbuild: null,
-            npm: null,
-            report: reported.Add);
-
-        return (reported, result);
-    }
+            npm: null);
 
     [Fact]
     public void ACssModule_IsReportedRatherThanScopedWrongly()
@@ -55,9 +47,14 @@ public class MissingEsbuildTests
             export default function Index() { return styles.card; }
             """);
 
-        var (reported, result) = LinkWithoutEsbuild(project);
+        var result = LinkWithoutEsbuild(project);
 
-        reported.ShouldContain(message => message.Contains("esbuild", StringComparison.Ordinal));
+        var diagnostic = result.Diagnostics.ShouldHaveSingleItem();
+        diagnostic.Message.ShouldContain("esbuild");
+
+        // Absent, not broken. The difference decides whether a build carries on.
+        diagnostic.Problem.ShouldBe(AssetProblem.Missing);
+        result.Failed.ShouldBeFalse();
 
         // Nothing was written that a page would link, and no scoped names were invented.
         Directory.Exists(ViewAssets.PathUnder(project.Layout.OutputDirectory, ViewAssets.StyleDirectory))
@@ -75,9 +72,9 @@ public class MissingEsbuildTests
         project.AddView("Home/page.css", ".page { color: rebeccapurple; }");
         WriteCompiledModule(project, "Home/Index.js", """import "./page.css";""");
 
-        var (reported, _) = LinkWithoutEsbuild(project);
+        var result = LinkWithoutEsbuild(project);
 
-        reported.ShouldContain(message => message.Contains("esbuild", StringComparison.Ordinal));
+        result.Diagnostics.ShouldHaveSingleItem().Problem.ShouldBe(AssetProblem.Missing);
     }
 
     [Fact]
@@ -89,9 +86,9 @@ public class MissingEsbuildTests
         project.AddFile("wwwroot/css/site.css", "body { margin: 0; }");
         WriteCompiledModule(project, "Home/Index.js", """import "/css/site.css";""");
 
-        var (reported, result) = LinkWithoutEsbuild(project);
+        var result = LinkWithoutEsbuild(project);
 
-        reported.ShouldBeEmpty();
+        result.Diagnostics.ShouldBeEmpty();
         result.Manifest.StylesFor("Home/Index.js").ShouldBe(["/css/site.css"]);
     }
 }

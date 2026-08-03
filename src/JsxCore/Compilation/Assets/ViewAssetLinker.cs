@@ -34,6 +34,12 @@ public static class ViewAssetLinker
         IReadOnlyList<string> Misplaced)
     {
         public static readonly Result None = new(0, ViewManifest.Empty, [], []);
+
+        /// <summary>What went wrong while linking, and how much each one matters.</summary>
+        public IReadOnlyList<AssetDiagnostic> Diagnostics { get; init; } = [];
+
+        /// <summary>Whether something was there and refused the work it was given.</summary>
+        public bool Failed => Diagnostics.Any(d => d.Problem == AssetProblem.Failed);
     }
 
     public static Result Link(CompilationLayout layout) => Link(layout, esbuild: null, npm: null);
@@ -41,8 +47,7 @@ public static class ViewAssetLinker
     public static Result Link(
         CompilationLayout layout,
         EsbuildToolchain? esbuild,
-        NodeModuleResolver? npm,
-        Action<string>? report = null)
+        NodeModuleResolver? npm)
     {
         ArgumentNullException.ThrowIfNull(layout);
 
@@ -52,8 +57,7 @@ public static class ViewAssetLinker
             layout.ViewsDirectory,
             ViewAliases.ReadFrom(layout.TsConfigPath, layout.ViewsDirectory),
             esbuild,
-            npm,
-            report);
+            npm);
     }
 
     public static Result Link(
@@ -62,8 +66,7 @@ public static class ViewAssetLinker
         string? viewsDirectory = null,
         ViewAliases? aliases = null,
         EsbuildToolchain? esbuild = null,
-        NodeModuleResolver? npm = null,
-        Action<string>? report = null)
+        NodeModuleResolver? npm = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(outputDirectory);
 
@@ -91,7 +94,17 @@ public static class ViewAssetLinker
             .OfType<ScannedModule>()
             .ToList();
 
-        var styles = ProcessStyles(context, modules, viewsDirectory, esbuild, npm, report);
+        // Already linked, so there is nothing to do and real harm in trying. A rewritten specifier
+        // names a generated module rather than the source it came from, which gives this pass
+        // nothing to regenerate; the sweep at the end would then delete everything the previous run
+        // produced. Compilation re-emits every module every time, so specifiers arrive raw from any
+        // build that actually compiled: finding them rewritten means none did.
+        if (modules.Any(module => module.Specifiers.Any(specifier => NamesGeneratedOutput(specifier.Value))))
+        {
+            return new Result(0, ViewManifest.ReadFrom(context.Output), [], []);
+        }
+
+        var styles = ProcessStyles(context, modules, viewsDirectory, esbuild, npm);
 
         foreach (var module in modules)
         {
@@ -119,8 +132,16 @@ public static class ViewAssetLinker
         context.PruneGenerated();
         WriteManifest(context.Output, manifest);
 
-        return new Result(linked, manifest, context.Unresolved, context.Misplaced);
+        return new Result(linked, manifest, context.Unresolved, context.Misplaced)
+        {
+            Diagnostics = context.Diagnostics
+        };
     }
+
+    /// <summary>Whether a specifier points into the tree this writes.</summary>
+    private static bool NamesGeneratedOutput(string specifier) =>
+        specifier.Contains('/' + ViewAssets.DistDirectory + '/', StringComparison.Ordinal)
+        || specifier.StartsWith(ViewAssets.DistDirectory + "/", StringComparison.Ordinal);
 
     /// <summary>A compiled module, its text, and the specifiers it imports from.</summary>
     /// <remarks>
@@ -152,8 +173,7 @@ public static class ViewAssetLinker
         IReadOnlyList<ScannedModule> modules,
         string? viewsDirectory,
         EsbuildToolchain? esbuild,
-        NodeModuleResolver? npm,
-        Action<string>? report)
+        NodeModuleResolver? npm)
     {
         if (viewsDirectory is null)
         {
@@ -166,7 +186,7 @@ public static class ViewAssetLinker
                 .Select(specifier => (specifier.Value, module.Path)))
             .ToList();
 
-        var pipeline = new ViewStyles(context.Output, viewsDirectory, esbuild, npm, report);
+        var pipeline = new ViewStyles(context.Output, viewsDirectory, esbuild, npm);
         var processed = pipeline.Process(imports);
 
         // Kept so the sweep at the end of linking does not delete what was just produced: these are
@@ -179,6 +199,11 @@ public static class ViewAssetLinker
         foreach (var specifier in pipeline.Unresolved)
         {
             context.RecordMisplaced(specifier);
+        }
+
+        foreach (var diagnostic in pipeline.Diagnostics)
+        {
+            context.Record(diagnostic);
         }
 
         return processed;
@@ -255,6 +280,13 @@ public static class ViewAssetLinker
         private readonly List<string> _misplaced = [];
 
         public void RecordMisplaced(string specifier) => _misplaced.Add(specifier);
+
+        /// <summary>What went wrong while linking.</summary>
+        public IReadOnlyList<AssetDiagnostic> Diagnostics => _diagnostics;
+
+        private readonly List<AssetDiagnostic> _diagnostics = [];
+
+        public void Record(AssetDiagnostic diagnostic) => _diagnostics.Add(diagnostic);
 
         public bool IsGenerated(string path) => Under(path, _distRoot);
 

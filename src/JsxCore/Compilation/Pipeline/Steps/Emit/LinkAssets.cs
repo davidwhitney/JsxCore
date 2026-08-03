@@ -18,10 +18,25 @@ public sealed class LinkAssets(EsbuildToolchain? esbuild, NodeModuleResolver? np
 
     public ValueTask<StepResult> RunAsync(BuildContext context, CancellationToken cancellationToken)
     {
-        var linked = ViewAssetLinker.Link(
-            context.Layout, esbuild, npm, message => context.Logger.LogWarning("{Message}", message));
+        var linked = ViewAssetLinker.Link(context.Layout, esbuild, npm);
 
         context.Linked(linked.Manifest);
+
+        // A tool that is absent leaves a feature unavailable; one that refused the work leaves the
+        // output wrong. Logged apart so the second is not read as the first. Neither stops the
+        // application: a running server that cannot scope a class name is still worth more than no
+        // server, and the build says so loudly enough to be fixed before it ships.
+        foreach (var diagnostic in linked.Diagnostics)
+        {
+            if (diagnostic.Problem == AssetProblem.Failed)
+            {
+                context.Logger.LogError("{Message}", diagnostic.Message);
+            }
+            else
+            {
+                context.Logger.LogWarning("{Message}", diagnostic.Message);
+            }
+        }
 
         if (linked.Linked > 0)
         {

@@ -37,14 +37,17 @@ public sealed class ViewStyles(
     string outputDirectory,
     string viewsDirectory,
     EsbuildToolchain? esbuild,
-    NodeModuleResolver? npm,
-    Action<string>? report = null)
+    NodeModuleResolver? npm)
 {
 
     private const string ModuleSuffix = ".module.css";
 
     private readonly string _output = Path.GetFullPath(outputDirectory);
     private readonly string _views = Path.GetFullPath(viewsDirectory);
+
+    /// <summary>What went wrong, if anything did.</summary>
+    public IReadOnlyList<AssetDiagnostic> Diagnostics => _diagnostics;
+    private readonly List<AssetDiagnostic> _diagnostics = [];
 
     /// <summary>Specifiers that named no stylesheet anything could find.</summary>
     public IReadOnlyList<string> Unresolved => _unresolved;
@@ -141,9 +144,9 @@ public sealed class ViewStyles(
         {
             // Scoping is the part that cannot be faked, so a project with CSS modules and no
             // esbuild is told rather than served stylesheets whose class names mean nothing.
-            report?.Invoke(
+            _diagnostics.Add(AssetDiagnostic.Missing(
                 "JsxCore could not process the stylesheets views import, because esbuild was not " +
-                "found. Build the project to restore it, or add it with `dotnet npm add esbuild --dev`.");
+                "found. Build the project to restore it, or add it with `dotnet npm add esbuild --dev`."));
 
             yield break;
         }
@@ -280,17 +283,18 @@ public sealed class ViewStyles(
                 return true;
 
             case ToolOutcome.TimedOut:
-                report?.Invoke("JsxCore gave up waiting for esbuild while processing stylesheets.");
+                _diagnostics.Add(AssetDiagnostic.Failed(
+                    "JsxCore gave up waiting for esbuild while processing stylesheets."));
                 return false;
 
             case ToolOutcome.CouldNotStart:
-                report?.Invoke(
-                    $"JsxCore could not run esbuild to process stylesheets: {result.StandardError}");
+                _diagnostics.Add(AssetDiagnostic.Failed(
+                    $"JsxCore could not run esbuild to process stylesheets: {result.StandardError}"));
                 return false;
 
             default:
-                report?.Invoke(
-                    $"JsxCore could not process stylesheets with esbuild:{Environment.NewLine}{result.Output}");
+                _diagnostics.Add(AssetDiagnostic.Failed(
+                    $"JsxCore could not process stylesheets with esbuild:{Environment.NewLine}{result.Output}"));
                 return false;
         }
     }

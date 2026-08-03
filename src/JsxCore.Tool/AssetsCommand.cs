@@ -1,10 +1,11 @@
 using JsxCore.Compilation;
 using JsxCore.Compilation.Assets;
+using JsxCore.Compilation.Modules;
 
 namespace JsxCore.Tool;
 
 /// <summary>
-/// Resolves the static assets views import, at build time.
+/// Resolves the static assets and stylesheets views import, at build time.
 /// </summary>
 /// <remarks>
 /// The view engine does this itself when it compiles at startup. This is the other deployment:
@@ -27,8 +28,15 @@ public static class AssetsCommand
             options.WebRootDirectory = webRoot;
         }
 
-        var layout = CompilationLayout.Create(options, arguments.Required("project-dir"));
-        var linked = ViewAssetLinker.Link(layout);
+        var projectDirectory = arguments.Required("project-dir");
+        var layout = CompilationLayout.Create(options, projectDirectory);
+
+        // Handed the same tools the view engine gets. Without them a stylesheet is left exactly as
+        // the compiler wrote it, which a published application has no later opportunity to fix.
+        var linked = ViewAssetLinker.Link(
+            layout,
+            EsbuildToolchainLocator.Locate(projectDirectory, arguments.Optional("esbuild")),
+            new NodeModuleResolver(NodeModulesLayout.For(projectDirectory)));
 
         if (linked.Linked > 0)
         {
@@ -51,6 +59,15 @@ public static class AssetsCommand
                 $"names something JsxCore serves, as in \"/images/logo.svg\".");
         }
 
-        return 0;
+        foreach (var diagnostic in linked.Diagnostics)
+        {
+            Console.Error.WriteLine("JsxCore: " + diagnostic.Message);
+        }
+
+        // The one thing here worth failing a build over. A tool that was found and then refused the
+        // work has produced output that is wrong rather than incomplete, and publishing it would
+        // mean shipping a page whose class names do not match its stylesheet. A tool that is simply
+        // absent is a different matter, and leaves the exit code alone.
+        return linked.Failed ? 1 : 0;
     }
 }
