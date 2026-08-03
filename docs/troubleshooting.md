@@ -75,10 +75,12 @@ Views importing the listed packages will fail to render.
 
 ### "configured to minify assets but esbuild was not found"
 
-Minification is on and the esbuild binary is not in `node_modules`. Assets are served unminified,
-which is why this is a warning. Build the project to restore it, or add it yourself with
-`dotnet npm add esbuild --dev`. It only appears where minification is enabled, which by default
-means Release builds. See [Build and deploy](build-and-deploy.md#minification-and-compression).
+The esbuild binary is not in `node_modules`. Assets are served unminified, which is why this is a
+warning. Build the project to restore it, or add it yourself with `dotnet npm add esbuild --dev`.
+
+The same binary scopes [CSS module](styling.md#css-modules) class names, so a project with CSS
+modules and no esbuild is told separately and more loudly: those cannot be served at all without
+it.
 
 A **published** application never reports this. esbuild is a development dependency and is
 deliberately not published; the build and the publish step minified everything before it got there,

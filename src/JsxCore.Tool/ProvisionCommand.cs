@@ -34,7 +34,7 @@ public static class ProvisionCommand
         var directory = arguments.Optional("manifest-dir")
             ?? NearestManifestDirectory(projectDirectory);
 
-        var required = RequiredPackages(options, framework, arguments.Flag("minify"));
+        var required = RequiredPackages(options, framework);
         var outstanding = required
             .Where(package => !Installed(directory, package.Name))
             .Select(package => package.Name)
@@ -87,11 +87,19 @@ public static class ProvisionCommand
     }
 
     private static IReadOnlyList<PackageRequest> RequiredPackages(
-        JsxCoreOptions options, JsFramework framework, bool minify)
+        JsxCoreOptions options, JsFramework framework)
     {
+        // Both are development dependencies, because both run during the build and never on the
+        // server: what reaches production is what they produced.
+        //
+        // esbuild sits beside the compiler rather than behind a setting because it is no longer
+        // only an optimisation. It scopes CSS module class names, which is not something a build
+        // can decline to do and still produce a working page, so an application that has CSS needs
+        // it in Debug as much as in Release.
         var packages = new List<PackageRequest>
         {
-            new("typescript", $"^{options.MinimumTypeScriptMajorVersion}", Development: true)
+            new("typescript", $"^{options.MinimumTypeScriptMajorVersion}", Development: true),
+            new(EsbuildToolchainLocator.PackageName, string.Empty, Development: true)
         };
 
         // Preact is not here: it ships inside JsxCore, so an application never has to install it
@@ -106,14 +114,6 @@ public static class ProvisionCommand
             packages.Add(new PackageRequest("react-dom"));
             packages.Add(new PackageRequest("@types/react", string.Empty, Development: true));
             packages.Add(new PackageRequest("@types/react-dom", string.Empty, Development: true));
-        }
-
-        // esbuild minifies what is served. A development dependency, because it runs during the
-        // build and never on the server: what reaches production is its output.
-        if (minify)
-        {
-            packages.Add(new PackageRequest(
-                EsbuildToolchainLocator.PackageName, string.Empty, Development: true));
         }
 
         return packages;

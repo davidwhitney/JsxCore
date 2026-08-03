@@ -3,6 +3,7 @@
   "private": true,
   "devDependencies": {
     "@tailwindcss/cli": "^4.3.3",
+    "esbuild": "^0.28.1",
     "tailwindcss": "^4.3.3",
     "typescript": "^7"
   }

@@ -1,4 +1,5 @@
 using System.Text.RegularExpressions;
+using JsxCore.Compilation.Modules;
 
 namespace JsxCore.Compilation.Assets;
 
@@ -36,7 +37,13 @@ public static partial class ViewAssetLinker
         public static readonly Result None = new(0, ViewManifest.Empty, [], []);
     }
 
-    public static Result Link(CompilationLayout layout)
+    public static Result Link(CompilationLayout layout) => Link(layout, esbuild: null, npm: null);
+
+    public static Result Link(
+        CompilationLayout layout,
+        EsbuildToolchain? esbuild,
+        NodeModuleResolver? npm,
+        Action<string>? report = null)
     {
         ArgumentNullException.ThrowIfNull(layout);
 
@@ -44,14 +51,20 @@ public static partial class ViewAssetLinker
             layout.OutputDirectory,
             layout.WebRoot,
             layout.ViewsDirectory,
-            ViewAliases.ReadFrom(layout.TsConfigPath, layout.ViewsDirectory));
+            ViewAliases.ReadFrom(layout.TsConfigPath, layout.ViewsDirectory),
+            esbuild,
+            npm,
+            report);
     }
 
     public static Result Link(
         string outputDirectory,
         string webRoot,
         string? viewsDirectory = null,
-        ViewAliases? aliases = null)
+        ViewAliases? aliases = null,
+        EsbuildToolchain? esbuild = null,
+        NodeModuleResolver? npm = null,
+        Action<string>? report = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(outputDirectory);
 
@@ -68,22 +81,22 @@ public static partial class ViewAssetLinker
         var manifest = new ViewManifest();
         var linked = 0;
 
-        foreach (var file in Directory
-                     .EnumerateFiles(context.Output, "*.js", SearchOption.AllDirectories)
-                     .Where(path => !context.IsGenerated(path))
-                     .OrderBy(path => path, StringComparer.Ordinal))
-        {
-            string source;
-            try
-            {
-                source = File.ReadAllText(file);
-            }
-            catch (IOException)
-            {
-                continue;
-            }
+        // Read once, rewrite once. A stylesheet cannot be pointed at until it has been processed,
+        // and processing is one batch for the whole application, so the modules are collected
+        // before any of them is rewritten.
+        var modules = Directory
+            .EnumerateFiles(context.Output, "*.js", SearchOption.AllDirectories)
+            .Where(path => !context.IsGenerated(path))
+            .OrderBy(path => path, StringComparer.Ordinal)
+            .Select(path => (Path: path, Source: ReadOrNull(path)))
+            .Where(module => module.Source is not null)
+            .ToList();
 
-            var module = new ModuleLinker(context, file);
+        var styles = ProcessStyles(context, modules!, viewsDirectory, esbuild, npm, report);
+
+        foreach (var (file, source) in modules)
+        {
+            var module = new ModuleLinker(context, file, styles);
             var rewritten = Specifier().Replace(source, module.Rewrite);
 
             linked += module.Linked;
@@ -100,7 +113,7 @@ public static partial class ViewAssetLinker
 
             if (rewritten != source)
             {
-                AssetStage.WriteFileIfChanged(file, rewritten);
+                AssetStage.WriteFileIfChanged(file, rewritten!);
             }
         }
 
@@ -108,6 +121,60 @@ public static partial class ViewAssetLinker
         WriteManifest(context.Output, manifest);
 
         return new Result(linked, manifest, context.Unresolved, context.Misplaced);
+    }
+
+    private static string? ReadOrNull(string path)
+    {
+        try
+        {
+            return File.ReadAllText(path);
+        }
+        catch (IOException)
+        {
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Finds every stylesheet the compiled modules import and puts each somewhere it can be
+    /// served, scoping the class names of the ones named <c>*.module.css</c>.
+    /// </summary>
+    private static IReadOnlyDictionary<string, ProcessedStyle> ProcessStyles(
+        LinkContext context,
+        IReadOnlyList<(string Path, string Source)> modules,
+        string? viewsDirectory,
+        EsbuildToolchain? esbuild,
+        NodeModuleResolver? npm,
+        Action<string>? report)
+    {
+        if (viewsDirectory is null)
+        {
+            return new Dictionary<string, ProcessedStyle>(StringComparer.Ordinal);
+        }
+
+        var imports = new List<(string, string)>();
+
+        foreach (var (path, source) in modules)
+        {
+            foreach (Match match in Specifier().Matches(source))
+            {
+                var specifier = match.Groups["spec"].Value;
+                if (specifier.EndsWith(".css", StringComparison.OrdinalIgnoreCase))
+                {
+                    imports.Add((specifier, path));
+                }
+            }
+        }
+
+        var pipeline = new ViewStyles(context.Output, viewsDirectory, esbuild, npm, report);
+        var processed = pipeline.Process(imports);
+
+        foreach (var specifier in pipeline.Unresolved)
+        {
+            context.RecordMisplaced(specifier);
+        }
+
+        return processed;
     }
 
     /// <summary>
@@ -219,6 +286,23 @@ public static partial class ViewAssetLinker
             return new GeneratedModule(module, url);
         }
 
+        /// <summary>
+        /// Writes the module a stylesheet import resolves to, and returns where it is.
+        /// </summary>
+        public string? GenerateStyleModule(string specifier, ProcessedStyle style)
+        {
+            var key = (style.Rooted ? style.Url.TrimStart('/') : style.Url)
+                .Replace('/', Path.DirectorySeparatorChar);
+
+            var module = Path.Combine(_generatedRoot, key + ".js");
+
+            System.IO.Directory.CreateDirectory(Path.GetDirectoryName(module)!);
+            AssetStage.WriteFileIfChanged(module, ViewAssets.StyleModuleSource(style.Url, style.Names));
+            _written.Add(Path.GetFullPath(module));
+
+            return module;
+        }
+
         /// <summary>Removes modules written for assets nothing imports any more.</summary>
         public void PruneGenerated()
         {
@@ -248,7 +332,8 @@ public static partial class ViewAssetLinker
     private sealed record GeneratedModule(string ModulePath, string Url);
 
     /// <summary>Rewrites one compiled module's specifiers, collecting what it imports as it goes.</summary>
-    private sealed class ModuleLinker(LinkContext context, string file)
+    private sealed class ModuleLinker(
+        LinkContext context, string file, IReadOnlyDictionary<string, ProcessedStyle> styles)
     {
         private readonly string _directory = Path.GetDirectoryName(file)!;
 
@@ -269,6 +354,14 @@ public static partial class ViewAssetLinker
                 }
 
                 return match.Value;
+            }
+
+            // A stylesheet, wherever it came from: the web root, beside a view, or a package.
+            if (specifier.EndsWith(".css", StringComparison.OrdinalIgnoreCase))
+            {
+                return styles.TryGetValue(specifier, out var style)
+                    ? RewriteStyle(match, specifier, style)
+                    : match.Value;
             }
 
             if (ViewAssets.PathFor(specifier) is not { } assetPath || !ViewAssets.IsAsset(assetPath))
@@ -300,6 +393,35 @@ public static partial class ViewAssetLinker
             // module's own URL, which already carries the build id, so nothing has to be told where
             // this application serves its modules from.
             var relative = Path.GetRelativePath(_directory, generated.ModulePath)
+                .Replace(Path.DirectorySeparatorChar, '/');
+
+            return match.Groups["lead"].Value
+                   + match.Groups["quote"].Value
+                   + (relative.StartsWith('.') ? relative : "./" + relative)
+                   + match.Groups["quote"].Value;
+        }
+
+        /// <summary>
+        /// Points a stylesheet import at the module written for it, and records the URL the
+        /// document has to link.
+        /// </summary>
+        /// <remarks>
+        /// A CSS module's import has a value, the scoped class names, so its module exports the
+        /// map esbuild produced. An ordinary stylesheet binds nothing, so its module exists only
+        /// to give the import something to resolve to.
+        /// </remarks>
+        private string RewriteStyle(Match match, string specifier, ProcessedStyle style)
+        {
+            var generated = context.GenerateStyleModule(specifier, style);
+            if (generated is null)
+            {
+                return match.Value;
+            }
+
+            Styles.Add(style.Url);
+            Linked++;
+
+            var relative = Path.GetRelativePath(_directory, generated)
                 .Replace(Path.DirectorySeparatorChar, '/');
 
             return match.Groups["lead"].Value

@@ -47,9 +47,10 @@
       Minify what is served, and compress it on the way out. Both default to Release only: they
       cost build time and obscure the source, which is the wrong trade while developing.
 
-      Minification needs esbuild, restored alongside the compiler when this is on. Both settings
-      are stamped onto the assembly below, so turning one off here also turns it off for an
-      application that compiles at startup.
+      Turning minification off does not remove esbuild, which is restored alongside the TypeScript
+      compiler whatever this says: the same binary scopes CSS module class names, which a Debug
+      build needs as much as a Release one. Both settings are stamped onto the assembly below, so
+      turning one off here also turns it off for an application that compiles at startup.
     -->
     <JsxCoreMinify Condition="'$(JsxCoreMinify)' == '' And '$(Configuration)' == 'Release'">true</JsxCoreMinify>
     <JsxCoreMinify Condition="'$(JsxCoreMinify)' == ''">false</JsxCoreMinify>
@@ -392,7 +393,7 @@
           Condition="Exists('$(MSBuildProjectDirectory)/$(JsxCoreViewsDirectory)')">
 
     <Exec Condition="Exists('$(JsxCoreToolPath)')"
-          Command="$(JsxCoreToolCommand) provision --project-dir &quot;$(MSBuildProjectDirectory)&quot; --manifest-dir &quot;$(_JsxCoreManifestDir)&quot; --framework &quot;$(JsxCoreFramework)&quot; --auto-install &quot;$(JsxCoreAutoInstallDependencies)&quot; --npm-path &quot;$(JsxCoreNpm)&quot; --package-manager &quot;$(JsxCorePackageManager)&quot; --minify &quot;$(JsxCoreMinify)&quot; --assembly &quot;$(TargetPath)&quot;"
+          Command="$(JsxCoreToolCommand) provision --project-dir &quot;$(MSBuildProjectDirectory)&quot; --manifest-dir &quot;$(_JsxCoreManifestDir)&quot; --framework &quot;$(JsxCoreFramework)&quot; --auto-install &quot;$(JsxCoreAutoInstallDependencies)&quot; --npm-path &quot;$(JsxCoreNpm)&quot; --package-manager &quot;$(JsxCorePackageManager)&quot; --assembly &quot;$(TargetPath)&quot;"
           ContinueOnError="true"
           IgnoreExitCode="true"
           StandardOutputImportance="high"

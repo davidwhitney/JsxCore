@@ -185,11 +185,13 @@ The settings are stamped onto your assembly, so an application that compiles vie
 the same answer as one serving what the build produced. `options.Minify` and
 `options.CompressAssets` override it from application code if you need to decide at run time.
 
-**Minification is esbuild**, restored as a dev dependency alongside the TypeScript compiler when it
-is switched on, and run the same way: a native binary, no Node, nothing on the server. It never
-fails a build. If the binary is missing, or a package is written in something it refuses, the
-original is served and a warning says so. A larger payload is a worse outcome than a smaller one,
-and a better outcome than an application that will not start.
+**Minification is esbuild**, restored as a dev dependency alongside the TypeScript compiler and run
+the same way: a native binary, no Node, nothing on the server. It is restored whether or not
+minification is on, because the same binary scopes [CSS module](styling.md#css-modules) class names.
+
+It never fails a build. If the binary is missing, or a package is written in something it refuses,
+the original is served and a warning says so. A larger payload is a worse outcome than a smaller
+one, and a better outcome than an application that will not start.
 
 It covers everything the browser downloads: your compiled views, the framework, and the npm
 packages, which are usually the bulk of it. Views are minified both by the build, for a

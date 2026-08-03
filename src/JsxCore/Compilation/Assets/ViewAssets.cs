@@ -161,6 +161,31 @@ public static class ViewAssets
          """;
 
     /// <summary>
+    /// The module a stylesheet import resolves to.
+    /// </summary>
+    /// <remarks>
+    /// A CSS module exports the scoped class names, which is what <c>styles.card</c> reads. An
+    /// ordinary stylesheet binds nothing, so its module exports the URL instead, which costs
+    /// nothing and gives anyone who wants the href a way to get it.
+    /// </remarks>
+    public static string StyleModuleSource(string url, string? names) =>
+        names is null
+            ? $"""
+               // Written by JsxCore for a stylesheet a view imports. The document links it; this
+               // exists so the import has something to resolve to.
+               const url = {Quote(url)};
+               export default url;
+
+               """
+            : $"""
+               // Written by JsxCore for a CSS module. The class names are esbuild's, scoped so two
+               // components can use the same one without colliding.
+               const styles = {names};
+               export default styles;
+
+               """;
+
+    /// <summary>
     /// Ambient declarations so <c>import logo from "/images/logo.svg"</c> type checks.
     /// </summary>
     /// <remarks>
@@ -179,6 +204,12 @@ public static class ViewAssets
         builder.AppendLine("//");
         builder.AppendLine("// The path is the URL, so it starts at your web root. A relative import of an image");
         builder.AppendLine("// type checks against these too, but nothing serves it, and the build says so.");
+        builder.AppendLine();
+
+        builder.AppendLine("declare module \"*.module.css\" {");
+        builder.AppendLine("    const classes: { readonly [name: string]: string };");
+        builder.AppendLine("    export default classes;");
+        builder.AppendLine("}");
         builder.AppendLine();
 
         foreach (var extension in ContentTypes.Keys.OrderBy(key => key, StringComparer.Ordinal))

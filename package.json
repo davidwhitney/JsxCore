@@ -1,9 +1,10 @@
 {
   "name": "jsxcore-repo",
   "private": true,
-  "description": "TypeScript toolchain used by the JsxCore test suite. JsxCore invokes the native tsc binary from this package directly.",
+  "description": "TypeScript toolchain and esbuild, used by the JsxCore test suite. JsxCore invokes both native binaries directly.",
   "devDependencies": {
-    "typescript": "^7.0.2"
+    "typescript": "^7.0.2",
+    "esbuild": "^0.28.1"
   },
   "dependencies": {
     "classnames": "^2.5.1",

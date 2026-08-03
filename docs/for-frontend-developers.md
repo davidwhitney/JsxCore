@@ -95,8 +95,9 @@ JsxCore-specific code in the action. See
 - **No async components, streaming or React Server Components.** Server rendering is synchronous;
   the endpoint that builds the model is [ordinary async C#](returning-views.md#async-endpoints).
 - **No `next/image`, `next/link` or `next/font`.** Plain HTML, plus `UseStaticFiles()`.
-- **Assets live in `wwwroot`, not beside the component.** ASP.NET Core serves them; nothing is
-  bundled or fingerprinted. CSS Modules are [not built yet](roadmap.md).
+- **Images and fonts live in `wwwroot`, not beside the component.** ASP.NET Core serves them;
+  nothing is bundled or fingerprinted. Stylesheets are the exception and can sit beside a
+  component, [CSS Modules included](styling.md#css-modules).
 - **No API routes to write**, because the endpoint that renders the page and the endpoint that
   returns JSON are the same kind of thing.
 - **One process, one deployment.** No Node server beside your .NET one.

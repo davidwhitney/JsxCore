@@ -72,6 +72,10 @@ public sealed class JsxTestHost : IAsyncDisposable
                 options.AdditionalToolchainSearchPaths.Add(path);
             }
 
+            // The content root is a temp directory, so esbuild, which processes stylesheets, is
+            // found where the rest of the toolchain is.
+            options.AdditionalToolchainSearchPaths.Add(JsxProjectFixture.RepositoryRoot());
+
             options.WatchForChanges = project.Options.WatchForChanges;
             options.HotReload = project.Options.HotReload;
 

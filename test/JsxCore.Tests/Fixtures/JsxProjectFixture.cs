@@ -172,7 +172,9 @@ public sealed class JsxProjectFixture : IDisposable
             Framework == JsFramework.React ? null : _stager,
             Framework == JsFramework.React ? _reactStager : null,
             Framework,
-            minifier);
+            minifier,
+            EsbuildToolchainLocator.Locate(RepositoryRoot(), Options.MinifierPath),
+            new NodeModuleResolver(NodeModulesLayout.For(Root, Options.AdditionalToolchainSearchPaths)));
         _disposables.Add(service);
         return service;
     }

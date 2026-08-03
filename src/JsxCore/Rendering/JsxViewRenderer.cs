@@ -72,7 +72,7 @@ public sealed class JsxViewRenderer(
             ModelJson = JsonSerializer.Serialize(request.Model, _options.JsonSerializerOptions),
             ContextJson = JsonSerializer.Serialize(context, _options.JsonSerializerOptions),
             ModuleUrl = $"{assetBase}/views/{request.View.ModuleRelativePath}",
-            StyleSheets = StyleSheetsFor(request.View, buildId),
+            StyleSheets = StyleSheetsFor(request.View, assetBase, buildId),
             Document = request.Document ?? _options.Document,
             TitleOverride = request.Title,
             ImportMap = ImportMapFor(assetBase, buildId),
@@ -164,7 +164,7 @@ public sealed class JsxViewRenderer(
     /// same for every request for that view, so it is cached beside the import map rather than
     /// recomputed per response.
     /// </remarks>
-    private IReadOnlyList<string> StyleSheetsFor(LocatedView view, string buildId)
+    private IReadOnlyList<string> StyleSheetsFor(LocatedView view, string assetBase, string buildId)
     {
         var cache = _styleSheets.Get(buildId, () => new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal));
 
@@ -175,7 +175,11 @@ public sealed class JsxViewRenderer(
                 return cached;
             }
 
-            var styles = _compilation.Views.StylesFor(view.ModuleRelativePath);
+            // A stylesheet the application already serves keeps its own URL. One JsxCore processed
+            // is a build output, served from this build's prefix like any compiled module.
+            var styles = _compilation.Views.StylesFor(view.ModuleRelativePath)
+                .Select(style => style.StartsWith('/') ? style : $"{assetBase}/views/{style}")
+                .ToList();
 
             cache[view.ModuleRelativePath] = styles;
             return styles;

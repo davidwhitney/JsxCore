@@ -112,8 +112,9 @@ Two settings decide who does that work:
 Neither is fatal on failure. The build warns with `JSX0001` and leaves compilation to startup;
 startup prints the command to run by hand.
 
-Preact needs nothing installed, because it ships inside the JsxCore package. [React](runtimes.md)
-adds `react` and `react-dom`, and a Release build adds `esbuild`.
+Two binaries are always restored: the TypeScript compiler, and esbuild, which minifies and scopes
+[CSS module](styling.md#css-modules) class names. Preact needs nothing installed, because it ships
+inside the JsxCore package. [React](runtimes.md) adds `react` and `react-dom`.
 
 See [package management](package-management.md) for the client itself, the lock file, the
 `dotnet npm` tool, and how to hand the job to npm instead.

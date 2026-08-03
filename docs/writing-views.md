@@ -244,8 +244,9 @@ Editors need a little help finding them; see [Development](development.md#editor
 
 ## Static assets
 
-JsxCore renders HTML; it does not process assets. Those live in `wwwroot`, served by
-`UseStaticFiles()`.
+Images, fonts and the rest live in `wwwroot`, served by `UseStaticFiles()`. JsxCore does not
+process them. Stylesheets are the exception: those it does process, and they can live beside the
+component that uses them.
 
 ```csharp
 app.UseStaticFiles();
@@ -265,8 +266,9 @@ import logo from "/images/logo.svg";
 <img src={logo} alt="Contoso" />
 ```
 
-An imported stylesheet becomes a `<link>` in the head of every page that reaches it. See
-[Import syntax](import-syntax.md#static-assets).
+An imported stylesheet becomes a `<link>` in the head of every page that reaches it, whether it
+came from the web root, from beside the component, or from an npm package. Name one
+`*.module.css` and its class names are scoped. See [Styling](styling.md).
 
 For a stylesheet the whole application needs, `options.Document.HeadContent` is simpler:
 

@@ -151,7 +151,13 @@ public static class JsxCoreServiceCollectionExtensions
             framework == JsFramework.React ? null : provider.GetRequiredService<PreactVendorStager>(),
             framework == JsFramework.React ? provider.GetRequiredService<ReactEntryStager>() : null,
             framework,
-            minify ? LocateMinifier(options, contentRoot, provider) : null));
+            minify ? LocateMinifier(options, contentRoot, provider) : null,
+
+            // Located whether or not minification is on: the same binary scopes CSS module class
+            // names, and a stylesheet has to work in Debug as much as in Release.
+            EsbuildToolchainLocator.Locate(
+                contentRoot, options.MinifierPath, options.AdditionalToolchainSearchPaths),
+            options.AllowNodeModules ? provider.GetRequiredService<NodeModuleResolver>() : null));
 
         services.TryAddSingleton(provider => framework == JsFramework.React
             ? JsxRuntimeLayout.React(provider.GetRequiredService<ReactEntryStager>())

@@ -6,6 +6,7 @@ using Microsoft.Extensions.Logging;
 using JsxCore.Compilation.Assets;
 using JsxCore.Compilation.Pipeline;
 using JsxCore.Compilation.Provisioning;
+using JsxCore.Compilation.Modules;
 using JsxCore.Compilation.Pipeline.Steps;
 using JsxCore.Compilation.Pipeline.Steps.Compile;
 using JsxCore.Compilation.Pipeline.Steps.Gather;
@@ -23,7 +24,9 @@ public sealed class JsxCompilationService(
     PreactVendorStager? preact = null,
     ReactEntryStager? react = null,
     JsFramework framework = JsFramework.Preact,
-    JsMinifier? minifier = null)
+    JsMinifier? minifier = null,
+    EsbuildToolchain? styleToolchain = null,
+    NodeModuleResolver? npm = null)
     : IDisposable
 {
     private readonly JsxCoreOptions _options = options ?? throw new ArgumentNullException(nameof(options));
@@ -143,7 +146,8 @@ public sealed class JsxCompilationService(
 
     private void LinkAssets()
     {
-        var linked = ViewAssetLinker.Link(Layout);
+        var linked = ViewAssetLinker.Link(
+            Layout, styleToolchain, npm, message => _logger.LogWarning("{Message}", message));
         _views = linked.Manifest;
 
         if (linked.Linked > 0)

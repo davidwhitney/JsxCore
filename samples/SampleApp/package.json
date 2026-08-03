@@ -1,7 +1,7 @@
 {
   "name": "sampleapp-views",
   "private": true,
-  "description": "TypeScript toolchain for the JsxCore sample app. JsxCore invokes the native tsc binary from this package directly; Node itself is never required at runtime.",
+  "description": "Build toolchain for the JsxCore sample app: the TypeScript compiler and esbuild. JsxCore invokes both native binaries directly; Node itself is never required.",
   "devDependencies": {
     "typescript": "^7.0.2",
     "esbuild": "^0.28.1"

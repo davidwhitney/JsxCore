@@ -175,33 +175,31 @@ served at `/images/logo.svg`, so that is what you write. It resolves to that URL
 Nothing is copied or versioned. The point is the check: a typo becomes a compile error instead of a
 broken image in production. `<img src="/images/logo.svg" />` by hand still works.
 
-Any web asset extension resolves: images, fonts, video, `.pdf`, `.css`.
+Any web asset extension resolves: images, fonts, video, `.pdf`.
 
-**The path has to start at the root.** `./logo.svg` beside a view names nothing JsxCore serves,
-because views are a source tree. It type checks anyway, since the declarations behind this are
-`*.svg` wildcards and TypeScript rejects a pattern beginning with a slash, so the build reports it
-by name instead. A rooted path naming a file the web root does not hold is reported the same way.
+**For everything but stylesheets, the path has to start at the root.** `./logo.svg` beside a view
+names nothing JsxCore serves, because views are a source tree. It type checks anyway, since the
+declarations behind this are `*.svg` wildcards and TypeScript rejects a pattern beginning with a
+slash, so the build reports it by name instead. A rooted path naming a file the web root does not
+hold is reported the same way.
+
+Stylesheets are the exception, because JsxCore processes those. See below.
 
 ### Stylesheets
 
-A stylesheet import binds nothing, so JsxCore answers it in the document:
+Three places a stylesheet can come from, and the spelling says which:
 
 ```tsx
-import "/css/card.css";
+import "/css/site.css";                     // your web root, served by UseStaticFiles
+import "./card.css";                        // beside the component
+import "some-widget/styles.css";            // an npm package's own styles
+import styles from "./Card.module.css";     // a CSS module, with scoped class names
 ```
 
-Every view reaching that import, directly or through a component, gets a `<link rel="stylesheet">`
-in its head, in every render mode. Order follows the import graph, not render order: a component's
-stylesheet precedes that of the page importing it, so the page can override it.
+The first three bind nothing and are answered with a `<link>` in the document. A `*.module.css`
+binds the scoped class names, so `styles.card` is what goes in the markup.
 
-`options.Document.HeadContent` is simpler for a stylesheet every page needs. This is for one
-belonging to a component.
-
-Editing a stylesheet takes effect immediately; it is a static file. Adding or removing an import
-needs a full page load, since hot reload swaps modules, not the head.
-
-CSS Modules, meaning `import styles from "./Card.module.css"` with mangled class names, are
-[not built yet](roadmap.md).
+See [Styling](styling.md) for what each is for, how ordering is decided, and Tailwind.
 
 ---
 
