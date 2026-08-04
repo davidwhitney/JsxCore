@@ -6,8 +6,6 @@ public sealed record DeclaredPackage(string Name, string Range, bool Development
 
 public sealed class PackageManifest
 {
-    private IReadOnlyList<DeclaredPackage>? _packages;
-
     private PackageManifest(string path, JsonElement root)
     {
         Path = path;
@@ -20,7 +18,7 @@ public sealed class PackageManifest
 
     // Worked out on first use: resolution touches a manifest for every package it walks through
     // and has no interest in what they declare.
-    public IReadOnlyList<DeclaredPackage> Packages => _packages ??= ReadPackages();
+    public IReadOnlyList<DeclaredPackage> Packages => field ??= ReadPackages();
 
     public IEnumerable<DeclaredPackage> Dependencies => Packages.Where(p => !p.Development);
     public IEnumerable<DeclaredPackage> DevDependencies => Packages.Where(p => p.Development);

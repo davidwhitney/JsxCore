@@ -49,8 +49,9 @@ construction is C# in `JsxCore.Tool` with tests behind it, rather than property 
 **`JsxCore.PackageManagement` is the bottom of the stack, and stays there.** It references nothing
 of JsxCore's, which is what lets `JsxCore.Npm` ship as a command line npm client rather than as a
 view engine with a CLI attached. A reference from it back up to `JsxCore` is the one edit that
-undoes that, so anything both need moves down into `Shared/` instead. It is not published on its
-own: `JsxCore` builds it into `lib/`, and `JsxCore.Npm` bundles it.
+undoes that, so anything both need moves down into this project instead, into the folder matching
+the namespace it belongs in rather than into a folder named for being shared. It is not published
+on its own: `JsxCore` builds it into `lib/`, and `JsxCore.Npm` bundles it.
 
 **The samples import the targets from source.** They use a `ProjectReference` plus an explicit
 `Import`, which exercises build-time compilation but not the package layout. If you change how the

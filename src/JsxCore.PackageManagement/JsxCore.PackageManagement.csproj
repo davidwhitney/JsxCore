@@ -16,20 +16,26 @@
     JsxCore.dll, and bundled into JsxCore.Npm as a loose assembly the way any tool dependency is, so
     nothing new appears in a consumer's dependency tree.
 
-    Namespaces are unchanged by the move. The project directory stands in for the
-    JsxCore.Compilation.Provisioning.PackageManagement prefix rather than repeating it four levels
-    deep on disk, and Modules/ holds the two types under JsxCore.Compilation.Modules that the client
-    needs and the view engine shares.
+    Namespaces are unchanged by the move, and the folders mirror them, so this project's layout
+    reads the same as JsxCore's own. That costs four levels of nesting under
+    Compilation/Provisioning/PackageManagement, and buys a namespace that can always be read off the
+    path: the alternative, standing the project directory in for that prefix, left the types this
+    assembly shares with the view engine unable to match their folders at all. JsxCoreException
+    belongs in JsxCore and ToolProcess in JsxCore.Compilation, and no root namespace short enough to
+    flatten the package management types can also produce those two.
 
-    Shared/ is the rest of that: ToolProcess, which runs an external program with a timeout and is
-    as useful to tsc and esbuild as it is to npm, and the base JsxCoreException. Being the lower of
-    the two assemblies, this is where anything both of them need has to live.
+    Compilation/Modules holds the two types under JsxCore.Compilation.Modules that the client needs
+    and the view engine shares. Beside them are ToolProcess, which runs an external program with a
+    timeout and is as useful to tsc and esbuild as it is to npm, and the base JsxCoreException.
+    Being the lower of the two assemblies, this is where anything both of them need has to live.
   -->
   <PropertyGroup>
     <TargetFrameworks>net8.0;net9.0;net10.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
-    <RootNamespace>JsxCore.Compilation.Provisioning.PackageManagement</RootNamespace>
+    <!-- JsxCore, not the package management prefix, so every folder under this one names its own
+         namespace and IDE0130 has nothing to report. -->
+    <RootNamespace>JsxCore</RootNamespace>
     <AssemblyName>JsxCore.PackageManagement</AssemblyName>
     <IsPackable>false</IsPackable>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
