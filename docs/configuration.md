@@ -135,7 +135,7 @@ factories.
 | Specifier | Holds |
 |---|---|
 | `dotnet:types` | Every type generated from .NET, reached through its .NET namespace |
-| `dotnet:types/<Namespace>` | The same types, imported by name from the namespace they live in |
+| `dotnet:types/MyApp/Models` | The same types, imported by name from the namespace they live in. The .NET namespace with its dots as slashes, so `MyApp.Models` is `MyApp/Models` |
 | `dotnet:globals` | The .NET objects registered with `options.Globals`, one named export each |
 | `dotnet:rendering` | `isServerRender`, and the types a view is handed: `ViewProps`, `HeadDescriptor`, `JsxNode` |
 | `dotnet:rendering/head` | The `<Head>` component |
