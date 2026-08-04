@@ -49,6 +49,17 @@ public sealed class TypeDefinitionOptions
     /// Populated from the registry at startup. A build cannot see it, because registration happens
     /// in application code the build never runs; until then a view importing one gets <c>any</c>.
     /// </remarks>
+    /// <summary>
+    /// Whether <see cref="GlobalTypes"/> is the whole answer, or merely what is known so far.
+    /// </summary>
+    /// <remarks>
+    /// Registering a global is a line in application code, so only a running application knows the
+    /// set is complete. A build sees an empty one whatever the application does, and must not
+    /// describe that as "no globals": doing so would tell a view that registered them that they do
+    /// not exist, between the build and the first run.
+    /// </remarks>
+    public bool GlobalsAreKnown { get; set; }
+
     public IReadOnlyDictionary<string, Type?> GlobalTypes { get; set; } =
         new Dictionary<string, Type?>(StringComparer.Ordinal);
 

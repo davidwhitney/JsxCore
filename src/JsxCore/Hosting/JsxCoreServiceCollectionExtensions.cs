@@ -84,6 +84,10 @@ public static class JsxCoreServiceCollectionExtensions
 
         // What dotnet:globals describes. Read here rather than during generation because registration
         // is application code, and this is the first point at which all of it has run.
+        // Registration has run, so an empty set now means the application has none rather than that
+        // nobody has looked yet.
+        options.TypeDefinitions.GlobalsAreKnown = true;
+
         options.TypeDefinitions.GlobalTypes = options.Globals.Registrations.ToDictionary(
             registration => registration.Key,
             registration => registration.Value.ServiceType,

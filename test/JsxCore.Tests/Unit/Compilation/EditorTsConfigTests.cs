@@ -1,3 +1,4 @@
+using System.Text.Json.Nodes;
 using JsxCore.Compilation;
 using JsxCore.Rendering;
 using Shouldly;
@@ -26,6 +27,30 @@ public class EditorTsConfigTests
         // The mapping must be relative to the views directory, not absolute.
         contents.ShouldContain("../obj/JsxCore/runtime/index.d.ts");
         contents.ShouldNotContain(project.Root);
+    }
+
+    [Fact]
+    public async Task WriteIdeConfig_IncludesEveryGeneratedDeclaration()
+    {
+        // An editor caches module resolutions and watches only the files in its program, so a
+        // declaration reached through a path mapping goes stale when a build rewrites it.
+        using var project = JsxProjectFixture.Create();
+        project.AddView("Home/Index.tsx", "export default function Index() { return <p>hi</p>; }");
+
+        await project.CompileAsync();
+
+        var config = JsonNode.Parse(
+            await File.ReadAllTextAsync(Path.Combine(project.ViewsDirectory, "tsconfig.json")))!;
+
+        var includes = config["include"]!.AsArray().Select(entry => entry!.GetValue<string>()).ToList();
+
+        includes.ShouldContain("../obj/JsxCore/types/**/*.d.ts");
+
+        // The views themselves are still what the configuration is mainly for.
+        includes.ShouldContain("**/*");
+
+        // The stand-in lives in that directory, so naming it as well would list it twice.
+        includes.ShouldNotContain(entry => entry.EndsWith("pending.d.ts", StringComparison.Ordinal));
     }
 
     [Fact]

@@ -228,7 +228,11 @@ public static class TsConfigWriter
         };
         AddSubModulePaths(paths, runtime);
         paths[ViewsAlias] = new JsonArray("./*");
-        var ambientTypes = AddGeneratedTypesPath(options, layout, paths, relativeTo: layout.ViewsDirectory);
+
+        // Called for the mapping and the stand-in it writes. The path it returns names that
+        // stand-in, which the pattern below already covers.
+        _ = AddGeneratedTypesPath(options, layout, paths, relativeTo: layout.ViewsDirectory);
+
         compilerOptions["paths"] = MergePaths(compilerOptions, paths);
 
         ApplyUserOptions(compilerOptions, options);
@@ -239,10 +243,11 @@ public static class TsConfigWriter
                        $"the config in the intermediate output directory, not this one.";
         // "**/*" is relative to the views directory, which the generated declarations sit outside.
         var includes = new JsonArray("**/*");
-        if (ambientTypes is not null)
-        {
-            includes.Add(ambientTypes);
-        }
+
+        // A mapping is enough for the compiler, which resolves once and exits. An editor caches
+        // resolutions across builds and only watches files in the program, so the declarations are
+        // listed rather than left to be found through a path.
+        includes.Add(GeneratedTypesInclude(layout, relativeTo: layout.ViewsDirectory));
 
         includes.Add(WriteAssetDeclarations(layout, relativeTo: layout.ViewsDirectory));
         config["include"] = includes;
@@ -361,6 +366,22 @@ public static class TsConfigWriter
         paths[TypeDefinitionOptions.Scheme + "*"] = new JsonArray($"{relative}/*.d.ts");
 
         return null;
+    }
+
+    /// <summary>
+    /// Every generated declaration file, as a pattern the editor configuration can include.
+    /// </summary>
+    private static string GeneratedTypesInclude(CompilationLayout layout, string relativeTo)
+    {
+        var relative = Normalise(Path.GetRelativePath(relativeTo, layout.GeneratedTypesDirectory));
+
+        if (!relative.StartsWith('.') && !Path.IsPathRooted(relative))
+        {
+            relative = "./" + relative;
+        }
+
+        // Recursive: the namespace facades sit a directory below.
+        return $"{relative}/**/*.d.ts";
     }
 
     /// <summary>

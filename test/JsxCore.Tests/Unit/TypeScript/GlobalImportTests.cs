@@ -19,10 +19,15 @@ public class GlobalImportTests
         public void Clear() { }
     }
 
-    private static IReadOnlyList<GeneratedTypeScriptFile> Generate(params (string Name, Type? Type)[] globals)
+    private static IReadOnlyList<GeneratedTypeScriptFile> Generate(params (string Name, Type? Type)[] globals) =>
+        Generate(globalsAreKnown: true, globals);
+
+    private static IReadOnlyList<GeneratedTypeScriptFile> Generate(
+        bool globalsAreKnown, params (string Name, Type? Type)[] globals)
     {
         var options = new TypeDefinitionOptions
         {
+            GlobalsAreKnown = globalsAreKnown,
             GlobalTypes = globals.ToDictionary(g => g.Name, g => g.Type, StringComparer.Ordinal)
         };
 
@@ -68,14 +73,6 @@ public class GlobalImportTests
     {
         // A factory returns object, so there is nothing to describe and saying so is honest.
         GlobalsDeclaration(("Anything", null)).ShouldContain("export declare const Anything: any;");
-    }
-
-    [Fact]
-    public void Generate_NothingRegistered_WritesNoModuleAtAll()
-    {
-        // Absent rather than empty, so the ambient stand-in applies and imports type as any until
-        // the application has run.
-        Generate().ShouldNotContain(file => file.ModuleSpecifier == TypeDefinitionOptions.GlobalsSpecifier);
     }
 
     [Fact]
@@ -132,5 +129,29 @@ public class GlobalImportTests
         registry.Register("Anything", _ => new Basket());
 
         registry.Registrations["Anything"].ServiceType.ShouldBeNull();
+    }
+
+    [Fact]
+    public void Generate_ApplicationRegistersNoGlobals_StillDescribesTheModule()
+    {
+        // Otherwise nothing is ever written for dotnet:globals, the ambient stand-in that covers it
+        // is never pruned, and every import from it types as any for the life of the project. An
+        // import of something that was never registered should be an error, not silence.
+        var globals = Generate(globalsAreKnown: true);
+
+        var file = globals.ShouldHaveSingleItem();
+        file.ModuleSpecifier.ShouldBe(TypeDefinitionOptions.GlobalsSpecifier);
+
+        // The escape hatch is still reachable; nothing else is.
+        file.Contents.ShouldContain("export declare const dotnet:");
+        file.Contents.ShouldNotContain("export declare const Basket");
+    }
+
+    [Fact]
+    public void Generate_NobodyHasLookedForGlobalsYet_WritesNothing()
+    {
+        // A build never runs the code that registers them, so an empty set there means "unknown".
+        // Describing it as "none" would tell a view its globals do not exist until the first run.
+        Generate(globalsAreKnown: false).ShouldBeEmpty();
     }
 }

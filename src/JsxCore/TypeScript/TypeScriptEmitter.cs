@@ -417,7 +417,8 @@ internal sealed class TypeScriptEmitter(
     /// </remarks>
     private GeneratedTypeScriptFile? GlobalsModule(string? rootNamespace)
     {
-        if (options.GlobalTypes.Count == 0)
+        // Nothing registered, and nobody yet in a position to say so: leave the stand-in in place.
+        if (options.GlobalTypes.Count == 0 && !options.GlobalsAreKnown)
         {
             return null;
         }
