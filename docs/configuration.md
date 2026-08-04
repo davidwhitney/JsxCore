@@ -185,11 +185,20 @@ Set these in your `.csproj`. They control [build-time compilation](build-and-dep
 | `JsxCoreGenerateModelTypes` | `true` | Generate TypeScript declarations from .NET models during the build |
 | `JsxCoreEmitViewLocationAnnotations` | `true` | Emit the annotations that let an IDE resolve `View()` calls |
 | `JsxCoreViewExtensions` | `.tsx;.jsx` | Extensions those annotations describe |
+| `JsxCoreViewLocationFormats` | as `ViewLocationFormats` | Semicolon-separated, for those annotations |
+| `JsxCoreAreaViewLocationFormats` | as `AreaViewLocationFormats` | Semicolon-separated, for those annotations |
 | `JsxCoreAdditionalSearchPaths` | empty | Extra roots to search for `node_modules`, as pnpm needs |
 | `JsxCoreCompilerPath` | auto | Explicit path to the TypeScript binary |
 | `JsxCoreGenerateEditorTsConfig` | `true` | Write the editor tsconfig at build time |
 | `JsxCoreToolPath` | in the package | The build tool the targets invoke, under `tools/net8.0/` |
 | `JsxCoreToolCommand` | `dotnet exec ...` | How that tool is run, if you need to change the host |
+
+The last four view-location properties describe where views live to the source generator, which
+emits the annotations an IDE reads to resolve a `View()` call returning a `.tsx` file. They have no
+effect at run time: view resolution is done by `ViewLocationFormats` and `AreaViewLocationFormats`
+on `JsxCoreOptions`, and the two are not read from each other. Changing where views are found in
+`Program.cs` means setting the matching property here as well, or the application will resolve views
+the IDE says do not exist.
 
 ### npm packages
 
