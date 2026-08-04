@@ -22,11 +22,12 @@ public static class JsxCoreServiceCollectionExtensions
     /// Registers the JSX/TSX view engine.
     /// </summary>
     /// <remarks>
-    /// Registration itself touches neither the network nor the file system. Packages are restored
-    /// and the TypeScript toolchain verified when the host starts, which is still before the first
-    /// request, so a missing or unusable toolchain throws
-    /// <see cref="JsxCoreEnvironmentException"/> and stops the application rather than surfacing
-    /// later as a view that will not render.
+    /// Registration only reads, and only locally: it loads the application's own assembly for what
+    /// the build stamped onto it, and probes for the node_modules directories to be searched later.
+    /// It writes nothing and reaches no network. Packages are restored and the TypeScript toolchain
+    /// verified when the host starts, which is still before the first request, so a missing or
+    /// unusable toolchain throws <see cref="JsxCoreEnvironmentException"/> and stops the
+    /// application rather than surfacing later as a view that will not render.
     /// </remarks>
     /// <param name="environment">The hosting environment, used for the content root and to pick development defaults.</param>
     /// <param name="configure">Optional configuration callback.</param>
@@ -42,7 +43,9 @@ public static class JsxCoreServiceCollectionExtensions
         configure?.Invoke(options);
 
         // The convention scans the application's own assembly, and it also carries what the build
-        // decided, so it is resolved before anything reads either.
+        // decided, so it is resolved before anything reads either. Taken from the environment
+        // rather than Assembly.GetEntryAssembly(), which keeps it correct under test hosts, where
+        // the entry assembly is the test runner.
         options.TypeDefinitions.ApplicationAssembly ??= ResolveApplicationAssembly(environment);
 
         // A Release build compiles the views and publishes them, so the application serves what it
@@ -75,12 +78,6 @@ public static class JsxCoreServiceCollectionExtensions
         {
             options.WebRootDirectory = environment.WebRootPath;
         }
-
-        // Already resolved above; kept for callers that construct options themselves.
-        // The convention scans the application's own assembly. Resolving it from the environment
-        // rather than Assembly.GetEntryAssembly() keeps it correct under test hosts, where the
-        // entry assembly is the test runner.
-        options.TypeDefinitions.ApplicationAssembly ??= ResolveApplicationAssembly(environment);
 
         // What dotnet:globals describes. Read here rather than during generation because registration
         // is application code, and this is the first point at which all of it has run.
