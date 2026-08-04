@@ -38,12 +38,6 @@
     <JsxCoreTypeChecking Condition="'$(JsxCoreTypeChecking)' == ''">warn</JsxCoreTypeChecking>
 
     <!--
-      Optional: preact (the default) or react. Views are compiled against this framework's JSX
-      factory, and elements built by one cannot be rendered by the other, so the build stamps the
-      choice onto the assembly for the application to read back.
-    -->
-
-    <!--
       Minify what is served, and compress it on the way out. Both default to Release only: they
       cost build time and obscure the source, which is the wrong trade while developing.
 
@@ -231,26 +225,27 @@
   </ItemGroup>
 
   <!--
-    npm packages the views import come from package.json, installed the ordinary way:
+    npm packages the views import come from package.json, not the project file. Add them with
+    "dotnet npm add marked", or with npm if you would rather; either writes the same manifest.
 
-        npm install marked
-
-    package.json is the record, not the project file. The two kinds mean what they mean to npm:
+    The two kinds mean what they mean to npm, and the difference decides what gets published:
 
       dependencies      needed to render. Resolved on the server, served to the browser, and copied
                         into the publish output.
       devDependencies   needed to build. The TypeScript compiler lives here. Never published, and
                         never served to a browser.
 
-    Parsed during evaluation rather than in a target, because an IDE builds its project tree from the
-    evaluated project without running targets, and the tree is one of the things this feeds.
-
-    Values in these two blocks are flat strings, so matching to the first closing brace is enough to
-    isolate each one. MSBuild escapes separators in property function results, hence the unescape
-    before the names become items.
+    Which packages are declared, which are installed and which are runtime rather than build-time
+    is all worked out by the tool's analyse step and written to JsxCore.g.props, imported above.
+    The item lists it produces (JsxCoreNpmDependency, JsxCoreNpmDevDependency and
+    JsxCoreNpmRuntimePackage) are what the IDE tree and the publish targets below read.
   -->
   <!--
     The framework, stamped onto the application's own assembly.
+
+    JsxCoreFramework is preact (the default) or react. Views are compiled against that framework's
+    JSX factory, and elements built by one cannot be rendered by the other, so the choice has to
+    reach the application rather than being guessed at.
 
     The build knows which framework is in play; the application, running later, does not, and it
     needs the same answer to serve the right runtime files. An assembly attribute is the one channel
@@ -381,9 +376,10 @@
     resolves types, and the view then fails to render at run time with an error about a module,
     which reads as a JsxCore fault rather than a missing install.
 
-    Which package manager does the work is decided by the tool, not here. npm is the only one today
-    and is used when it is on PATH. That is the seam a native restore, needing no Node installed,
-    would arrive through.
+    Which package manager does the work is decided by the tool, not here. The default is the native
+    client, which talks to the registry directly and needs no Node installed; JsxCorePackageManager
+    names npm instead, and the tool then reports that it cannot restore rather than quietly falling
+    back to the other.
 
     Set <JsxCoreAutoInstallDependencies>false</JsxCoreAutoInstallDependencies> to manage packages
     yourself, and JsxCore will report what is missing rather than install it.
