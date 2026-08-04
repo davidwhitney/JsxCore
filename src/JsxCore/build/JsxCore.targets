@@ -53,6 +53,20 @@
     <JsxCoreCompressAssets Condition="'$(JsxCoreCompressAssets)' == ''">false</JsxCoreCompressAssets>
 
     <!--
+      Source maps, which the compiler emits with the original TypeScript inlined into them. The
+      .tsx files themselves are deliberately not published, and a map defeats that: it is served
+      from the same versioned prefix as the view, so a production deployment answered a request for
+      Index.js.map with the source of Index.tsx.
+
+      Debug only, therefore, on the same reasoning as minification and for the opposite default.
+      Stamped onto the assembly below, so an application that compiles at startup agrees with what
+      a build would have produced. Set it true for Release to debug against original source in a
+      deployed environment, knowing that it publishes that source.
+    -->
+    <JsxCoreSourceMaps Condition="'$(JsxCoreSourceMaps)' == '' And '$(Configuration)' == 'Release'">false</JsxCoreSourceMaps>
+    <JsxCoreSourceMaps Condition="'$(JsxCoreSourceMaps)' == ''">true</JsxCoreSourceMaps>
+
+    <!--
       A Release build compiles the views and carries them into the output, so the application can
       serve what the build produced instead of compiling again on a server that may have no
       toolchain. Debug leaves it off, because compiling at startup is what makes a view change
@@ -277,6 +291,11 @@
       <_Parameter1>JsxCorePrecompiled</_Parameter1>
       <_Parameter2>$(JsxCorePrecompiled)</_Parameter2>
     </AssemblyAttribute>
+
+    <AssemblyAttribute Include="System.Reflection.AssemblyMetadataAttribute">
+      <_Parameter1>JsxCoreSourceMaps</_Parameter1>
+      <_Parameter2>$(JsxCoreSourceMaps)</_Parameter2>
+    </AssemblyAttribute>
   </ItemGroup>
 
   <!--
@@ -493,6 +512,20 @@
              Text="JsxCore: TypeScript reported errors in your views. See the output above." />
 
     <!--
+      Maps left behind by an earlier build that emitted them.
+
+      The working directory is not scoped by configuration, so a Debug build followed by a Release
+      publish would carry Debug's maps into production: the compiler simply stops writing them, and
+      nothing else has a reason to remove a file whose view still exists. Only JsxCore's own emitted
+      output is touched, and only the maps.
+    -->
+    <ItemGroup Condition="'$(JsxCoreSourceMaps)' != 'true'">
+      <_JsxCoreStaleSourceMap Include="$(JsxCoreWorkingDirectory)js/**/*.js.map" />
+    </ItemGroup>
+
+    <Delete Files="@(_JsxCoreStaleSourceMap)" ContinueOnError="true" />
+
+    <!--
       An import of "dotnet:wwwroot/images/logo.svg" is emitted exactly as it was written, because
       TypeScript has no opinion about a scheme it does not know. This writes the module that stands
       in for each imported asset, exporting the URL the static file middleware serves it from, and
@@ -529,7 +562,7 @@
     carries JsxCore's marker, so a hand-edited one is left alone.
   -->
   <Target Name="JsxCoreWriteConfig" DependsOnTargets="JsxCoreLocateCompiler">
-    <Exec Command="$(JsxCoreToolCommand) tsconfig --project-dir &quot;$(MSBuildProjectDirectory)&quot; --views &quot;$(_JsxCoreViewsArg)&quot; --working &quot;$(_JsxCoreWorkingArg)&quot; --framework &quot;$(JsxCoreFramework)&quot; --type-checking &quot;$(JsxCoreTypeChecking)&quot; --editor-config &quot;$(JsxCoreGenerateEditorTsConfig)&quot; --search-paths &quot;@(JsxCoreSearchPath)&quot;"
+    <Exec Command="$(JsxCoreToolCommand) tsconfig --project-dir &quot;$(MSBuildProjectDirectory)&quot; --views &quot;$(_JsxCoreViewsArg)&quot; --working &quot;$(_JsxCoreWorkingArg)&quot; --framework &quot;$(JsxCoreFramework)&quot; --type-checking &quot;$(JsxCoreTypeChecking)&quot; --editor-config &quot;$(JsxCoreGenerateEditorTsConfig)&quot; --source-maps &quot;$(JsxCoreSourceMaps)&quot; --search-paths &quot;@(JsxCoreSearchPath)&quot;"
           StandardOutputImportance="low" />
   </Target>
 

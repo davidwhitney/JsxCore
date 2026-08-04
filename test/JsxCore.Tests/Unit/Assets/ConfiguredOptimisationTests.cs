@@ -32,6 +32,26 @@ public class ConfiguredOptimisationTests
     public void Compress_AssemblyCarriesTheAttribute_ReadsIt() =>
         ConfiguredOptimisation.Compress(AssemblyWith(ConfiguredOptimisation.CompressKey, "true")).ShouldBe(true);
 
+    [Theory]
+    [InlineData(null, null, true, true)]    // development, nothing said: on
+    [InlineData(null, null, false, false)]  // production, nothing said: off, unlike minification
+    [InlineData(null, true, false, true)]   // the build asked for them in a Release build
+    [InlineData(false, true, true, false)]  // the application overrides the build
+    public void ResolveDevelopmentDefault_SourcesDisagree_TakesTheMostSpecific(
+        bool? configured, bool? fromBuild, bool isDevelopment, bool expected) =>
+        ConfiguredOptimisation.ResolveDevelopmentDefault(configured, fromBuild, isDevelopment).ShouldBe(expected);
+
+    [Fact]
+    public void SourceMaps_AssemblyCarriesTheAttribute_ReadsIt()
+    {
+        ConfiguredOptimisation.SourceMaps(AssemblyWith(ConfiguredOptimisation.SourceMapsKey, "true")).ShouldBe(true);
+        ConfiguredOptimisation.SourceMaps(AssemblyWith(ConfiguredOptimisation.SourceMapsKey, "false")).ShouldBe(false);
+
+        // An application built by an older JsxCore carries no such attribute, and the development
+        // default then applies rather than silently turning maps off in development.
+        ConfiguredOptimisation.SourceMaps(AssemblyWith("Unrelated", "true")).ShouldBeNull();
+    }
+
     [Fact]
     public void Read_AssemblySaysNothingOrSomethingUnparseable_IsSilent()
     {

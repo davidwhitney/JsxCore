@@ -17,12 +17,16 @@ public static class ConfiguredOptimisation
     public const string MinifyKey = "JsxCoreMinify";
     public const string CompressKey = "JsxCoreCompressAssets";
     public const string PrecompiledKey = "JsxCorePrecompiled";
+    public const string SourceMapsKey = "JsxCoreSourceMaps";
 
     /// <summary>What the build said about minification, or null when it said nothing.</summary>
     public static bool? Minify(Assembly? assembly) => Read(assembly, MinifyKey);
 
     /// <summary>What the build said about compression, or null when it said nothing.</summary>
     public static bool? Compress(Assembly? assembly) => Read(assembly, CompressKey);
+
+    /// <summary>What the build said about source maps, or null when it said nothing.</summary>
+    public static bool? SourceMaps(Assembly? assembly) => Read(assembly, SourceMapsKey);
 
     /// <summary>
     /// Whether the build produced views for the application to serve rather than compile.
@@ -40,6 +44,14 @@ public static class ConfiguredOptimisation
     /// </summary>
     public static bool Resolve(bool? configured, bool? fromBuild, bool isDevelopment) =>
         configured ?? fromBuild ?? !isDevelopment;
+
+    /// <summary>
+    /// The same resolution for a setting whose useful default is the other way round: on while
+    /// developing, off in production. Source maps are the case, where the production default is off
+    /// because the maps carry the view's own source.
+    /// </summary>
+    public static bool ResolveDevelopmentDefault(bool? configured, bool? fromBuild, bool isDevelopment) =>
+        configured ?? fromBuild ?? isDevelopment;
 
     private static bool? Read(Assembly? assembly, string key)
     {

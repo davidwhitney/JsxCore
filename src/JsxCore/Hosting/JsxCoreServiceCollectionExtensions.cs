@@ -135,6 +135,13 @@ public static class JsxCoreServiceCollectionExtensions
         var compress = ConfiguredOptimisation.Resolve(
             options.CompressAssets, ConfiguredOptimisation.Compress(assembly), environment.IsDevelopment());
 
+        // Source maps go the other way: on while developing, off in production, because the map
+        // carries the view's own TypeScript inline. Written back onto the options because the
+        // compiler configuration is built from them, and a startup-compiling application has to
+        // reach the same answer the build would have.
+        options.SourceMaps = ConfiguredOptimisation.ResolveDevelopmentDefault(
+            options.SourceMaps, ConfiguredOptimisation.SourceMaps(assembly), environment.IsDevelopment());
+
         services.TryAddSingleton(new AssetCompressionSettings(compress));
         services.TryAddSingleton(new AssetCompressionCache());
 

@@ -50,6 +50,7 @@ builder.AddJsxCore(options =>
 | `Minify` | follows the build | Minify served JavaScript. Null takes the project file's answer |
 | `MinifierPath` | auto | Explicit path to the esbuild binary |
 | `CompressAssets` | follows the build | Compress asset responses. Null takes the project file's answer |
+| `SourceMaps` | follows the build | Emit source maps for compiled views. On for Debug, off for Release, because the maps carry the view's own TypeScript |
 | `NpmPath` | auto | Explicit path to npm |
 | `DependencyInstallTimeout` | 5 minutes | Limit for a single npm command |
 | `OnBootstrapMessage` | console | Where install progress is reported |
@@ -178,6 +179,7 @@ Set these in your `.csproj`. They control [build-time compilation](build-and-dep
 | `JsxCoreMinify` | Release only | Minify what is served to the browser, with esbuild |
 | `JsxCoreCompressAssets` | Release only | Compress assets on the way out: Brotli, or gzip |
 | `JsxCorePrecompiled` | Release only | Serve the views the build compiled instead of compiling at startup |
+| `JsxCoreSourceMaps` | Debug only | Emit source maps beside compiled views. Off for Release: a map inlines the view's `.tsx` source and is served from the same prefix as the view |
 | `JsxCoreMinifierPath` | auto | Explicit path to the esbuild binary |
 | `JsxCoreNpm` | probed | Path to npm, if it is not on PATH |
 | `JsxCorePackageManager` | `native` | `native` talks to the registry directly; `npm` shells out to npm |

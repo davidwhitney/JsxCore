@@ -33,6 +33,13 @@ public sealed class Arguments(IReadOnlyDictionary<string, string> values)
     public bool Flag(string name) =>
         Optional(name) is { } value && (value.Equals("true", StringComparison.OrdinalIgnoreCase) || value == "1");
 
+    /// <summary>
+    /// A flag that can also be absent, for settings whose default is decided elsewhere. Invoking the
+    /// tool by hand without the argument then leaves the behaviour alone rather than turning it off.
+    /// </summary>
+    public bool? Boolean(string name) =>
+        Optional(name) is { } value && bool.TryParse(value, out var parsed) ? parsed : null;
+
     public IReadOnlyList<string> List(string name) =>
         Optional(name)?.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries) ?? [];
 }

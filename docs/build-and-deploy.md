@@ -169,6 +169,38 @@ ENTRYPOINT ["dotnet", "MyApp.dll"]
 
 No npm and no Node appear in either stage.
 
+## Source maps
+
+Compiled views are emitted with source maps for Debug builds and without them for Release.
+
+The default is the other way round from minification, and for a different reason. A map is emitted
+with the original TypeScript inlined into it, and it is served from the same versioned prefix as the
+view it describes. Your `.tsx` files are not published — they are a source tree, not something the
+application serves — but a map published beside the view puts that source one request away from
+anyone who asks for it:
+
+```
+GET /_jsx/v10b7d82e24/views/Home/Index.js.map   →   200, with Index.tsx inside
+```
+
+Debug keeps them, because stepping through a view in browser devtools is worth far more than that
+matters locally. Turn them on for Release to debug against original source in a deployed
+environment, knowing that it publishes that source:
+
+```xml
+<PropertyGroup>
+  <JsxCoreSourceMaps>true</JsxCoreSourceMaps>
+</PropertyGroup>
+```
+
+Like the settings below, this is stamped onto your assembly, so an application that compiles at
+startup reaches the same answer a build would have. `options.SourceMaps` overrides it from
+application code.
+
+Maps left in the working directory by an earlier build are removed when the setting is off. The
+working directory is not scoped by configuration, so without that a Debug build followed by a
+Release publish would carry Debug's maps into production.
+
 ## Minification and compression
 
 Both are on for Release builds and off for Debug, because they cost build time and obscure the

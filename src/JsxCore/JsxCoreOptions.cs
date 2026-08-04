@@ -183,6 +183,19 @@ public sealed class JsxCoreOptions
     public string? MinifierPath { get; set; }
 
     /// <summary>
+    /// Whether compiled views are emitted with source maps. Null follows the build, which emits them
+    /// for Debug and not for Release.
+    /// </summary>
+    /// <remarks>
+    /// The maps carry the original TypeScript inline, and they are served from the same versioned
+    /// prefix as the views themselves, so a published application emitting them puts its own view
+    /// source one request away from anyone who asks. That is the right trade while developing and
+    /// the wrong one in production, which is why this follows the build rather than staying on.
+    /// Turn it on for Release to debug against original source in a deployed environment.
+    /// </remarks>
+    public bool? SourceMaps { get; set; }
+
+    /// <summary>
     /// Whether assets are compressed before they are sent. Null follows the build, which compresses
     /// for Release and not for Debug.
     /// </summary>

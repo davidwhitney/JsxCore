@@ -20,7 +20,10 @@ public static class TsConfigCommand
                 "off" => TypeCheckingMode.Off,
                 "error" => TypeCheckingMode.Error,
                 _ => TypeCheckingMode.Warn
-            }
+            },
+
+            // Absent leaves the base configuration alone, which emits them.
+            SourceMaps = arguments.Boolean("source-maps")
         };
 
         foreach (var path in arguments.List("search-paths"))

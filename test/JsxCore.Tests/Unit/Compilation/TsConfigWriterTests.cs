@@ -44,6 +44,41 @@ public class TsConfigWriterTests
     }
 
     [Fact]
+    public void Build_SourceMapsAreNotMentioned_EmitsThemWithTheSourceInlined()
+    {
+        var (options, layout) = Setup();
+
+        var compilerOptions = TsConfigWriter.Build(options, layout)["compilerOptions"]!;
+
+        compilerOptions["sourceMap"]!.GetValue<bool>().ShouldBeTrue();
+        compilerOptions["inlineSources"]!.GetValue<bool>().ShouldBeTrue();
+    }
+
+    [Fact]
+    public void Build_SourceMapsAreTurnedOff_EmitsNeitherTheMapNorTheSource()
+    {
+        var (options, layout) = Setup();
+        options.SourceMaps = false;
+
+        var compilerOptions = TsConfigWriter.Build(options, layout)["compilerOptions"]!;
+
+        // Both, not just the map: inlineSources is what puts the view's own TypeScript inside it,
+        // which is the reason a published application should not be emitting either.
+        compilerOptions["sourceMap"].ShouldBeNull();
+        compilerOptions["inlineSources"].ShouldBeNull();
+    }
+
+    [Fact]
+    public void Build_SourceMapsAreAskedForByName_BeatTheSetting()
+    {
+        var (options, layout) = Setup();
+        options.SourceMaps = false;
+        options.CompilerOptions["sourceMap"] = true;
+
+        TsConfigWriter.Build(options, layout)["compilerOptions"]!["sourceMap"]!.GetValue<bool>().ShouldBeTrue();
+    }
+
+    [Fact]
     public void Build_CompilerOptionIsSuppliedByTheUser_Overrides()
     {
         var (options, layout) = Setup();

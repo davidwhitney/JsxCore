@@ -84,6 +84,16 @@ public static class TsConfigWriter
             compilerOptions["noCheck"] = true;
         }
 
+        // The base emits maps, and inlines the original source into them. Both go together: a map
+        // without its sources is no use when the .tsx files are not published, and with them it is
+        // the view's own source, served from the same prefix as the view. Applied before user
+        // options so that an application asking for either by name still wins.
+        if (options.SourceMaps == false)
+        {
+            compilerOptions.Remove("sourceMap");
+            compilerOptions.Remove("inlineSources");
+        }
+
         ApplyUserOptions(compilerOptions, options);
 
         var includes = new JsonArray();
