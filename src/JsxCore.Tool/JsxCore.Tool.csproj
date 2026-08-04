@@ -40,6 +40,15 @@
     <UseAppHost>false</UseAppHost>
     <DebugType>none</DebugType>
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
+
+    <!--
+      The two properties above only speak for this assembly. JsxCore is referenced, and a reference
+      brings its .pdb and its .xml along with it, so the publish output picked up both: a third of
+      a megabyte of IntelliSense documentation and symbols sitting beside an executable that is
+      never opened in an editor and, per DebugType above, already carries no symbols of its own.
+      Debugging the library is what the symbol package is for.
+    -->
+    <AllowedReferenceRelatedFileExtensions>none</AllowedReferenceRelatedFileExtensions>
   </PropertyGroup>
 
   <!-- Identity shared with JsxCore is in src/Directory.Build.props. -->
