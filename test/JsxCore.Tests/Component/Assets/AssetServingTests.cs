@@ -28,10 +28,10 @@ public class AssetServingTests
         (await module.Content.ReadAsStringAsync()).ShouldContain("../Shared/Card.js");
 
         // The runtime is served straight out of the assembly.
-        var runtimeUrl = moduleUrl[..moduleUrl.IndexOf("/views", StringComparison.Ordinal)] + "/runtime/client.js";
+        var runtimeUrl = moduleUrl[..moduleUrl.IndexOf("/views", StringComparison.Ordinal)] + "/runtime/index.js";
         var runtime = await host.Client.GetAsync(runtimeUrl);
         runtime.StatusCode.ShouldBe(HttpStatusCode.OK);
-        (await runtime.Content.ReadAsStringAsync()).ShouldContain("export function createRoot");
+        (await runtime.Content.ReadAsStringAsync()).ShouldContain("isServerRender");
     }
 
     [Fact]

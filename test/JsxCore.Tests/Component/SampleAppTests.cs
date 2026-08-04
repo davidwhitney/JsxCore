@@ -40,8 +40,11 @@ public class SampleAppTests : IClassFixture<SampleAppFactory>
 
         html.ShouldContain("""<div id="jsxcore-root"></div>""");
         html.ShouldContain("Hello from ASP.NET Core");
-        html.ShouldContain("import { mountView }");
+        // From the framework-neutral name, and the import map has to carry it or the browser
+        // cannot resolve what the script it was just handed imports.
+        html.ShouldContain("""import { mountView } from "@jsxcore/client";""");
         html.ShouldContain("<script type=\"importmap\">");
+        html.ShouldContain("\"@jsxcore/client\":");
     }
 
     [Fact]

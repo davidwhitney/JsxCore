@@ -1,18 +1,13 @@
 {
   "name": "@jsxcore/runtime",
   "version": "1.0.0",
-  "description": "Built-in JSX runtime for the JsxCore ASP.NET Core view engine.",
+  "description": "The .NET side of rendering, for the JsxCore ASP.NET Core view engine.",
   "type": "module",
   "license": "MIT",
   "exports": {
     ".": { "types": "./index.d.ts", "default": "./index.js" },
-    "./jsx-runtime": { "types": "./jsx-runtime.d.ts", "default": "./jsx-runtime.js" },
-    "./jsx-dev-runtime": { "types": "./jsx-dev-runtime.d.ts", "default": "./jsx-dev-runtime.js" },
-    "./client": { "types": "./client.d.ts", "default": "./client.js" },
-    "./server": { "types": "./server.d.ts", "default": "./server.js" },
-    "./hooks": { "types": "./hooks.d.ts", "default": "./hooks.js" },
     "./dotnet": { "types": "./dotnet.d.ts", "default": "./dotnet.js" },
-    "./dom": "./dom.js",
+    "./head": { "types": "./head.d.ts", "default": "./head.js" },
     "./hmr-client": "./hmr-client.js"
   }
 }

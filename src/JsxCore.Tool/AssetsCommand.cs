@@ -31,6 +31,17 @@ public static class AssetsCommand
         var projectDirectory = arguments.Required("project-dir");
         var layout = CompilationLayout.Create(options, projectDirectory);
 
+        // Before anything reads the output, for the same reason the view engine does it first: the
+        // compiler never revisits what it emitted, so a deleted view leaves its JavaScript behind,
+        // and publishing carries the whole directory. Without this a removed view keeps being
+        // shipped, and a precompiled application still serves it by name.
+        var pruned = CompiledOutput.PruneOrphans(layout, options.Extensions);
+
+        if (pruned > 0)
+        {
+            Console.WriteLine($"JsxCore: removed {pruned} compiled module(s) whose view no longer exists.");
+        }
+
         // Handed the same tools the view engine gets. Without them a stylesheet is left exactly as
         // the compiler wrote it, which a published application has no later opportunity to fix.
         var linked = ViewAssetLinker.Link(

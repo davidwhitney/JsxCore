@@ -53,6 +53,8 @@
     <PackageTags>npm;package-manager;dotnet-tool;node;jsxcore;javascript;typescript</PackageTags>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <PackageIcon>icon.png</PackageIcon>
+    <!-- Its own, not the repository's: this package is the npm client, not the view engine. -->
+    <PackageReadmeFile>README.md</PackageReadmeFile>
     <PackageProjectUrl>https://github.com/davidwhitney/JsxCore</PackageProjectUrl>
     <RepositoryUrl>https://github.com/davidwhitney/JsxCore</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
@@ -60,6 +62,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\JsxCore\JsxCore.csproj" />
+
+    <None Include="README.md" Pack="true" PackagePath="\" />
 
     <None Include="..\..\images\jsxcore-nuget-icon-128.png" Pack="true" PackagePath="icon.png"
           Visible="false" Condition="Exists('..\..\images\jsxcore-nuget-icon-128.png')" />

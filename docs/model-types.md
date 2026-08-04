@@ -262,6 +262,22 @@ If the assembly cannot be loaded at all, the compiler is given an ambient declar
 Build-time generation can be turned off with
 `<JsxCoreGenerateModelTypes>false</JsxCoreGenerateModelTypes>`.
 
+### Globals are generated at build time too
+
+`options.Globals.Register(...)` is application code as well, so the same question applies to
+[`dotnet:globals`](dotnet-interop.md) and the answer is the same declarations either way.
+
+A source generator reads the registrations out of your project as it compiles and records them on
+the assembly, which is what the build then generates from. It only claims a set it could read
+completely: a registration whose name is computed rather than written leaves the whole set to the
+first run, because naming three globals when there are four turns the fourth from `any` into a
+compile error.
+
+This matters more than precision. A global typed as `any` fails a strict build all by itself, since
+`noImplicitAny` rejects the callback in `Inventory.getLowStock(20).map(item => ...)`. Without
+generation at build time, a project using globals could only be built with
+`<JsxCoreTypeChecking>error</JsxCoreTypeChecking>` on a machine that had already run it once.
+
 ---
 
 ## Turning it off

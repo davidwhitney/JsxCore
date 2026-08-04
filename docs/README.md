@@ -48,6 +48,8 @@ A TSX/JSX view engine for ASP.NET Core. To get running, start with
 | **[Content Security Policy](content-security-policy.md)** | Supplying a nonce for the scripts JsxCore writes |
 | **[Troubleshooting](troubleshooting.md)** | Common errors, and the limitations to know about up front |
 | **[Roadmap](roadmap.md)** | What is not built yet, in the order it would be built |
+| **[Changelog](../CHANGELOG.md)** | What changed between versions |
+| **[Contributing](../CONTRIBUTING.md)** | Building the repository, its layout, and how to propose a change |
 
 ---
 

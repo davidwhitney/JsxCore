@@ -137,8 +137,9 @@ factories.
 | `dotnet:types` | Every type generated from .NET, reached through its .NET namespace |
 | `dotnet:types/<Namespace>` | The same types, imported by name from the namespace they live in |
 | `dotnet:globals` | The .NET objects registered with `options.Globals`, one named export each |
-| `dotnet:rendering` | `isServerRender`, and the types a view is handed: `ViewProps`, `HeadDescriptor` |
+| `dotnet:rendering` | `isServerRender`, and the types a view is handed: `ViewProps`, `HeadDescriptor`, `JsxNode` |
 | `dotnet:rendering/head` | The `<Head>` component |
+| `@jsxcore/client` | `mountView`, resolved to whichever framework the project builds against |
 
 One rule: `dotnet:` is the .NET side of the application: `types`, `globals` and `rendering`. It is not an npm package and
 does not resolve like one; the browser is told about it through the import map, and TypeScript through

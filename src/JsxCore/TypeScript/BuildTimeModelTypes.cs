@@ -43,13 +43,18 @@ public static class BuildTimeModelTypes
         var options = new JsxCoreOptions();
         options.TypeDefinitions.ApplicationAssembly = assembly;
 
+        // What the application registers with options.Globals, recorded on the assembly by the
+        // source generator. Without it the build says nothing about dotnet:globals and a view
+        // reading one is any, which fails a strict build for implicit any on every callback.
+        var globalsKnown = RegisteredGlobals.Apply(options.TypeDefinitions, assembly);
+
         try
         {
             var types = options.TypeDefinitions.ResolveTypes();
 
             // Writing an empty module would make every named import from it an error. Leaving it
             // absent means the ambient stand-in applies instead, which types them as any.
-            if (types.Count == 0)
+            if (types.Count == 0 && !globalsKnown)
             {
                 return new ModelTypeGenerationResult(0, null);
             }

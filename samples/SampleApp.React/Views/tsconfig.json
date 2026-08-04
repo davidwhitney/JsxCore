@@ -27,6 +27,9 @@
       "dotnet:rendering/head": [
         "../obj/JsxCore/runtime/head.d.ts"
       ],
+      "@jsxcore/client": [
+        "../obj/JsxCore/runtime/client.d.ts"
+      ],
       "@/*": [
         "./*"
       ],

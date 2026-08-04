@@ -358,10 +358,10 @@ public static class TsConfigWriter
         // A path mapping to a file that is not there resolves to nothing, so the stand-in is
         // reached the other way: an ambient declaration in the program.
         //
-        // The two are generated at different moments. A build can describe the models, because it
-        // has the assembly, but never the globals, because registering one is application code the
-        // build does not run. So the stand-in is needed whenever either is absent, not only on a
-        // first build.
+        // The two can be generated at different moments. The build describes the models from the
+        // assembly, and the globals too when the source generator managed to record them; a
+        // registration it could not read leaves those to the first run. So the stand-in is needed
+        // whenever either is absent, not only on a first build.
         if (!ModelTypeDeclarations.Exist(layout.GeneratedTypesDirectory) || !globalsGenerated)
         {
             var modelsGenerated = ModelTypeDeclarations.Exist(layout.GeneratedTypesDirectory);
@@ -435,6 +435,12 @@ public static class TsConfigWriter
             paths[$"{RuntimeAssets.ModuleSpecifier}/{name}"] =
                 new JsonArray($"{runtimeDirectory}/{name}.d.ts");
         }
+
+        // The framework-neutral client entry. Its declarations are here even though its module is
+        // served from the framework's own directory, which is the point: one name, and the build
+        // decides what it means.
+        paths[RuntimeAssets.ClientSpecifier] =
+            new JsonArray($"{runtimeDirectory}/{RuntimeAssets.ClientDeclarations}.d.ts");
     }
 
     /// <summary>

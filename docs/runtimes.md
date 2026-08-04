@@ -39,6 +39,22 @@ One property, in the project file:
 serve React to the browser. Nothing else changes: render modes, `head` exports, .NET interop,
 generated model types and hot reload all behave identically.
 
+What does change is anything of yours that names a framework. Framework packages are imported by
+their own names, so `preact/hooks` has to become `react`, and a view written against Preact's own
+API rather than through [React compatibility](#react-compatibility) needs the same treatment.
+
+JsxCore's own client entry point has a name that survives the switch:
+
+```ts
+import { mountView } from "@jsxcore/client";
+```
+
+That resolves to the same file as `@jsxcore/preact/client` or `@jsxcore/react/client`, whichever is
+in play, so code that mounts a view keeps working across the change. It is what the document JsxCore
+generates imports, and what a
+[custom document template](extensibility.md#replace-the-whole-document) is handed as
+`DocumentContext.ClientSpecifier`, so most applications get it without naming it.
+
 It lives in the project file rather than in `AddJsxCore` because the build acts on it: it decides
 which packages are restored and which JSX runtime views compile against, all of which happens before
 a line of your code runs. A setting the build has to obey belongs where the build can see it. The

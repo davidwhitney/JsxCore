@@ -14,6 +14,7 @@ all use a scheme rather than a package name, because nothing behind them comes f
 | `"dotnet:types"`, `"dotnet:types/MyApp/Models"` | types generated from your .NET code |
 | `"dotnet:globals"`, `"dotnet:rendering"` | the .NET objects you registered, and the view contract |
 | `"dotnet:rendering/head"` | the `<Head>` component |
+| `"@jsxcore/client"` | `mountView`, from whichever framework the project builds against |
 | `"/images/logo.svg"` | a static file of yours, as the URL it is served from |
 
 ---

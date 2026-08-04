@@ -1,0 +1,16 @@
+# A security problem should not arrive as a public issue, and a question is usually answered faster
+# in a discussion than in an issue that stays open until someone closes it.
+blank_issues_enabled: false
+
+contact_links:
+  - name: Question, or not sure whether it is a bug
+    url: https://github.com/davidwhitney/JsxCore/discussions
+    about: Ask in Discussions. Plenty of these turn into issues afterwards, which is fine.
+
+  - name: Documentation
+    url: https://github.com/davidwhitney/JsxCore/blob/main/docs/README.md
+    about: Troubleshooting covers most errors, and names what each one means and what fixes it.
+
+  - name: Security vulnerability
+    url: https://github.com/davidwhitney/JsxCore/security/advisories/new
+    about: Report privately, not as a public issue.

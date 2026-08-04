@@ -1,6 +1,8 @@
-// Convenience barrel for dotnet:rendering.
+// What `dotnet:rendering` resolves to, on the server and in the browser alike.
+//
+// Only the .NET side of rendering lives here. Components, hooks and the JSX factory come from
+// Preact or React, whichever the project builds against, and are imported by their own names.
+// This module used to re-export a built-in renderer as well; importing a hook from here compiled
+// and then failed to load, so those exports went with the renderer.
 
-export { Fragment, ELEMENT, jsx, jsxs, createElement, isElement } from "./jsx-runtime.js";
-export { useState, useRef, useEffect, useMemo, useCallback } from "./hooks.js";
-// dotnet lives in dotnet:globals, with the rest of the .NET side.
 export { isServerRender } from "./dotnet.js";

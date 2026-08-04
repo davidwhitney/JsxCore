@@ -155,8 +155,11 @@ the same package can compile to different output under a different version.
 
 ## The embedded runtime
 
-`dotnet:rendering` (the JSX factory, the client renderer, the server renderer, the hooks and the
-`.NET` bridge) is compiled into the JsxCore assembly as embedded resources.
+`dotnet:rendering` (which pass is running, and the `.NET` bridge), `dotnet:rendering/head` and the
+hot reload client are compiled into the JsxCore assembly as embedded resources.
+
+Rendering itself is not in there. Components, hooks and the JSX factory come from Preact or React,
+whichever the project builds against, and are imported from those packages by name.
 
 It is served to the browser and loaded by the server renderer **straight from the assembly
 manifest**. It never appears as files in your project, cannot be edited by accident, and cannot

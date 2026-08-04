@@ -23,10 +23,15 @@ public static class RuntimeAssets
     /// </remarks>
     public const string ModuleSpecifier = "dotnet:rendering";
 
-    public static readonly IReadOnlyList<string> PublicModules =
-    [
-        "index", "jsx-runtime", "jsx-dev-runtime", "client", "server", "hooks", "dotnet", "dom"
-    ];
+    /// <summary>
+    /// Modules of the built-in runtime a view can reach, each of which must be embedded.
+    /// </summary>
+    /// <remarks>
+    /// Short, because rendering is Preact's or React's job. What used to sit alongside these was a
+    /// second renderer with its own JSX factory and hooks, which nothing loaded: a view importing
+    /// <c>useState</c> from here type checked and then failed at run time.
+    /// </remarks>
+    public static readonly IReadOnlyList<string> PublicModules = ["index", "dotnet"];
 
     /// <summary>
     /// Sub-paths of <see cref="ModuleSpecifier"/> a view may import, as in
@@ -37,6 +42,26 @@ public static class RuntimeAssets
     /// specifier that type checks is one the browser can also resolve.
     /// </remarks>
     public static readonly IReadOnlyList<string> PublicSubModules = ["head"];
+
+    /// <summary>
+    /// The framework-neutral name for JsxCore's client entry point.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Resolves to <c>@jsxcore/preact/client</c> or <c>@jsxcore/react/client</c>, whichever the
+    /// project builds against, so code that mounts a view survives changing
+    /// <c>&lt;JsxCoreFramework&gt;</c>. The declarations live in this directory; the module does
+    /// not, because it belongs to the framework being served.
+    /// </para>
+    /// <para>
+    /// Under <c>@jsxcore/</c> rather than <c>dotnet:</c> deliberately. <c>dotnet:</c> is the .NET
+    /// side of the application, and mounting a component in a browser is not that.
+    /// </para>
+    /// </remarks>
+    public const string ClientSpecifier = "@jsxcore/client";
+
+    /// <summary>The declarations behind <see cref="ClientSpecifier"/>, in this directory.</summary>
+    public const string ClientDeclarations = "client";
 
     private const string SharedResourcePrefix = "JsxCore.Assets.shared.";
     private const string PreactResourcePrefix = "JsxCore.Assets.preact.";

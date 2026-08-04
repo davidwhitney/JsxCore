@@ -91,6 +91,37 @@ public class CompilationTests
         File.Exists(Path.Combine(project.Layout.OutputDirectory, "Home", "Broken.js")).ShouldBeTrue();
     }
 
+    /// <summary>
+    /// A hook imported from <c>dotnet:rendering</c> must fail to compile.
+    /// </summary>
+    /// <remarks>
+    /// It used to type check, because the declarations re-exported a built-in renderer that nothing
+    /// loaded. The browser then refused the module for an export it does not have, which blanks the
+    /// page, and the server threw from inside a hook implementation with no dispatcher. Failing at
+    /// the compiler is the whole point: hooks come from Preact or React, by name.
+    /// </remarks>
+    [Fact]
+    public async Task Compile_HookImportedFromTheRenderingModule_DoesNotTypeCheck()
+    {
+        using var project = JsxProjectFixture.Create();
+        project.AddView("Home/Trap.tsx", """
+            import { useState } from "dotnet:rendering";
+
+            export default function Trap() {
+                const [n] = useState(0);
+                return <p>{n}</p>;
+            }
+            """);
+
+        var build = await project.CompileAsync();
+
+        build.Result.Succeeded.ShouldBeFalse(
+            "importing useState from dotnet:rendering must not compile");
+
+        // "has no exported member 'useState'".
+        build.Result.Errors.ShouldContain(d => d.Code == "TS2305");
+    }
+
     [Fact]
     public async Task Compile_TypeErrorsInErrorMode_Throws()
     {
@@ -152,7 +183,7 @@ public class CompilationTests
         await project.CompileAsync();
 
         var runtimeDirectory = project.Layout.RuntimeDirectory;
-        File.Exists(Path.Combine(runtimeDirectory, "jsx-runtime.d.ts")).ShouldBeTrue();
+        File.Exists(Path.Combine(runtimeDirectory, "index.d.ts")).ShouldBeTrue();
 
         // Runtime JavaScript is served from embedded resources, so it must never hit the disk of a
         // consuming project. The one exception is generated: dotnet:globals is built from what the

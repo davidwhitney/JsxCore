@@ -38,7 +38,7 @@ options.Document.Template = context => $"""
 | `ModuleUrl` | Build-id-versioned URL of the compiled view |
 | `StyleSheets` | URLs of the stylesheets this view imports, dependencies first |
 | `ImportMap` | Bare specifier → URL |
-| `ClientSpecifier` | Where the mount helper comes from for the active runtime |
+| `ClientSpecifier` | Where to import `mountView` from. Framework-neutral, and in the import map below |
 | `HotReloadEnabled`, `HotReloadClientUrl`, `HotReloadEndpoint` | |
 | `Document` | The effective `DocumentOptions` for this response |
 | `Options` | The whole `JsxCoreOptions` |

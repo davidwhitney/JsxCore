@@ -114,11 +114,14 @@ The server emits an HTML shell: the document head, an import map, the serialised
 <script type="application/json" id="jsxcore-model">{"name":"World"}</script>
 <script type="module">
 import Component from "/_jsx/vabc123/views/Home/Index.js";
-import { mountView } from "dotnet:rendering/client";
+import { mountView } from "@jsxcore/client";
 window.__jsxcore_context = {"path":"/"};
 mountView(Component, {"containerId":"jsxcore-root","modelId":"jsxcore-model","hydrate":false});
 </script>
 ```
+
+`@jsxcore/client` is an import map entry pointing at JsxCore's own entry point for whichever
+framework the project builds against, so the page reads the same under Preact and React.
 
 The component never runs on the server, but its [`head` export](writing-views.md#the-head-export)
 still does, so the document gets its title and meta tags in the first response. A

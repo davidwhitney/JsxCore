@@ -11,6 +11,14 @@ public sealed class JsxRuntimeLayout
     /// <summary>The framework this layout serves, as the project file names it.</summary>
     public required string Name { get; init; }
 
+    /// <summary>
+    /// The specifier the generated document imports <c>mountView</c> from.
+    /// </summary>
+    /// <remarks>
+    /// Framework-neutral, so the page a browser receives reads the same whichever framework is
+    /// serving it, and a document template that emits this is not writing a framework's name into
+    /// markup. The framework-specific names remain in the import map and resolve to the same file.
+    /// </remarks>
     public required string ClientSpecifier { get; init; }
 
     public required string ServerEntrySpecifier { get; init; }
@@ -52,7 +60,7 @@ public sealed class JsxRuntimeLayout
         return new JsxRuntimeLayout
         {
             Name = "react",
-            ClientSpecifier = "@jsxcore/react/client",
+            ClientSpecifier = RuntimeAssets.ClientSpecifier,
             ServerEntrySpecifier = "@jsxcore/react/server",
             AssetSegment = "react",
             Directory = stager.Directory,
@@ -60,7 +68,11 @@ public sealed class JsxRuntimeLayout
             Modules = new Dictionary<string, string>(StringComparer.Ordinal)
             {
                 ["@jsxcore/react/client"] = "client.js",
-                ["@jsxcore/react/server"] = "server.js"
+                ["@jsxcore/react/server"] = "server.js",
+
+                // Same file under a name that does not say which framework, so mounting code
+                // survives a change of <JsxCoreFramework>.
+                [RuntimeAssets.ClientSpecifier] = "client.js"
             }
         };
     }
@@ -72,7 +84,7 @@ public sealed class JsxRuntimeLayout
         return new JsxRuntimeLayout
         {
             Name = "preact",
-            ClientSpecifier = "@jsxcore/preact/client",
+            ClientSpecifier = RuntimeAssets.ClientSpecifier,
             ServerEntrySpecifier = "@jsxcore/preact/server",
             AssetSegment = "preact",
             Directory = stager.Directory,
@@ -93,6 +105,10 @@ public sealed class JsxRuntimeLayout
 
         modules["@jsxcore/preact/client"] = "client.js";
         modules["@jsxcore/preact/server"] = "server.js";
+
+        // Same file under a name that does not say which framework, so mounting code survives a
+        // change of <JsxCoreFramework>.
+        modules[RuntimeAssets.ClientSpecifier] = "client.js";
 
         // preact/compat is the React-compatible surface. Mapping the React specifiers onto it means
         // components written against React resolve without anyone editing their imports.
@@ -125,7 +141,11 @@ public sealed class JsxRuntimeLayout
         // An exact entry, and no trailing-slash one: a prefix mapping has to end in "/" to be a
         // prefix, and "dotnet:" does not. Chrome, Firefox and WebKit all decline to map "dotnet:/",
         // consistently, so every specifier this scheme serves is listed rather than implied.
-        map[RuntimeAssets.ModuleSpecifier] = $"{assetBase}/runtime/dotnet.js";
+        //
+        // index.js, which is what the server-side loader resolves the same specifier to. Naming a
+        // different module here would hand the browser a different set of exports from the one the
+        // declarations describe and the server renderer sees.
+        map[RuntimeAssets.ModuleSpecifier] = $"{assetBase}/runtime/index.js";
 
         // Listed rather than implied, for the same reason: a sub-path of the scheme is still a
         // specifier the browser has to be told about one at a time.

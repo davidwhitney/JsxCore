@@ -33,6 +33,14 @@ public class BuildTimeAssetTests
 
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
         File.WriteAllText(path, contents);
+
+        // The view this stands for. A compiled module only exists because a source did, and the
+        // build removes any that no longer has one, so a module invented without a source would be
+        // pruned before the step under test ever saw it.
+        if (Path.ChangeExtension(relativePath, ".tsx") is { } source)
+        {
+            project.AddView(source, "export default function View() { return null; }");
+        }
     }
 
     private static int RunAssetsCommand(JsxProjectFixture project)

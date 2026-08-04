@@ -1,0 +1,87 @@
+name: Bug report
+description: Something does not work the way it says it does.
+labels: ["bug"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. [Troubleshooting](https://github.com/davidwhitney/JsxCore/blob/main/docs/troubleshooting.md)
+        names most errors and what fixes them, and is worth a look first.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened
+      description: What you expected, and what you got instead.
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: How to reproduce it
+      description: >
+        The smallest thing that shows it. A view, the endpoint returning it, and the relevant part
+        of Program.cs is usually enough. A link to a repository is better still.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: output
+    attributes:
+      label: Errors and logs
+      description: >
+        Whatever the failure produced. Rendering fails differently on each side, so if it is a
+        rendering problem, both the browser console and the server log are worth having. If it is a
+        build problem, `dotnet build -v normal` shows which step went wrong.
+      render: text
+
+  - type: input
+    id: version
+    attributes:
+      label: JsxCore version
+      placeholder: "1.0.0"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: framework
+    attributes:
+      label: Framework
+      description: What `<JsxCoreFramework>` says, or Preact if the project file does not say.
+      options:
+        - Preact (the default)
+        - React
+    validations:
+      required: true
+
+  - type: dropdown
+    id: mode
+    attributes:
+      label: When it happens
+      options:
+        - Running locally, compiling at startup
+        - During dotnet build or dotnet publish
+        - In published output, serving precompiled views
+        - In the editor or IDE only
+        - Somewhere else
+    validations:
+      required: true
+
+  - type: input
+    id: environment
+    attributes:
+      label: .NET version and operating system
+      placeholder: ".NET 10.0.100, Windows 11"
+    validations:
+      required: true
+
+  - type: textarea
+    id: anything-else
+    attributes:
+      label: Anything else
+      description: >
+        Relevant if they apply: npm packages the view imports, a non-default views or web root
+        directory, a package manager other than the built-in client, or a container.

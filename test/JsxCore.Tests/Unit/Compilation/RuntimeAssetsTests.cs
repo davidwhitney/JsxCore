@@ -18,7 +18,8 @@ public class RuntimeAssetsTests
         }
 
         RuntimeAssets.TryGetText("hmr-client.js").ShouldNotBeNull();
-        RuntimeAssets.TryGetText("jsx-runtime.d.ts").ShouldNotBeNull();
+        RuntimeAssets.TryGetText("index.d.ts").ShouldNotBeNull();
+        RuntimeAssets.TryGetText("head.js").ShouldNotBeNull();
     }
 
     [Fact]

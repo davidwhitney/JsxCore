@@ -88,6 +88,7 @@ public sealed class JsxCompilationService(
     /// declared, ordered and skipped the same way one there is.
     /// </remarks>
     private BuildPipeline CreateEmitPipeline() => new(
+        new PruneOrphanedOutput(),
         new LinkAssets(styleToolchain, npm),
         new MinifyCompiledViews(minifier));
 

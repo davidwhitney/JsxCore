@@ -118,6 +118,12 @@ page, rather than serving a stale build or a blank screen:
 
 <img src="https://raw.githubusercontent.com/davidwhitney/JsxCore/main/images/screenshots/hot-reload-error.png" alt="The development overlay showing a TypeScript compilation error" width="820">
 
+## Contributing
+
+Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers getting it building,
+which needs nothing but the .NET SDK, and where things live. What changed between versions is in
+[CHANGELOG.md](CHANGELOG.md).
+
 ## Licence
 
 MIT. See [LICENSE](LICENSE).

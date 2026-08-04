@@ -1,0 +1,37 @@
+name: Feature request
+description: Something JsxCore should be able to do and cannot.
+labels: ["enhancement"]
+
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The [roadmap](https://github.com/davidwhitney/JsxCore/blob/main/docs/roadmap.md) covers what
+        is not built yet, and has a "Decided against" section recording things that were considered
+        and turned down, with the reasoning. Worth a look: if your case is one of those, saying why
+        the reasoning does not hold for you is the most useful thing you can write here.
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do
+      description: The problem rather than the feature. What are you building, and where does it stop?
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would it look like
+      description: >
+        If you have a shape in mind, sketch it. Configuration, an import a view could write, an
+        MSBuild property, whatever fits.
+      render: text
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: What you are doing instead
+      description: >
+        The workaround, if there is one, and why it is not good enough. This is often the part that
+        decides whether something is worth building.

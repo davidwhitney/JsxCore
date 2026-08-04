@@ -7,29 +7,7 @@ execution rather than rediscovery. Nothing here is scheduled.
 
 ---
 
-## 1. Delete the built-in renderer
-
-`runtime/client.js`, `server.js`, `dom.js`, `hooks.js`, `jsx-runtime.js` and `jsx-dev-runtime.js`
-are a closed island left from before Preact was vendored. About 1,400 lines including declarations,
-and nothing in the live path reaches them: they import each other and nothing else imports them.
-
-It is not only dead weight. `index.js` re-exports the island's hooks, so importing `useState` from
-`dotnet:rendering` compiles, resolves, and then never runs, which is the worst shape a trap can
-take.
-
-**What has to survive.** `index.js` and `index.d.ts` stay: the module loader resolves
-`dotnet:rendering` to the first, and the second is where `ViewProps`, `HeadDescriptor` and
-`isServerRender` are declared. They stop re-exporting `jsx-runtime.js` and `hooks.js`, which is the
-part that closes the trap. `dotnet.js`, `head.js`, `host-shims.js` and `hmr-client.js` are all live
-and unaffected.
-
-**How we would know it worked:** the suite passes untouched, since nothing tests the island
-directly, and a view importing `useState` from `dotnet:rendering` stops compiling instead of
-failing at run time.
-
----
-
-## 2. A component testing story
+## 1. A component testing story
 
 Vitest or Jest against a `.tsx`. JsxCore cannot provide this without Node, so the honest answer may
 be "render through `WebApplicationFactory` and assert on the markup", which [Testing](testing.md)
@@ -38,7 +16,7 @@ recommendation and writing it down is most of this item.
 
 ---
 
-## 3. Environment variables in views
+## 2. Environment variables in views
 
 `process.env.API_URL`, or `import.meta.env.MODE`. Today `process` exists only inside the CommonJS
 wrapper, so a view referencing it breaks in the browser. That is the exact bug class that broke
@@ -78,5 +56,5 @@ directly, is not on this list. The design notes are in git history if it ever co
 
 ## Order
 
-Item 1 is deletion, the cheapest of these and the only one that makes the library smaller. Items 2
-and 3 are writing and choosing a shape.
+Both are writing and choosing a shape rather than building. Item 1 is a decision to record; item 2
+is a decision to design.

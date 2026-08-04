@@ -44,6 +44,10 @@ public class BuildTimeModelTypesTests : IDisposable
         var options = new JsxCoreOptions();
         options.TypeDefinitions.ApplicationAssembly = typeof(Product).Assembly;
 
+        // The same globals the application registers, which the build reads off the assembly. They
+        // matter to the models too: a type is exported when a global's method returns it.
+        RegisteredGlobals.Apply(options.TypeDefinitions, typeof(Product).Assembly);
+
         var atRuntime = new TypeScriptDefinitionGenerator(options.TypeDefinitions, options.JsonSerializerOptions)
             .Generate().Files
             .Single(file => file.RelativePath == ModelTypeDeclarations.FileName)
@@ -114,20 +118,44 @@ public class BuildTimeModelTypesTests : IDisposable
     }
 
     [Fact]
-    public void Build_DeclarationsGenerated_MapsThePathAndStandsInOnlyForTheGlobals()
+    public void Build_AssemblyRecordsItsGlobals_NeedsNoStandInAtAll()
     {
         var options = new JsxCoreOptions { WorkingDirectory = _root };
         var layout = CompilationLayout.Create(options, _root);
 
+        // SampleApp registers its globals through the typed overload, so the source generator
+        // records them and the build can describe both halves without the application running.
         BuildTimeModelTypes.Generate(typeof(Product).Assembly, layout.GeneratedTypesDirectory);
+        var config = TsConfigWriter.Build(options, layout);
+
+        config["compilerOptions"]!["paths"]!.AsObject()[TypeDefinitionOptions.Scheme + "*"].ShouldNotBeNull();
+
+        File.Exists(Path.Combine(layout.GeneratedTypesDirectory, TypeDefinitionOptions.GlobalsFileName))
+            .ShouldBeTrue("the build should have described the registered globals");
+
+        var included = config["include"]!.AsArray().Select(node => node!.GetValue<string>()).ToList();
+        included.ShouldNotContain(
+            path => path.EndsWith(ModelTypeDeclarations.PendingFileName, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Build_ModelsGeneratedButGlobalsUnknown_StandsInOnlyForTheGlobals()
+    {
+        var options = new JsxCoreOptions { WorkingDirectory = _root };
+        var layout = CompilationLayout.Create(options, _root);
+
+        // Models described, globals not: an application whose registrations the generator could not
+        // read, so nothing was recorded and the build must not guess.
+        var runtime = new JsxCoreOptions();
+        runtime.TypeDefinitions.ApplicationAssembly = typeof(Product).Assembly;
+        new TypeScriptDefinitionGenerator(runtime.TypeDefinitions, runtime.JsonSerializerOptions)
+            .Generate().WriteTo(layout.GeneratedTypesDirectory);
+
         var config = TsConfigWriter.Build(options, layout);
 
         var paths = config["compilerOptions"]!["paths"]!.AsObject();
         paths[TypeDefinitionOptions.Scheme + "*"].ShouldNotBeNull();
 
-        // The build can describe the models, because it has the assembly, but never the globals:
-        // registering one is application code the build does not run. So the stand-in remains, and
-        // covers only that.
         var included = config["include"]!.AsArray().Select(node => node!.GetValue<string>()).ToList();
         included.ShouldContain(path => path.EndsWith(ModelTypeDeclarations.PendingFileName, StringComparison.Ordinal));
 
