@@ -104,4 +104,32 @@ public class EditorTsConfigTests
         // The editor never emits; that is the compiler's job.
         editor["noEmit"]!.GetValue<bool>().ShouldBeTrue();
     }
+
+    /// <summary>
+    /// The same agreement, for React. The test above cannot catch a framework being dropped on the
+    /// way to the editor config, because Preact is what both fall back to: the two agreed by
+    /// defaulting rather than by being told. React is where that shows, and it showed as an editor
+    /// resolving JSX through Preact in a project the compiler was building against React.
+    /// </summary>
+    [Fact]
+    public void WriteIdeConfig_FrameworkIsReact_AgreesWithTheBuildConfig()
+    {
+        var options = new JsxCoreOptions();
+        var layout = CompilationLayout.Create(options, Path.Combine(Path.GetTempPath(), "jsxcore-cfg-react"));
+
+        var compiler = TsConfigWriter.Build(options, layout, null, JsFramework.React)["compilerOptions"]!;
+        var editor = TsConfigWriter.BuildIdeConfig(options, layout, JsFramework.React)["compilerOptions"]!;
+
+        editor["jsxImportSource"]!.GetValue<string>().ShouldBe("react");
+        editor["jsxImportSource"]!.ToJsonString().ShouldBe(compiler["jsxImportSource"]!.ToJsonString());
+
+        // preact/compat stands in for React only when Preact is doing the rendering. Aliasing them
+        // here would type check a React view against Preact's declarations.
+        var paths = editor["paths"]?.AsObject();
+        foreach (var specifier in new[] { "react", "react-dom", "react-dom/client" })
+        {
+            var mapped = paths?[specifier]?.ToJsonString() ?? "";
+            mapped.ShouldNotContain("preact", Case.Insensitive, specifier);
+        }
+    }
 }

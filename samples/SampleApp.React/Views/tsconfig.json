@@ -9,7 +9,7 @@
       "dom.iterable"
     ],
     "jsx": "react-jsx",
-    "jsxImportSource": "preact",
+    "jsxImportSource": "react",
     "rewriteRelativeImportExtensions": true,
     "allowImportingTsExtensions": true,
     "allowJs": true,
@@ -33,23 +33,23 @@
       "dotnet:*": [
         "../obj/JsxCore/types/*.d.ts"
       ],
-      "preact": [
-        "../../../node_modules/preact/src/index.d.ts"
+      "react": [
+        "../node_modules/@types/react/index.d.ts"
       ],
-      "preact/hooks": [
-        "../../../node_modules/preact/hooks/src/index.d.ts"
+      "react/jsx-runtime": [
+        "../node_modules/@types/react/jsx-runtime.d.ts"
       ],
-      "preact/jsx-runtime": [
-        "../../../node_modules/preact/jsx-runtime/src/index.d.ts"
+      "react/jsx-dev-runtime": [
+        "../node_modules/@types/react/jsx-dev-runtime.d.ts"
       ],
-      "preact/jsx-dev-runtime": [
-        "../../../node_modules/preact/jsx-runtime/src/index.d.ts"
+      "react-dom": [
+        "../node_modules/@types/react-dom/index.d.ts"
       ],
-      "preact/compat": [
-        "../../../node_modules/preact/compat/src/index.d.ts"
+      "react-dom/client": [
+        "../node_modules/@types/react-dom/client.d.ts"
       ],
-      "preact-render-to-string": [
-        "../../../node_modules/preact-render-to-string/dist/index.d.ts"
+      "react-dom/server.browser": [
+        "../node_modules/@types/react-dom/server.browser.d.ts"
       ]
     }
   },

@@ -13,7 +13,7 @@ public sealed class WriteCompilerConfig(JsFramework framework = JsFramework.Prea
         // Only rewritten while it still carries JsxCore's marker, so a hand-edited one is left be.
         if (context.Options.GenerateEditorTsConfig)
         {
-            TsConfigWriter.WriteIdeConfigIfOwned(context.Options, context.Layout);
+            TsConfigWriter.WriteIdeConfigIfOwned(context.Options, context.Layout, framework);
         }
 
         return new ValueTask<StepResult>(StepResult.None);

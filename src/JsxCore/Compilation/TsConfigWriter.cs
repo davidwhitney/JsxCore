@@ -208,12 +208,26 @@ public static class TsConfigWriter
 
     public const string GeneratedMarker = "jsxcore-generated";
     
-    public static JsonObject BuildIdeConfig(JsxCoreOptions options, CompilationLayout layout)
+    /// <summary>
+    /// The configuration editors read, beside the views.
+    /// </summary>
+    /// <remarks>
+    /// Takes the framework for the same reason <see cref="WriteIfChanged"/> does, and it is the
+    /// same value: an editor that resolves a specifier differently from the compiler reports errors
+    /// in code that builds, and misses errors in code that does not. Defaulting it here instead
+    /// pointed a React project's editor at Preact's compat declarations and at Preact's JSX
+    /// namespace, while the compiler used React's own.
+    /// </remarks>
+    public static JsonObject BuildIdeConfig(
+        JsxCoreOptions options,
+        CompilationLayout layout,
+        JsFramework framework = JsFramework.Preact)
     {
         var config = ReadBaseConfig();
         var compilerOptions = config["compilerOptions"]!.AsObject();
 
-        ApplyRuntimeMode(options, compilerOptions, layout, relativeTo: layout.ViewsDirectory);
+        ApplyRuntimeMode(
+            options, compilerOptions, layout, relativeTo: layout.ViewsDirectory, framework: framework);
 
         // Editors only type check; emit settings would just cause confusing output.
         compilerOptions["noEmit"] = true;
@@ -255,7 +269,10 @@ public static class TsConfigWriter
         return config;
     }
     
-    public static bool WriteIdeConfigIfOwned(JsxCoreOptions options, CompilationLayout layout)
+    public static bool WriteIdeConfigIfOwned(
+        JsxCoreOptions options,
+        CompilationLayout layout,
+        JsFramework framework = JsFramework.Preact)
     {
         var path = Path.Combine(layout.ViewsDirectory, "tsconfig.json");
 
@@ -277,7 +294,7 @@ public static class TsConfigWriter
                 return false;
             }
 
-            var updated = BuildIdeConfig(options, layout).ToJsonString(Indented);
+            var updated = BuildIdeConfig(options, layout, framework).ToJsonString(Indented);
             if (existing == updated)
             {
                 return false;
@@ -288,7 +305,8 @@ public static class TsConfigWriter
         }
 
         Directory.CreateDirectory(layout.ViewsDirectory);
-        return AssetStage.WriteFileIfChanged(path, BuildIdeConfig(options, layout).ToJsonString(Indented));
+        return AssetStage.WriteFileIfChanged(
+            path, BuildIdeConfig(options, layout, framework).ToJsonString(Indented));
     }
 
     private static readonly JsonSerializerOptions Indented = new()

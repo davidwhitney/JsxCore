@@ -32,14 +32,15 @@ public static class TsConfigCommand
 
         options.GenerateEditorTsConfig = arguments.Flag("editor-config");
 
+        var framework = ConfiguredFramework.Parse(arguments.Optional("framework")) ?? JsFramework.Preact;
+
         Directory.CreateDirectory(layout.WorkingDirectory);
-        TsConfigWriter.WriteIfChanged(options, layout, null,
-            ConfiguredFramework.Parse(arguments.Optional("framework")) ?? JsFramework.Preact);
+        TsConfigWriter.WriteIfChanged(options, layout, null, framework);
 
         // Only rewritten while it still carries JsxCore's marker, so a hand-edited one is left be.
         if (options.GenerateEditorTsConfig)
         {
-            TsConfigWriter.WriteIdeConfigIfOwned(options, layout);
+            TsConfigWriter.WriteIdeConfigIfOwned(options, layout, framework);
         }
 
         // The compiler resolves dotnet:rendering from declarations on disk, so they have to be

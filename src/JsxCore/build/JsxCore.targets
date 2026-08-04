@@ -616,7 +616,16 @@
                               Include="@(JsxCoreDependencyName)"
                               Exclude="preact;preact-render-to-string" />
 
-      <_JsxCorePackageFile Include="$(_JsxCoreNodeModules)%(_JsxCoreRuntimePackage.Identity)/**/*"
+      <!--
+        Guarded, because batching over an empty item list does not produce no batches: it produces
+        one with the metadata expanded to nothing, leaving "node_modules/**/*". A project with no
+        runtime dependencies is the ordinary case, since Preact ships inside the package, and that
+        glob published the whole tree, devDependencies included. The TypeScript compiler and esbuild
+        are tens of megabytes of native binary, so the deployment that carried least was the one
+        that carried everything.
+      -->
+      <_JsxCorePackageFile Condition="'@(_JsxCoreRuntimePackage)' != ''"
+                           Include="$(_JsxCoreNodeModules)%(_JsxCoreRuntimePackage.Identity)/**/*"
                            Exclude="$(_JsxCoreNodeModules)%(_JsxCoreRuntimePackage.Identity)/**/node_modules/.bin/**/*" />
 
       <ResolvedFileToPublish Include="@(_JsxCorePackageFile)">
