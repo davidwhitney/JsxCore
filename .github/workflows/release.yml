@@ -68,12 +68,18 @@ jobs:
       - name: Test
         run: dotnet test test/JsxCore.Tests --configuration Release
 
+      # ContinuousIntegrationBuild normalises the source paths recorded in the symbol packages, which
+      # otherwise carry the absolute path of whatever machine packed them. Set here rather than in
+      # the project files because it is only correct for a build nobody is going to debug locally:
+      # on a developer's machine it stops step-through working against their own source.
       - name: Pack
         run: |
           dotnet pack src/JsxCore --configuration Release --output artifacts \
-            -p:Version=${{ steps.version.outputs.value }}
+            -p:Version=${{ steps.version.outputs.value }} \
+            -p:ContinuousIntegrationBuild=true
           dotnet pack src/JsxCore.Tool --configuration Release --output artifacts \
-            -p:Version=${{ steps.version.outputs.value }}
+            -p:Version=${{ steps.version.outputs.value }} \
+            -p:ContinuousIntegrationBuild=true
 
       - name: Check the tool installs and runs
         run: |

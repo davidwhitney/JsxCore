@@ -368,6 +368,12 @@ public sealed class DocumentOptions
     /// Produces an independent copy, used as the starting point when a single result overrides
     /// document settings for one response.
     /// </summary>
+    /// <remarks>
+    /// Every setting is carried, including <see cref="Nonce"/>, which a result cannot override and
+    /// which the renderer reads off whichever copy is in play. Leaving it behind meant that setting
+    /// a title was enough to serve a page with no nonce on any of its scripts, which under a policy
+    /// naming one renders nothing at all.
+    /// </remarks>
     public DocumentOptions Clone()
     {
         var clone = new DocumentOptions
@@ -378,6 +384,7 @@ public sealed class DocumentOptions
             DefaultTitle = DefaultTitle,
             HeadContent = HeadContent,
             BodyContent = BodyContent,
+            Nonce = Nonce,
             Template = Template
         };
 

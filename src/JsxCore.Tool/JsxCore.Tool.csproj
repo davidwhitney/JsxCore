@@ -12,10 +12,8 @@
     the same code path, because there is only one.
   -->
   <PropertyGroup>
-    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
     <OutputType>Exe</OutputType>
     <TargetFramework>net8.0</TargetFramework>
-    <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>JsxCore.Tool</AssemblyName>
     <RootNamespace>JsxCore.Tool</RootNamespace>
@@ -44,29 +42,20 @@
     <GenerateDocumentationFile>false</GenerateDocumentationFile>
   </PropertyGroup>
 
+  <!-- Identity shared with JsxCore is in src/Directory.Build.props. -->
   <PropertyGroup Label="Package">
     <PackageId>JsxCore.Npm</PackageId>
-    <Version>1.0.0</Version>
-    <Authors>David Whitney</Authors>
     <Title>JsxCore.Npm: npm packages without npm</Title>
     <Description>Adds and restores npm packages from the command line with nothing installed but the .NET SDK. Resolves versions, verifies integrity, writes node_modules and a package-lock.json that real npm accepts. Ships the same client the JsxCore build uses.</Description>
     <PackageTags>npm;package-manager;dotnet-tool;node;jsxcore;javascript;typescript</PackageTags>
-    <PackageLicenseExpression>MIT</PackageLicenseExpression>
-    <PackageIcon>icon.png</PackageIcon>
     <!-- Its own, not the repository's: this package is the npm client, not the view engine. -->
     <PackageReadmeFile>README.md</PackageReadmeFile>
-    <PackageProjectUrl>https://github.com/davidwhitney/JsxCore</PackageProjectUrl>
-    <RepositoryUrl>https://github.com/davidwhitney/JsxCore</RepositoryUrl>
-    <RepositoryType>git</RepositoryType>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\JsxCore\JsxCore.csproj" />
 
     <None Include="README.md" Pack="true" PackagePath="\" />
-
-    <None Include="..\..\images\jsxcore-nuget-icon-128.png" Pack="true" PackagePath="icon.png"
-          Visible="false" Condition="Exists('..\..\images\jsxcore-nuget-icon-128.png')" />
   </ItemGroup>
 
 </Project>

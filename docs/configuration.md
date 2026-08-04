@@ -84,7 +84,7 @@ builder.AddJsxCore(options =>
 
 ## Document
 
-Controls the HTML wrapper. Every one of these can also be
+Controls the HTML wrapper. Most of these can also be
 [set per response](returning-views.md#per-response-document-settings).
 
 | Option | Default | Purpose |

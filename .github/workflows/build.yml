@@ -122,9 +122,16 @@ jobs:
           dotnet pack src/JsxCore --configuration Release --output artifacts
           dotnet pack src/JsxCore.Tool --configuration Release --output artifacts
 
+      # The version comes off the package the step above just produced, rather than being written
+      # here: a number repeated in a workflow is one that goes stale on the next bump, and this job
+      # would then fail for a reason that has nothing to do with what it is checking.
       - name: Check the tool installs and runs
         run: |
-          dotnet tool install --global JsxCore.Npm --add-source artifacts --version 1.0.0
+          package=$(ls artifacts/JsxCore.Npm.*.nupkg)
+          version=$(basename "$package" .nupkg)
+          version=${version#JsxCore.Npm.}
+
+          dotnet tool install --global JsxCore.Npm --add-source artifacts --version "$version"
           dotnet npm init --project "$RUNNER_TEMP/tool-check"
           dotnet npm add classnames --project "$RUNNER_TEMP/tool-check"
           dotnet npm list --project "$RUNNER_TEMP/tool-check"

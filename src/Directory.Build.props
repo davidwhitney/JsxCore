@@ -1,0 +1,47 @@
+<Project>
+
+  <!--
+    Shared by the three projects under src/, and by nothing else.
+
+    Deliberately not at the repository root: a Version there would apply to the samples and the test
+    project as well, which are not shipped and would then need conditioning around.
+
+    What lives here is package identity, which is the same fact in two packages and was previously
+    written twice. Language settings stay in the projects: JsxCore.Analyzers does not enable
+    ImplicitUsings and JsxCore.Tool does not set LangVersion, so hoisting either would change how a
+    project compiles for no gain.
+  -->
+
+  <PropertyGroup>
+    <!--
+      One number for both packages, which ship together. The release workflow passes -p:Version from
+      the release tag, and a command line property beats this.
+    -->
+    <Version>1.0.0</Version>
+
+    <Authors>David Whitney</Authors>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageIcon>icon.png</PackageIcon>
+    <PackageProjectUrl>https://github.com/davidwhitney/JsxCore</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/davidwhitney/JsxCore</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <EnforceCodeStyleInBuild>true</EnforceCodeStyleInBuild>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!--
+      Packed as icon.png so <PackageIcon> can name it without depending on the source file name.
+
+      Rooted at this file rather than written relative to the project, so it does not depend on how
+      deep under src/ a project sits.
+    -->
+    <None Include="$(MSBuildThisFileDirectory)../images/jsxcore-nuget-icon-128.png"
+          Pack="true" PackagePath="icon.png" Visible="false"
+          Condition="Exists('$(MSBuildThisFileDirectory)../images/jsxcore-nuget-icon-128.png')" />
+  </ItemGroup>
+
+</Project>

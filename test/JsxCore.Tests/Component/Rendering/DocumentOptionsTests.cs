@@ -61,6 +61,32 @@ public class DocumentOptionsTests
         untouched.ShouldContain("""<div id="jsxcore-root">""");
     }
 
+    /// <remarks>
+    /// A result overriding any document setting renders from a copy of the configured options, and
+    /// the copy used to be made without the nonce callback. Setting a title was therefore enough to
+    /// serve a page with no nonce on any of its scripts, which under a policy naming one renders
+    /// nothing at all. The unit tests never saw it: they hand the writer a nonce directly.
+    /// </remarks>
+    [Fact]
+    public async Task Nonce_WithDocumentSettingsOverriddenOnAResult_IsStillOnEveryScript()
+    {
+        using var project = HostedViews.Project();
+        await using var host = await JsxTestHost.StartAsync(
+            project,
+            configure: options => options.Document.Nonce = _ => "r4nd0m",
+            configureApp: app =>
+                app.MapGet("/titled", () => Results.Extensions.Jsx("Home/Index", new { name = "X", items = Array.Empty<string>() }, result =>
+                    result.Title = "Overridden title")));
+
+        var html = await host.GetStringAsync("/titled");
+
+        html.ShouldContain("<title>Overridden title</title>");
+
+        var tags = Regex.Matches(html, "<script[^>]*>").Select(match => match.Value).ToList();
+        tags.Count.ShouldBeGreaterThan(2);
+        tags.ShouldAllBe(tag => tag.Contains("nonce=\"r4nd0m\""));
+    }
+
     [Fact]
     public async Task DocumentTemplate_SuppliedOnAResult_ReplacesTheWholeDocument()
     {

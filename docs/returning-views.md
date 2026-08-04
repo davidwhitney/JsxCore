@@ -162,7 +162,8 @@ A component that needs data the endpoint did not fetch has two options:
 
 ## Per-response document settings
 
-Every [`DocumentOptions`](configuration.md) setting can be overridden for a single response:
+Most [`DocumentOptions`](configuration.md#document) settings can be overridden for a single
+response:
 
 ```csharp
 app.MapGet("/report", () => Results.Extensions.Jsx("Home/Report", model, result =>
@@ -191,6 +192,13 @@ public IActionResult NotFoundPage() => new JsxViewResult("Errors/NotFound")
 
 Anything left unset keeps the value configured at startup, and overrides never leak into other
 responses.
+
+Two settings have no per-response form:
+
+| Setting | Why |
+|---|---|
+| `Nonce` | Already asked per request, and asked on every response whether or not it overrides anything else. See [Content Security Policy](content-security-policy.md). |
+| `DefaultTitle` | The title for a view that exports none. `result.Title` sets the title outright, ahead of the view's head export, which is the more direct control. |
 
 ### Replacing the document entirely
 
