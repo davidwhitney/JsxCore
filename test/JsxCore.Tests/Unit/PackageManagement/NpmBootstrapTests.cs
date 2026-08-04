@@ -143,7 +143,7 @@ public class NpmBootstrapTests : IDisposable
     {
         // Compared against an independent probe rather than an assumption: the suite restores its
         // own packages natively now, so npm may genuinely not be here.
-        (NpmBootstrapper.LocateNpm() is not null).ShouldBe(Npm.IsInstalled);
+        (NpmBootstrapper.LocateNpm() is not null).ShouldBe(RealNpm.IsInstalled);
         NpmBootstrapper.LocateNpm("/definitely/not/npm").ShouldBeNull();
     }
 

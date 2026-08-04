@@ -91,7 +91,7 @@ public class LargeGraphTests : IDisposable
 
         Directory.Delete(Path.Combine(_root, "node_modules"), recursive: true);
 
-        var (exitCode, output) = Fixtures.Npm.Run(_root, TimeSpan.FromMinutes(5), "ci");
+        var (exitCode, output) = Fixtures.RealNpm.Run(_root, TimeSpan.FromMinutes(5), "ci");
 
         exitCode.ShouldBe(0, $"npm ci rejected a {written} package lock file:\n{output}");
         Directory.Exists(Path.Combine(_root, "node_modules", "webpack")).ShouldBeTrue();

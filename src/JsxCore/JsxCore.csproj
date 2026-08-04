@@ -68,6 +68,38 @@
   </ItemGroup>
 
   <!--
+    The npm client. PrivateAssets stops it becoming a package dependency, because it is not
+    published separately: the target below puts the assembly in this package's lib folders, so a
+    consumer restores one package and gets both.
+  -->
+  <ItemGroup>
+    <ProjectReference Include="..\JsxCore.PackageManagement\JsxCore.PackageManagement.csproj"
+                      PrivateAssets="all" />
+  </ItemGroup>
+
+  <!--
+    Ship it in lib/ beside JsxCore.dll.
+
+    A ProjectReference marked PrivateAssets is compiled against and copied to the output, but is
+    left out of the package entirely, which would leave lib/ holding an assembly whose dependency
+    is nowhere to be found. This puts it back. Same target framework as whichever lib folder is
+    being built, so each one gets the matching build rather than a net8.0 assembly everywhere.
+  -->
+  <PropertyGroup>
+    <TargetsForTfmSpecificBuildOutput>
+      $(TargetsForTfmSpecificBuildOutput);JsxCorePackPackageManagement
+    </TargetsForTfmSpecificBuildOutput>
+  </PropertyGroup>
+
+  <Target Name="JsxCorePackPackageManagement">
+    <ItemGroup>
+      <BuildOutputInPackage Include="@(ReferenceCopyLocalPaths)"
+                            Condition="'%(Filename)' == 'JsxCore.PackageManagement'
+                                       And ('%(Extension)' == '.dll' Or '%(Extension)' == '.xml')" />
+    </ItemGroup>
+  </Target>
+
+  <!--
     The build tool ships in the package and is invoked by JsxCore.targets. It cannot be a
     ProjectReference: it references this project, so the reference would be circular. It is built
     as a process instead, and its published output is collected just before the nuspec is written.

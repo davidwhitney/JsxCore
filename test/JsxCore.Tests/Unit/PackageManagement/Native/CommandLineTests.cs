@@ -1,4 +1,4 @@
-using JsxCore.Tool.Cli;
+using JsxCore.Npm;
 using Shouldly;
 
 namespace JsxCore.Tests.Unit.PackageManagement.Native;

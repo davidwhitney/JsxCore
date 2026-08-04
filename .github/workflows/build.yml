@@ -115,12 +115,13 @@ jobs:
             10.0.x
 
       # Packing is its own job because the two packages are assembled rather than just compiled:
-      # JsxCore embeds the build tool's publish output, and JsxCore.Npm packs that same project as
-      # a dotnet tool. Both are ways to get this wrong that a successful build would not catch.
+      # JsxCore embeds the build tool's publish output, the analyzer, and the npm client assembly
+      # its own lib folders would otherwise be missing. Every one of those is a way to get this
+      # wrong that a successful build would not catch.
       - name: Pack
         run: |
           dotnet pack src/JsxCore --configuration Release --output artifacts
-          dotnet pack src/JsxCore.Tool --configuration Release --output artifacts
+          dotnet pack src/JsxCore.Npm --configuration Release --output artifacts
 
       # The version comes off the package the step above just produced, rather than being written
       # here: a number repeated in a workflow is one that goes stale on the next bump, and this job

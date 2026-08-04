@@ -126,7 +126,7 @@ public class LockFileTests : IDisposable
             return;
         }
 
-        var (exitCode, output) = Fixtures.Npm.Run(_root, TimeSpan.FromMinutes(2), "ci");
+        var (exitCode, output) = Fixtures.RealNpm.Run(_root, TimeSpan.FromMinutes(2), "ci");
 
         exitCode.ShouldBe(0, $"npm ci rejected the lock file:\n{output}");
         File.Exists(Path.Combine(_root, "node_modules", "classnames", "index.js")).ShouldBeTrue();

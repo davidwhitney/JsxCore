@@ -1,4 +1,4 @@
-namespace JsxCore.Tool.Cli;
+namespace JsxCore.Npm;
 
 /// <summary>
 /// The command line shape of <c>dotnet package add</c>: a positional package name alongside

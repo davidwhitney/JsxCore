@@ -23,6 +23,8 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\JsxCore\JsxCore.csproj" />
+    <ProjectReference Include="..\..\src\JsxCore.PackageManagement\JsxCore.PackageManagement.csproj" />
+    <ProjectReference Include="..\..\src\JsxCore.Npm\JsxCore.Npm.csproj" />
     <ProjectReference Include="..\..\src\JsxCore.Tool\JsxCore.Tool.csproj" />
     <ProjectReference Include="..\..\src\JsxCore.Analyzers\JsxCore.Analyzers.csproj" />
     <ProjectReference Include="..\..\samples\SampleApp\SampleApp.csproj" />

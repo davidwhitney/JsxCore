@@ -1,0 +1,62 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    "dotnet npm add marked", as a dotnet tool.
+
+    It references the npm client and nothing else. That is the whole reason JsxCore.PackageManagement
+    exists as its own assembly: this used to be packed from JsxCore.Tool, which references the view
+    engine, so a command line npm client shipped a JavaScript interpreter it never loaded and asked
+    the machine for the ASP.NET Core shared framework before it would start.
+
+    A package added here and a package restored by a build still go through one implementation,
+    because both reference the same assembly.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>JsxCore.Npm</AssemblyName>
+    <RootNamespace>JsxCore.Npm</RootNamespace>
+    <IsPackable>true</IsPackable>
+    <PackAsTool>true</PackAsTool>
+    <!--
+      Named for the "dotnet <verb>" convention, which is what makes "dotnet npm add" work: the SDK
+      resolves that to an executable called dotnet-npm. Naming it plainly "npm" would install an
+      executable called npm onto PATH and shadow the real one, which is the last thing a tool
+      whose selling point is not needing npm should do.
+    -->
+    <ToolCommandName>dotnet-npm</ToolCommandName>
+    <InvariantGlobalization>true</InvariantGlobalization>
+
+    <!--
+      Targets net8.0 so it runs on every framework JsxCore supports, which means its own launcher
+      asks for a .NET 8 runtime. A machine with only .NET 10 installed is an ordinary one, and
+      without this the tool refuses to start there with "You must install or update .NET".
+    -->
+    <RollForward>Major</RollForward>
+
+    <UseAppHost>false</UseAppHost>
+    <DebugType>none</DebugType>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+
+    <!-- A reference brings its .pdb and .xml along, and neither is any use beside an executable. -->
+    <AllowedReferenceRelatedFileExtensions>none</AllowedReferenceRelatedFileExtensions>
+  </PropertyGroup>
+
+  <!-- Identity shared with JsxCore is in src/Directory.Build.props. -->
+  <PropertyGroup Label="Package">
+    <PackageId>JsxCore.Npm</PackageId>
+    <Title>JsxCore.Npm: npm packages without npm</Title>
+    <Description>Adds and restores npm packages from the command line with nothing installed but the .NET SDK. Resolves versions, verifies integrity, writes node_modules and a package-lock.json that real npm accepts. Ships the same client the JsxCore build uses.</Description>
+    <PackageTags>npm;package-manager;dotnet-tool;node;jsxcore;javascript;typescript</PackageTags>
+    <!-- Its own, not the repository's: this package is the npm client, not the view engine. -->
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\JsxCore.PackageManagement\JsxCore.PackageManagement.csproj" />
+
+    <None Include="README.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+
+</Project>

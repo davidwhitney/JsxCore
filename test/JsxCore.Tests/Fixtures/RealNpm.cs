@@ -13,7 +13,7 @@ namespace JsxCore.Tests.Fixtures;
 /// assume npm exists, and a probe that shared an implementation with the thing under test would
 /// agree with it whether or not either was right.
 /// </remarks>
-public static class Npm
+public static class RealNpm
 {
     public static bool IsInstalled { get; } = FindOnPath() is not null;
 

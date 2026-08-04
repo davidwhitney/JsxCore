@@ -163,8 +163,11 @@ $ echo $?
 
 ### It is the same client the build uses
 
-The tool and the build targets are packed from one project, so a package added here and a package
+The tool and the build targets reference one assembly, so a package added here and a package
 restored by a build resolve identically and write the same lock file.
+
+That assembly is the client on its own: it has no dependency on the view engine, which is why
+installing the tool brings an npm client rather than a copy of JsxCore.
 
 ---
 

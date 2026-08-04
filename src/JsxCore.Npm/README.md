@@ -11,9 +11,12 @@ dotnet tool install -g JsxCore.Npm
 dotnet npm add marked
 ```
 
-It ships the same client the [JsxCore](https://www.nuget.org/packages/JsxCore) build uses, packed
-from one project, so a package added here and a package restored by a build resolve identically and
-write the same lock file. It is useful on its own: nothing about it requires JsxCore.
+It ships the same client the [JsxCore](https://www.nuget.org/packages/JsxCore) build uses, one
+assembly referenced by both, so a package added here and a package restored by a build resolve
+identically and write the same lock file.
+
+It is useful on its own, and the package says so: the client has no dependency on the view engine,
+so installing this brings the npm client and nothing else.
 
 ## Commands
 

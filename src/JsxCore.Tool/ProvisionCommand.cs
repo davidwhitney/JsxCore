@@ -56,7 +56,8 @@ public static class ProvisionCommand
             return InstallationDisabled;
         }
 
-        var selector = PackageManagerSelector.Default(options, Console.WriteLine);
+        var selector = PackageManagerSelector.Default(
+            options.NpmPath, options.DependencyInstallTimeout, Console.WriteLine);
         var manager = selector.Select(arguments.Optional("package-manager"));
 
         if (manager is null)

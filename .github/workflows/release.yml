@@ -77,7 +77,7 @@ jobs:
           dotnet pack src/JsxCore --configuration Release --output artifacts \
             -p:Version=${{ steps.version.outputs.value }} \
             -p:ContinuousIntegrationBuild=true
-          dotnet pack src/JsxCore.Tool --configuration Release --output artifacts \
+          dotnet pack src/JsxCore.Npm --configuration Release --output artifacts \
             -p:Version=${{ steps.version.outputs.value }} \
             -p:ContinuousIntegrationBuild=true
 

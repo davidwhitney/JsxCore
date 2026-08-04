@@ -5,17 +5,23 @@ public sealed class PackageManagerSelector(IReadOnlyList<IPackageManager> manage
     public IReadOnlyList<IPackageManager> Managers { get; } =
         managers ?? throw new ArgumentNullException(nameof(managers));
 
-    public static PackageManagerSelector Default(JsxCoreOptions options, Action<string>? report = null)
+    /// <param name="npmPath">Explicit path to npm, or null to probe for it.</param>
+    /// <param name="npmTimeout">How long a single npm command may run for.</param>
+    /// <remarks>
+    /// Takes the two values it needs rather than the options object they usually come from: this
+    /// assembly is the npm client on its own, and the view engine's configuration type is not
+    /// something a package manager should have to know about to be constructed.
+    /// </remarks>
+    public static PackageManagerSelector Default(
+        string? npmPath, TimeSpan npmTimeout, Action<string>? report = null)
     {
-        ArgumentNullException.ThrowIfNull(options);
-
         // The native client first, because it needs nothing installed and resolves the same tree
         // npm does. npm remains available for anything the native client does not cover, and for
         // anyone who would rather use the tool they already trust: name it to insist on it.
         return new PackageManagerSelector(
         [
             new Native.NativePackageManager(report: report),
-            new NpmPackageManager(options.NpmPath, options.DependencyInstallTimeout, report)
+            new NpmPackageManager(npmPath, npmTimeout, report)
         ]);
     }
 
@@ -29,8 +35,8 @@ public sealed class PackageManagerSelector(IReadOnlyList<IPackageManager> manage
             return named?.IsAvailable() == true ? named : null;
         }
 
-        // First that can run wins, so an installed npm keeps its current behaviour and a native
-        // implementation added after it is reached only where npm is absent.
+        // First that can run wins, which is the native client: it is always available, so npm is
+        // reached only by being named.
         return Managers.FirstOrDefault(manager => manager.IsAvailable());
     }
 

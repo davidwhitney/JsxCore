@@ -82,22 +82,22 @@ public class PackageManagementTests
     {
         // Order is the policy: the native client needs nothing installed, so it goes first, and
         // npm is there for what it does not cover and for anyone who asks for it by name.
-        PackageManagerSelector.Default(new JsxCoreOptions()).Managers
+        PackageManagerSelector.Default(npmPath: null, npmTimeout: TimeSpan.FromMinutes(5)).Managers
             .Select(manager => manager.Name).ShouldBe(["native", "npm"]);
     }
 
     [Fact]
     public void Select_NoPreference_ChoosesTheNativeClient() =>
-        PackageManagerSelector.Default(new JsxCoreOptions()).Select()!.Name.ShouldBe("native");
+        PackageManagerSelector.Default(npmPath: null, npmTimeout: TimeSpan.FromMinutes(5)).Select()!.Name.ShouldBe("native");
 
     [Fact]
     public void Select_NpmIsNamed_UsesNpmWhenItIsThereAndNothingWhenItIsNot()
     {
-        var selected = PackageManagerSelector.Default(new JsxCoreOptions()).Select("npm");
+        var selected = PackageManagerSelector.Default(npmPath: null, npmTimeout: TimeSpan.FromMinutes(5)).Select("npm");
 
         // Naming a strategy that cannot run reports nothing rather than quietly using another.
         selected?.Name.ShouldBe("npm");
-        (selected is not null).ShouldBe(Npm.IsInstalled);
+        (selected is not null).ShouldBe(RealNpm.IsInstalled);
     }
 
     [Fact]
@@ -113,7 +113,7 @@ public class PackageManagementTests
     public void IsAvailable_NpmIsOrIsNotPresent_ReportsAccordingly()
     {
         // Checked against an independent probe: npm is no longer required to run this suite.
-        new NpmPackageManager().IsAvailable().ShouldBe(Npm.IsInstalled);
+        new NpmPackageManager().IsAvailable().ShouldBe(RealNpm.IsInstalled);
         new NpmPackageManager("/does/not/exist/npm").IsAvailable().ShouldBeFalse();
     }
 

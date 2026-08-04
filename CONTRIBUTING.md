@@ -32,17 +32,25 @@ dotnet run --project samples/SampleApp.Tailwind   # stylesheets and Tailwind
 | | |
 |---|---|
 | `src/JsxCore` | The library: compilation, rendering, hosting, and the embedded runtime under `Assets/` |
-| `src/JsxCore.Tool` | Build-time logic, invoked by the MSBuild targets. Also ships as the `JsxCore.Npm` dotnet tool |
+| `src/JsxCore.PackageManagement` | The npm client, and the few primitives both halves need. No Jint, no ASP.NET Core |
+| `src/JsxCore.Tool` | Build-time logic, invoked by the MSBuild targets. Ships inside the `JsxCore` package |
+| `src/JsxCore.Npm` | The `dotnet npm` command line tool. Ships as the `JsxCore.Npm` package |
 | `src/JsxCore.Analyzers` | Source generators: view location annotations, and recording registered globals |
 | `src/JsxCore/build/JsxCore.targets` | What runs during `dotnet build` and `dotnet publish` |
 | `test/JsxCore.Tests` | `Unit/` for pieces in isolation, `Component/` for a real host serving real views |
 | `docs/` | The documentation, which is part of the product |
 
-Two things are worth knowing before changing the build:
+Three things are worth knowing before changing the build:
 
 **The targets decide when, the tool decides what.** Anything needing real parsing, probing or JSON
 construction is C# in `JsxCore.Tool` with tests behind it, rather than property functions in a
 `.targets` file. The approximations used to drift from the C# doing the same job at run time.
+
+**`JsxCore.PackageManagement` is the bottom of the stack, and stays there.** It references nothing
+of JsxCore's, which is what lets `JsxCore.Npm` ship as a command line npm client rather than as a
+view engine with a CLI attached. A reference from it back up to `JsxCore` is the one edit that
+undoes that, so anything both need moves down into `Shared/` instead. It is not published on its
+own: `JsxCore` builds it into `lib/`, and `JsxCore.Npm` bundles it.
 
 **The samples import the targets from source.** They use a `ProjectReference` plus an explicit
 `Import`, which exercises build-time compilation but not the package layout. If you change how the

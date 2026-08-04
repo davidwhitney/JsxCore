@@ -1,15 +1,15 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <!--
-    Two deliveries of one implementation.
+    The build-time half of JsxCore, invoked by the MSBuild targets.
 
-    The JsxCore package embeds this project's publish output under tools/, and the MSBuild targets
-    invoke it, so anything needing real parsing, probing or JSON construction is C# with tests
-    behind it rather than property functions and regular expressions in a .targets file.
+    The JsxCore package embeds this project's publish output under tools/, so anything needing real
+    parsing, probing or JSON construction is C# with tests behind it rather than property functions
+    and regular expressions in a .targets file.
 
-    It is also packed as a dotnet tool, JsxCore.Npm, which puts the same npm client on the command
-    line as "dotnet npm add marked". A package added there and a package restored by a build take
-    the same code path, because there is only one.
+    Not packed on its own. The command line npm client that used to be packed from here is
+    JsxCore.Npm, which references JsxCore.PackageManagement and not this: a tool a person installs
+    to add a package has no use for a view engine, and shipped one until they were separated.
   -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
@@ -17,22 +17,12 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>JsxCore.Tool</AssemblyName>
     <RootNamespace>JsxCore.Tool</RootNamespace>
-    <IsPackable>true</IsPackable>
-    <PackAsTool>true</PackAsTool>
-    <!--
-      Named for the "dotnet <verb>" convention, which is what makes "dotnet npm add" work: the SDK
-      resolves that to an executable called dotnet-npm. Naming it plainly "npm" would install an
-      executable called npm onto PATH and shadow the real one, which is the last thing a tool
-      whose selling point is not needing npm should do.
-    -->
-    <ToolCommandName>dotnet-npm</ToolCommandName>
+    <IsPackable>false</IsPackable>
     <InvariantGlobalization>true</InvariantGlobalization>
 
     <!--
-      Targets net8.0 so it runs on every framework JsxCore supports, which means its own launcher
-      asks for a .NET 8 runtime. A machine with only .NET 10 installed is an ordinary one, and
-      without this the tool refuses to start there with "You must install or update .NET".
-      The MSBuild targets set a roll forward policy on the command line and are unaffected.
+      Targets net8.0 so it runs on every framework JsxCore supports. The MSBuild targets set a roll
+      forward policy on the command line, and this covers anyone invoking it directly.
     -->
     <RollForward>Major</RollForward>
 
@@ -51,20 +41,16 @@
     <AllowedReferenceRelatedFileExtensions>none</AllowedReferenceRelatedFileExtensions>
   </PropertyGroup>
 
-  <!-- Identity shared with JsxCore is in src/Directory.Build.props. -->
-  <PropertyGroup Label="Package">
-    <PackageId>JsxCore.Npm</PackageId>
-    <Title>JsxCore.Npm: npm packages without npm</Title>
-    <Description>Adds and restores npm packages from the command line with nothing installed but the .NET SDK. Resolves versions, verifies integrity, writes node_modules and a package-lock.json that real npm accepts. Ships the same client the JsxCore build uses.</Description>
-    <PackageTags>npm;package-manager;dotnet-tool;node;jsxcore;javascript;typescript</PackageTags>
-    <!-- Its own, not the repository's: this package is the npm client, not the view engine. -->
-    <PackageReadmeFile>README.md</PackageReadmeFile>
-  </PropertyGroup>
-
   <ItemGroup>
     <ProjectReference Include="..\JsxCore\JsxCore.csproj" />
 
-    <None Include="README.md" Pack="true" PackagePath="\" />
+    <!--
+      Named as well as JsxCore, which references it privately so that it does not become a package
+      dependency. That stops it flowing transitively here too, and provision needs it directly.
+      Consumers of the package are unaffected: the assembly sits in lib/ and is referenced with
+      everything else there.
+    -->
+    <ProjectReference Include="..\JsxCore.PackageManagement\JsxCore.PackageManagement.csproj" />
   </ItemGroup>
 
 </Project>

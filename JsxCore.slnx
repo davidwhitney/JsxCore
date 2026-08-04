@@ -6,6 +6,8 @@
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/JsxCore/JsxCore.csproj" />
+    <Project Path="src/JsxCore.PackageManagement/JsxCore.PackageManagement.csproj" />
+    <Project Path="src/JsxCore.Npm/JsxCore.Npm.csproj" />
     <Project Path="src/JsxCore.Tool/JsxCore.Tool.csproj" />
     <Project Path="src/JsxCore.Analyzers/JsxCore.Analyzers.csproj" />
   </Folder>

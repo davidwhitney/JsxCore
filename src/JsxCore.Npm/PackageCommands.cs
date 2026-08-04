@@ -4,7 +4,7 @@ using JsxCore.Compilation.Modules;
 using JsxCore.Compilation.Provisioning.PackageManagement;
 using JsxCore.Compilation.Provisioning.PackageManagement.Native;
 
-namespace JsxCore.Tool.Cli;
+namespace JsxCore.Npm;
 
 /// <summary>
 /// The npm side of JsxCore as a dotnet CLI tool, shaped like <c>dotnet package add</c>.
