@@ -1,7 +1,6 @@
 using JsxCore.Compilation;
 using JsxCore.Rendering;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.Mvc.ViewEngines;
 using Microsoft.Extensions.Options;
 
@@ -32,7 +31,7 @@ public sealed class JsxViewEngine(ViewLocator locator, JsxViewRenderer renderer,
 
         return view is null
             ? ViewEngineResult.NotFound(viewName, searched)
-            : ViewEngineResult.Found(viewName, new JsxView(view, _renderer));
+            : ViewEngineResult.Found(viewName, new JsxView(view.SourcePath, _renderer));
     }
 
     public ViewEngineResult GetView(string? executingFilePath, string viewPath, bool isMainPage)
@@ -43,43 +42,11 @@ public sealed class JsxViewEngine(ViewLocator locator, JsxViewRenderer renderer,
 
         return view is null
             ? ViewEngineResult.NotFound(viewPath, searched)
-            : ViewEngineResult.Found(viewPath, new JsxView(view, _renderer));
+            : ViewEngineResult.Found(viewPath, new JsxView(view.SourcePath, _renderer));
     }
 
     private static string? RouteValue(ActionContext context, string key) =>
         context.RouteData.Values.TryGetValue(key, out var value) ? value?.ToString() : null;
-}
-
-/// <summary>A compiled JSX view bound to MVC's rendering pipeline.</summary>
-/// <remarks>
-/// Holds no options of its own. Where a view renders is resolved by
-/// <see cref="JsxViewRenderer.ResolveRenderMode"/>, so that a controller, a minimal API endpoint
-/// and a view's own directive are all read in one place.
-/// </remarks>
-public sealed class JsxView(LocatedView view, JsxViewRenderer renderer) : IView
-{
-    private readonly LocatedView _view = view ?? throw new ArgumentNullException(nameof(view));
-    private readonly JsxViewRenderer _renderer = renderer ?? throw new ArgumentNullException(nameof(renderer));
-
-    public string Path => _view.SourcePath;
-    public LocatedView Located => _view;
-
-    public async Task RenderAsync(ViewContext context)
-    {
-        ArgumentNullException.ThrowIfNull(context);
-
-        // Null when the action set nothing, which leaves the choice to the view's directive and
-        // then to the configured default.
-        var renderMode = context.ViewData.TryGetValue(JsxViewEngine.RenderModeKey, out var value) && value is RenderMode mode
-            ? mode
-            : (RenderMode?)null;
-
-        var html = await _renderer
-            .RenderAsync(new JsxRenderRequest(_view, context.ViewData.Model, renderMode), context.HttpContext)
-            .ConfigureAwait(false);
-
-        await context.Writer.WriteAsync(html).ConfigureAwait(false);
-    }
 }
 
 /// <summary>Inserts the JSX view engine into MVC's view engine list.</summary>
