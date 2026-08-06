@@ -32,11 +32,22 @@ public sealed class JsxModuleLoader : IModuleLoader
     private readonly JsxRuntimeLayout _runtime;
     private readonly string? _runtimeAssetDirectory;
     private readonly NodeModuleResolver? _npm;
+    private readonly ServerModuleCache? _modules;
 
     public JsxModuleLoader(CompilationLayout layout, JsxRuntimeLayout runtime, NodeModuleResolver? npm = null)
+        : this(layout, runtime, npm, modules: null)
+    {
+    }
+
+    internal JsxModuleLoader(
+        CompilationLayout layout,
+        JsxRuntimeLayout runtime,
+        NodeModuleResolver? npm,
+        ServerModuleCache? modules)
     {
         ArgumentNullException.ThrowIfNull(layout);
         _npm = npm;
+        _modules = modules;
         _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
         _outputDirectory = Path.GetFullPath(layout.OutputDirectory);
         _runtimeDirectory = Path.GetFullPath(layout.RuntimeDirectory);
@@ -142,8 +153,18 @@ public sealed class JsxModuleLoader : IModuleLoader
             return LoadPackageModule(engine, resolved);
         }
 
-        var source = ReadSource(resolved.Key);
-        return ModuleFactory.BuildSourceTextModule(engine, resolved, source, new ModuleParsingOptions());
+        if (_modules is null)
+        {
+            var source = ReadSource(resolved.Key);
+            return ModuleFactory.BuildSourceTextModule(engine, resolved, source, new ModuleParsingOptions());
+        }
+
+        // The name the engine gives back as the referencing location when this module's own
+        // relative imports are resolved, so it has to be the one the engine would have derived
+        // from the resolved specifier itself.
+        var location = resolved.Uri?.LocalPath ?? resolved.Key;
+        var prepared = _modules.GetOrParse(location, () => ReadSource(resolved.Key));
+        return ModuleFactory.BuildSourceTextModule(engine, in prepared);
     }
 
     private string ReadSource(string path)
@@ -188,8 +209,8 @@ public sealed class JsxModuleLoader : IModuleLoader
             throw new JsxCoreException($"JsxCore could not read the package module '{path}'.");
         }
 
-        var source = File.ReadAllText(path);
-        var kind = _npm!.KindOf(path);
+        var npm = _npm!;
+        var kind = npm.KindOf(path);
 
         // JSON keeps the engine's own module type rather than being re-expressed as
         // "export default <json>". The two are not equivalent, and not in a harmless direction:
@@ -199,11 +220,23 @@ public sealed class JsxModuleLoader : IModuleLoader
         // which is why the two hosts differ here, and only here.
         if (kind == NodeModuleKind.Json)
         {
-            return ModuleFactory.BuildJsonModule(engine, resolved, source);
+            return ModuleFactory.BuildJsonModule(engine, resolved, File.ReadAllText(path));
         }
 
-        var shaped = ModuleTransform.Apply(path, kind, source, new EngineSpecifierRewriter(_npm));
-        return ModuleFactory.BuildSourceTextModule(engine, resolved, shaped.Source, new ModuleParsingOptions());
+        if (_modules is null)
+        {
+            var shaped = ModuleTransform.Apply(path, kind, File.ReadAllText(path), new EngineSpecifierRewriter(npm));
+            return ModuleFactory.BuildSourceTextModule(engine, resolved, shaped.Source, new ModuleParsingOptions());
+        }
+
+        // What is cached is the module as the engine sees it, after the CommonJS wrapping, so a
+        // second engine pays for neither the read nor the transform.
+        var location = resolved.Uri?.LocalPath ?? resolved.Key;
+        var prepared = _modules.GetOrParse(
+            location,
+            () => ModuleTransform.Apply(path, kind, File.ReadAllText(path), new EngineSpecifierRewriter(npm)).Source);
+
+        return ModuleFactory.BuildSourceTextModule(engine, in prepared);
     }
 
 }
