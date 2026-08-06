@@ -431,4 +431,27 @@ public sealed class ServerRenderOptions
     /// </summary>
     public bool ExposeCamelCaseMembers { get; set; } = true;
 
+    /// <summary>
+    /// CLR types whose instances never change while a view can see them.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// Declaring a type is a promise about every instance of it that reaches a render: neither its
+    /// members nor the values behind them are mutated for as long as the render can reach it. In
+    /// exchange the engine resolves each member of such an object once instead of on every access,
+    /// which is worth having for a registered global whose methods hand back data records that a
+    /// view then walks repeatedly — <c>catalog.getProduct().pricing.currency</c> inside a loop
+    /// crosses into .NET once per object rather than once per read.
+    /// </para>
+    /// <para>
+    /// A broken promise is answered with stale reads rather than an error, so declare only types
+    /// the application controls. Assignability is the rule: declaring an interface or a base type
+    /// covers everything that implements or derives from it.
+    /// </para>
+    /// <para>
+    /// Internal while the shape of the public option is still open. Applications cannot reach this
+    /// yet, and the tests are what exercise it.
+    /// </para>
+    /// </remarks>
+    internal List<Type> ImmutableCrossingTypes { get; } = [];
 }

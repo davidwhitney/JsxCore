@@ -328,6 +328,11 @@ public sealed class JsxServerRenderer(
             {
                 options.Interop.TypeResolver = CamelCaseResolver;
             }
+
+            if (settings.ImmutableCrossingTypes.Count > 0)
+            {
+                options.AddImmutableCrossing([.. settings.ImmutableCrossingTypes]);
+            }
         });
 
         // Before anything is imported: a package that expects a browser or Node global reads it
