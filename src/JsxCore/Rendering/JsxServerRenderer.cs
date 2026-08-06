@@ -18,8 +18,9 @@ namespace JsxCore.Rendering;
 /// <remarks>
 /// <para>
 /// Engines are not thread-safe, so they are pooled and rented for the duration of a render. A
-/// pooled engine keeps its parsed module graph, which is what makes repeat renders cheap; engines
-/// built against a superseded compilation are discarded rather than reused.
+/// pooled engine keeps its module graph, which is what makes repeat renders cheap, and the parsed
+/// modules behind it are shared by the whole pool, so growing the pool costs no extra parsing.
+/// Engines built against a superseded compilation are discarded rather than reused.
 /// </para>
 /// <para>
 /// General CLR access is deliberately never enabled. The only .NET reachable from a view is what
@@ -38,6 +39,7 @@ public sealed class JsxServerRenderer(
     private readonly JsxRuntimeLayout _runtime = runtime ?? throw new ArgumentNullException(nameof(runtime));
     private readonly NodeModuleResolver? _npm = npm;
     private readonly ConcurrentBag<PooledEngine> _pool = [];
+    private readonly BuildScopedCache<ServerModuleCache> _moduleCache = new();
     private readonly SemaphoreSlim _slots = new(Math.Max(1, options.ServerRendering.MaxPooledEngines));
     private bool _disposed;
 
@@ -195,7 +197,7 @@ public sealed class JsxServerRenderer(
             Discard(candidate);
         }
 
-        return new PooledEngine(CreateEngine(), buildId);
+        return new PooledEngine(CreateEngine(buildId), buildId);
     }
 
     private void Return(PooledEngine engine)
@@ -230,9 +232,14 @@ public sealed class JsxServerRenderer(
         }
     }
 
-    private Engine CreateEngine()
+    private Engine CreateEngine(string buildId)
     {
-        var loader = new JsxModuleLoader(_compilation.Layout, _runtime, _options.AllowNodeModules ? _npm : null);
+        var loader = new JsxModuleLoader(
+            _compilation.Layout,
+            _runtime,
+            _options.AllowNodeModules ? _npm : null,
+            _moduleCache.Get(buildId, static () => new ServerModuleCache()));
+
         var settings = _options.ServerRendering;
 
         var engine = new Engine(options =>
@@ -282,6 +289,8 @@ public sealed class JsxServerRenderer(
         {
             Discard(engine);
         }
+
+        _moduleCache.Clear();
     }
 
     public void Dispose()
