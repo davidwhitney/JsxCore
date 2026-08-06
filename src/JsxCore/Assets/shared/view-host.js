@@ -143,8 +143,13 @@ function synchronous(Component) {
 }
 
 /**
- * Builds a framework's server entry: renderView and readHead, which the .NET host calls and whose
- * JSON it reads. The contract is identical for every framework, which is the point.
+ * Builds a framework's server entry: renderView and readHead, which the .NET host calls and reads
+ * the result of. The contract is identical for every framework, which is the point.
+ *
+ * Both return { html, head }: the markup as the string it already is, and the head descriptor as
+ * JSON, or null when the view contributed no head at all. A whole page of markup is by far the
+ * larger of the two and gains nothing from being escaped and unescaped on the way out; the head
+ * descriptor is a handful of tags with a shape the host already knows how to read.
  */
 export function createServerEntry(createElement, renderToString) {
     return {
@@ -158,17 +163,17 @@ export function createServerEntry(createElement, renderToString) {
                 synchronous(Component), { model: props.model, context: props.context });
 
             const rendered = renderCollectingHead(() => renderToString(element));
+            const head = mergeHead(resolveHead(viewModule, props), rendered.contributed);
 
-            return JSON.stringify({
-                html: rendered.html,
-                head: mergeHead(resolveHead(viewModule, props), rendered.contributed)
-            });
+            return { html: rendered.html, head: head ? JSON.stringify(head) : null };
         },
 
         // Only the head export, because the component is not run in this pass. A <Head> inside a
         // client-rendered view is applied by the browser after it mounts.
         readHead(viewModule, props) {
-            return JSON.stringify({ html: "", head: resolveHead(viewModule, props) });
+            const head = resolveHead(viewModule, props);
+
+            return { html: "", head: head ? JSON.stringify(head) : null };
         }
     };
 }

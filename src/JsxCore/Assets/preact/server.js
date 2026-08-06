@@ -1,5 +1,5 @@
 // Server entry for Preact. Loaded by the .NET host, which calls renderView/readHead and reads the
-// JSON they return; nothing above this layer knows how a view is rendered.
+// markup and head they return; nothing above this layer knows how a view is rendered.
 
 import { createElement } from "preact";
 import { render } from "preact-render-to-string";
