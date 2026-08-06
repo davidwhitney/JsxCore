@@ -163,10 +163,17 @@ public sealed class JsxServerRenderer(
             var server = engine.Modules.Import(_runtime.ServerEntrySpecifier);
             var module = engine.Modules.Import("./" + view.ModuleRelativePath);
 
-            var json = engine.Invoke(server.Get(entryPoint), module, props).AsString();
+            var result = engine.Invoke(server.Get(entryPoint), module, props).AsObject();
 
-            return JsonSerializer.Deserialize<ServerRenderResult>(json, SerializerOptions)
-                ?? new ServerRenderResult(string.Empty, null);
+            // The markup is taken as the string it already is. Only the head descriptor, which is a
+            // handful of tags rather than a whole page, is worth reading back out of JSON.
+            var html = result.Get("html").AsString();
+            var headValue = result.Get("head");
+            var head = headValue.IsString()
+                ? JsonSerializer.Deserialize<HeadDescriptor>(headValue.AsString(), SerializerOptions)
+                : null;
+
+            return new ServerRenderResult(html, head);
         }
         catch (JavaScriptException ex)
         {

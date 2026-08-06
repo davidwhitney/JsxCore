@@ -1,5 +1,5 @@
 // Server entry for React. Loaded by the .NET host, which calls renderView/readHead and reads the
-// JSON they return; the contract is identical to every other framework's entry.
+// markup and head they return; the contract is identical to every other framework's entry.
 
 import React from "react";
 import ReactDomServer from "react-dom/server.browser";
