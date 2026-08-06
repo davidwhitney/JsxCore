@@ -233,7 +233,7 @@ public sealed class JsxServerRenderer(
             Discard(candidate);
         }
 
-        return new PooledEngine(CreateEngine(buildId), buildId);
+        return CreateEngine(buildId);
     }
 
     private void Return(PooledEngine engine)
@@ -244,10 +244,21 @@ public sealed class JsxServerRenderer(
             return;
         }
 
-        // The globals were resolved from the request's own scope, and that scope is about to end.
-        // Left in place they stay reachable for as long as the engine sits in the pool, which for
-        // a quiet application is indefinitely.
-        engine.Engine.SetValue(GlobalsName, JsValue.Undefined);
+        // The engine goes back with the globals it was built with: the request's .NET bridge, which
+        // was resolved from a scope that is about to end, and anything a view left on globalThis are
+        // both gone, while the modules it has already parsed stay. Left in place, either would
+        // remain for as long as the engine sits in the pool, which for a quiet application is
+        // indefinitely.
+        try
+        {
+            engine.Engine.Advanced.RestoreGlobalSnapshot(engine.CleanGlobals);
+        }
+        catch (InvalidOperationException)
+        {
+            // An engine whose global surface cannot be restored is not worth pooling.
+            Discard(engine);
+            return;
+        }
 
         _pool.Add(engine);
     }
@@ -291,7 +302,7 @@ public sealed class JsxServerRenderer(
         MemberNameCreator = MemberNames
     };
 
-    private Engine CreateEngine(string buildId)
+    private PooledEngine CreateEngine(string buildId)
     {
         var loader = new JsxModuleLoader(
             _compilation.Layout,
@@ -322,7 +333,12 @@ public sealed class JsxServerRenderer(
         // and isServerRender() used to answer that wrongly.
         engine.SetValue(ServerFlag, true);
 
-        return engine;
+        // Taken last, so that everything above it is part of what the engine is built with: a render
+        // returning the engine to the pool restores this surface, and the shims and the flag have to
+        // survive that rather than be swept away with the render's own leavings.
+        var cleanGlobals = engine.Advanced.CaptureGlobalSnapshot();
+
+        return new PooledEngine(engine, buildId, cleanGlobals);
     }
 
     private static IEnumerable<string> MemberNames(System.Reflection.MemberInfo member)
@@ -358,5 +374,11 @@ public sealed class JsxServerRenderer(
         _slots.Dispose();
     }
 
-    private sealed record PooledEngine(Engine Engine, string BuildId);
+    /// <summary>
+    /// A pooled engine, together with the global surface it was built with.
+    /// </summary>
+    /// <param name="CleanGlobals">
+    /// The engine's globals as construction left them, restored every time it returns to the pool.
+    /// </param>
+    private sealed record PooledEngine(Engine Engine, string BuildId, GlobalSnapshot CleanGlobals);
 }

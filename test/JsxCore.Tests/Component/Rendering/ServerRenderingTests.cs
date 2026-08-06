@@ -275,6 +275,34 @@ public class ServerRenderingTests
         results.ShouldBe(Enumerable.Range(0, 25).Select(n => $"<p>{n}</p>"), ignoreOrder: true);
     }
 
+    [Fact]
+    public async Task Render_ViewWritesToGlobalThis_LeavesNothingForTheNextRender()
+    {
+        using var project = JsxProjectFixture.Create();
+        project.Options.TypeChecking = TypeCheckingMode.Off;
+
+        // One engine, so the second render is certain to get the first one back out of the pool.
+        project.Options.ServerRendering.MaxPooledEngines = 1;
+
+        project.AddView("Home/Litter.tsx", """
+            (globalThis as any).__leak = "left behind";
+            export default function Litter() { return <p>littered</p>; }
+            """);
+        project.AddView("Home/Probe.tsx", """
+            export default function Probe() { return <p>{typeof (globalThis as any).__leak}</p>; }
+            """);
+        await project.CompileAsync();
+
+        var renderer = project.CreateServerRenderer();
+        var services = new ServiceCollection().BuildServiceProvider();
+        var context = new Dictionary<string, object?>();
+
+        await renderer.RenderAsync(project.Locate("Home/Litter"), null, context, services);
+        var probe = await renderer.RenderAsync(project.Locate("Home/Probe"), null, context, services);
+
+        probe.Html.ShouldBe("<p>undefined</p>");
+    }
+
     private sealed class Greeter
     {
         public string Salutation { get; init; } = "Hello";
