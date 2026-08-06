@@ -56,7 +56,7 @@ public sealed class JsxServerRenderer(
         IReadOnlyDictionary<string, object?> context,
         IServiceProvider services,
         CancellationToken cancellationToken = default) =>
-        ExecuteAsync(view, model, context, services, "renderView", cancellationToken);
+        ExecuteAsync(view, Serialize(model), Serialize(context), services, "renderView", cancellationToken);
 
     /// <summary>
     /// Evaluates only a view's <c>head</c> export, without running the component.
@@ -72,12 +72,42 @@ public sealed class JsxServerRenderer(
         IReadOnlyDictionary<string, object?> context,
         IServiceProvider services,
         CancellationToken cancellationToken = default) =>
-        ExecuteAsync(view, model, context, services, "readHead", cancellationToken);
+        ExecuteAsync(view, Serialize(model), Serialize(context), services, "readHead", cancellationToken);
+
+    /// <summary>
+    /// Executes a view whose model and context have already been serialised.
+    /// </summary>
+    /// <remarks>
+    /// The document around a view carries the same model and context, so a response that writes
+    /// both would otherwise serialise each of them twice. The renderer that builds the document
+    /// does it once and hands the results here.
+    /// </remarks>
+    internal Task<ServerRenderResult> RenderSerializedAsync(
+        LocatedView view,
+        string modelJson,
+        string contextJson,
+        IServiceProvider services,
+        CancellationToken cancellationToken = default) =>
+        ExecuteAsync(view, modelJson, contextJson, services, "renderView", cancellationToken);
+
+    /// <summary>
+    /// Reads a view's <c>head</c> export from an already serialised model and context.
+    /// </summary>
+    internal Task<ServerRenderResult> ReadHeadSerializedAsync(
+        LocatedView view,
+        string modelJson,
+        string contextJson,
+        IServiceProvider services,
+        CancellationToken cancellationToken = default) =>
+        ExecuteAsync(view, modelJson, contextJson, services, "readHead", cancellationToken);
+
+    private string Serialize(object? value) =>
+        JsonSerializer.Serialize(value, _options.JsonSerializerOptions);
 
     private async Task<ServerRenderResult> ExecuteAsync(
         LocatedView view,
-        object? model,
-        IReadOnlyDictionary<string, object?> context,
+        string modelJson,
+        string contextJson,
         IServiceProvider services,
         string entryPoint,
         CancellationToken cancellationToken = default)
@@ -93,10 +123,6 @@ public sealed class JsxServerRenderer(
                 new FileNotFoundException(view.ModuleRelativePath));
         }
 
-        var payload = JsonSerializer.Serialize(
-            new { model, context },
-            _options.JsonSerializerOptions);
-
         await _slots.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
@@ -104,7 +130,7 @@ public sealed class JsxServerRenderer(
             var pooled = Rent(buildId);
             try
             {
-                return Render(pooled.Engine, view, payload, services, entryPoint);
+                return Render(pooled.Engine, view, modelJson, contextJson, services, entryPoint);
             }
             finally
             {
@@ -120,7 +146,8 @@ public sealed class JsxServerRenderer(
     private ServerRenderResult Render(
         Engine engine,
         LocatedView view,
-        string payload,
+        string modelJson,
+        string contextJson,
         IServiceProvider services,
         string entryPoint)
     {
@@ -128,7 +155,10 @@ public sealed class JsxServerRenderer(
         {
             InstallGlobals(engine, services);
 
-            var props = new JsonParser(engine).Parse(payload).AsObject();
+            var parser = new JsonParser(engine);
+            var props = new JsObject(engine);
+            props.Set("model", parser.Parse(modelJson));
+            props.Set("context", parser.Parse(contextJson));
 
             var server = engine.Modules.Import(_runtime.ServerEntrySpecifier);
             var module = engine.Modules.Import("./" + view.ModuleRelativePath);
