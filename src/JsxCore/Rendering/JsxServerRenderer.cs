@@ -1,13 +1,14 @@
 using System.Collections.Concurrent;
 using System.Text.Json;
+using Acornima.Ast;
 using Jint;
 using Jint.Native;
-using Jint.Native.Object;
 using Jint.Runtime;
 using Jint.Runtime.Interop;
 using JsxCore.Compilation;
 using JsxCore.Compilation.Assets;
 using JsxCore.Compilation.Modules;
+using JsonParser = Jint.Native.Json.JsonParser;
 
 namespace JsxCore.Rendering;
 
@@ -127,9 +128,7 @@ public sealed class JsxServerRenderer(
         {
             InstallGlobals(engine, services);
 
-            engine.SetValue("__jsxcore_payload", payload);
-            var props = engine.Evaluate("JSON.parse(__jsxcore_payload)").AsObject();
-            engine.SetValue("__jsxcore_payload", JsValue.Undefined);
+            var props = new JsonParser(engine).Parse(payload).AsObject();
 
             var server = engine.Modules.Import(_runtime.ServerEntrySpecifier);
             var module = engine.Modules.Import("./" + view.ModuleRelativePath);
@@ -175,7 +174,7 @@ public sealed class JsxServerRenderer(
             return;
         }
 
-        var globals = engine.Evaluate("({})").AsObject();
+        var globals = new JsObject(engine);
         foreach (var (name, registration) in registrations)
         {
             globals.Set(name, JsValue.FromObject(engine, registration.Factory(services)));
@@ -232,6 +231,29 @@ public sealed class JsxServerRenderer(
         }
     }
 
+    /// <summary>
+    /// The host shims, parsed once for the process rather than once per engine.
+    /// </summary>
+    /// <remarks>
+    /// Every engine runs exactly this text, so parsing it again for each of them bought nothing.
+    /// The text itself is decoded out of the assembly on each read, which this saves as well.
+    /// </remarks>
+    private static readonly Lazy<Prepared<Script>> HostShims =
+        new(static () => Engine.PrepareScript(RuntimeAssets.HostShims, source: "host-shims.js"));
+
+    /// <summary>
+    /// Exposes both the exact .NET name and a camelCase alias, so a C# <c>Greet</c> method can be
+    /// called as either <c>Greet()</c> or <c>greet()</c> without the caller having to know.
+    /// </summary>
+    /// <remarks>
+    /// One resolver for all of them: it remembers the members it has already looked up, and every
+    /// engine built here is configured the same way, so there is nothing to keep apart.
+    /// </remarks>
+    private static readonly TypeResolver CamelCaseResolver = new()
+    {
+        MemberNameCreator = MemberNames
+    };
+
     private Engine CreateEngine(string buildId)
     {
         var loader = new JsxModuleLoader(
@@ -250,18 +272,13 @@ public sealed class JsxServerRenderer(
 
             if (settings.ExposeCamelCaseMembers)
             {
-                // Expose both the exact .NET name and a camelCase alias, so a C# `Greet` method can
-                // be called as either `Greet()` or `greet()` without the caller having to know.
-                options.Interop.TypeResolver = new TypeResolver
-                {
-                    MemberNameCreator = MemberNames
-                };
+                options.Interop.TypeResolver = CamelCaseResolver;
             }
         });
 
         // Before anything is imported: a package that expects a browser or Node global reads it
         // while its own module body runs, so there is no later point at which this would work.
-        engine.Execute(RuntimeAssets.HostShims);
+        engine.Execute(HostShims.Value);
 
         // Which pass is running, stated on its own rather than inferred from whether any .NET
         // objects were registered. An application that registers none is still server rendering,
