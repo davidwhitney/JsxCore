@@ -49,7 +49,10 @@ public sealed class JsxServerRenderer(
     /// </summary>
     /// <param name="context">Ambient values exposed as the component's <c>context</c> prop.</param>
     /// <param name="services">Scope used to resolve request-scoped globals.</param>
-    /// <param name="cancellationToken">Cancels waiting for a free engine.</param>
+    /// <param name="cancellationToken">
+    /// Abandons the render: while it waits for a free engine, and afterwards while its JavaScript
+    /// runs. A request whose client has disconnected stops paying for markup nobody will read.
+    /// </param>
     public Task<ServerRenderResult> RenderAsync(
         LocatedView view,
         object? model,
@@ -128,12 +131,14 @@ public sealed class JsxServerRenderer(
         {
             var buildId = _compilation.BuildId;
             var pooled = Rent(buildId);
+            pooled.Deadline.Begin(_options.ServerRendering.Timeout, cancellationToken);
             try
             {
                 return Render(pooled.Engine, view, modelJson, contextJson, services, entryPoint);
             }
             finally
             {
+                pooled.Deadline.End();
                 Return(pooled);
             }
         }
@@ -311,11 +316,12 @@ public sealed class JsxServerRenderer(
             _moduleCache.Get(buildId, static () => new ServerModuleCache()));
 
         var settings = _options.ServerRendering;
+        var deadline = new RenderDeadline();
 
         var engine = new Engine(options =>
         {
             options.EnableModules(loader);
-            options.TimeoutInterval(settings.Timeout);
+            options.Constraint(deadline);
             options.LimitRecursion(settings.MaxRecursionDepth);
 
             if (settings.ExposeCamelCaseMembers)
@@ -338,7 +344,7 @@ public sealed class JsxServerRenderer(
         // survive that rather than be swept away with the render's own leavings.
         var cleanGlobals = engine.Advanced.CaptureGlobalSnapshot();
 
-        return new PooledEngine(engine, buildId, cleanGlobals);
+        return new PooledEngine(engine, buildId, cleanGlobals, deadline);
     }
 
     private static IEnumerable<string> MemberNames(System.Reflection.MemberInfo member)
@@ -380,5 +386,12 @@ public sealed class JsxServerRenderer(
     /// <param name="CleanGlobals">
     /// The engine's globals as construction left them, restored every time it returns to the pool.
     /// </param>
-    private sealed record PooledEngine(Engine Engine, string BuildId, GlobalSnapshot CleanGlobals);
+    /// <param name="Deadline">
+    /// The engine's own time budget, armed for the render currently holding it.
+    /// </param>
+    private sealed record PooledEngine(
+        Engine Engine,
+        string BuildId,
+        GlobalSnapshot CleanGlobals,
+        RenderDeadline Deadline);
 }
