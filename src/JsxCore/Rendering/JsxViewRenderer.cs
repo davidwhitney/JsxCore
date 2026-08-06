@@ -46,19 +46,24 @@ public sealed class JsxViewRenderer(
         var context = BuildContextValues(httpContext);
         var renderMode = ResolveRenderMode(request);
 
+        // The view and the document around it are handed the same model and the same context, so
+        // both are written out once here and the two consumers share them.
+        var modelJson = JsonSerializer.Serialize(request.Model, _options.JsonSerializerOptions);
+        var contextJson = JsonSerializer.Serialize(context, _options.JsonSerializerOptions);
+
         ServerRenderResult? serverResult;
         if (renderMode is RenderMode.Server or RenderMode.ServerAndClient)
         {
-            serverResult = await _serverRenderer.RenderAsync(
+            serverResult = await _serverRenderer.RenderSerializedAsync(
                 request.View,
-                request.Model,
-                context,
+                modelJson,
+                contextJson,
                 httpContext.RequestServices,
                 httpContext.RequestAborted).ConfigureAwait(false);
         }
         else
         {
-            serverResult = await TryReadHeadAsync(request, context, httpContext).ConfigureAwait(false);
+            serverResult = await TryReadHeadAsync(request, modelJson, contextJson, httpContext).ConfigureAwait(false);
         }
 
         var assetBase = $"{_options.RequestPath}/v{buildId}";
@@ -69,8 +74,8 @@ public sealed class JsxViewRenderer(
             RenderMode = renderMode,
             ServerHtml = serverResult?.Html,
             Head = serverResult?.Head,
-            ModelJson = JsonSerializer.Serialize(request.Model, _options.JsonSerializerOptions),
-            ContextJson = JsonSerializer.Serialize(context, _options.JsonSerializerOptions),
+            ModelJson = modelJson,
+            ContextJson = contextJson,
             ModuleUrl = $"{assetBase}/views/{request.View.ModuleRelativePath}",
             StyleSheets = StyleSheetsFor(request.View, assetBase, buildId),
             Document = request.Document ?? _options.Document,
@@ -114,15 +119,16 @@ public sealed class JsxViewRenderer(
     /// </summary>
     private async Task<ServerRenderResult?> TryReadHeadAsync(
         JsxRenderRequest request,
-        IReadOnlyDictionary<string, object?> context,
+        string modelJson,
+        string contextJson,
         HttpContext httpContext)
     {
         try
         {
-            return await _serverRenderer.ReadHeadAsync(
+            return await _serverRenderer.ReadHeadSerializedAsync(
                 request.View,
-                request.Model,
-                context,
+                modelJson,
+                contextJson,
                 httpContext.RequestServices,
                 httpContext.RequestAborted).ConfigureAwait(false);
         }
