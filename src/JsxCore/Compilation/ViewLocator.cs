@@ -14,8 +14,6 @@ public sealed class ViewLocator(
     string contentRoot,
     ILogger<ViewLocator>? logger = null)
 {
-    private readonly ILogger<ViewLocator>? _logger = logger;
-
     private readonly JsxCoreOptions _options = options ?? throw new ArgumentNullException(nameof(options));
     private readonly CompilationLayout _layout = layout ?? throw new ArgumentNullException(nameof(layout));
     private readonly string _contentRoot = contentRoot ?? throw new ArgumentNullException(nameof(contentRoot));
@@ -37,7 +35,7 @@ public sealed class ViewLocator(
             searchedLocations = [];
             return cached;
         }
-
+        
         var searched = new List<string>();
         searchedLocations = searched;
 
@@ -91,7 +89,7 @@ public sealed class ViewLocator(
             }
         }
 
-        _logger?.LogWarning(
+        logger?.LogWarning(
             "JsxCore found '{Path}' for the view '{ViewName}', but it is outside the views directory " +
             "'{ViewsDirectory}'. JsxCore compiles that directory, so a file above it has no compiled " +
             "module and cannot be rendered; the view is being treated as not found. Move it under the " +
