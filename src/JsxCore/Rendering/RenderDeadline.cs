@@ -16,6 +16,9 @@ namespace JsxCore.Rendering;
 /// </remarks>
 internal sealed class RenderDeadline : Constraint
 {
+    /// <summary>A budget that never runs out, which is how an unarmed engine sits in the pool.</summary>
+    private const long Disarmed = 0;
+
     private long _deadline;
     private CancellationToken _aborted;
 
@@ -26,17 +29,36 @@ internal sealed class RenderDeadline : Constraint
     public override bool IsAmortizable => true;
 
     /// <summary>Arms the budget for one render.</summary>
+    /// <remarks>
+    /// A timeout of zero or less asks for no budget at all, which is what
+    /// <see cref="Timeout.InfiniteTimeSpan"/> means and what the engine's own timeout did with one.
+    /// Arming it arithmetically instead would put the deadline at or before the render's own start
+    /// and end every render the moment it began.
+    /// </remarks>
     public void Begin(TimeSpan timeout, CancellationToken aborted)
     {
         _aborted = aborted;
-        var deadline = Stopwatch.GetTimestamp() + (long) (timeout.TotalSeconds * Stopwatch.Frequency);
-        _deadline = deadline == 0 ? 1 : deadline;
+
+        if (timeout <= TimeSpan.Zero)
+        {
+            _deadline = Disarmed;
+            return;
+        }
+
+        var start = Stopwatch.GetTimestamp();
+        var budget = timeout.TotalSeconds * Stopwatch.Frequency;
+
+        // A budget too large to add to the clock is one no render was ever going to reach, so it
+        // becomes the furthest deadline there is rather than an overflowed one in the past.
+        _deadline = budget >= long.MaxValue - start
+            ? long.MaxValue
+            : Math.Max(start + (long) budget, Disarmed + 1);
     }
 
     /// <summary>Disarms the budget, so a pooled engine carries no deadline between renders.</summary>
     public void End()
     {
-        _deadline = 0;
+        _deadline = Disarmed;
         _aborted = default;
     }
 

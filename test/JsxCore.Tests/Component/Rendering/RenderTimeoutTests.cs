@@ -79,4 +79,66 @@ public class RenderTimeoutTests
         exception.ShouldBeAssignableTo<OperationCanceledException>();
         elapsed.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(15));
     }
+
+    /// <summary>A component that returns immediately, so nothing but a broken budget can stop it.</summary>
+    private const string Fast = """
+        export default function Fast() { return <p>ok</p>; }
+        """;
+
+    /// <summary>
+    /// Turning the budget off has to mean no budget rather than one that has already run out. Each
+    /// of these asks for that in the way a host plausibly would.
+    /// </summary>
+    public static TheoryData<TimeSpan> DisabledTimeouts => new()
+    {
+        TimeSpan.Zero,
+        Timeout.InfiniteTimeSpan,
+        TimeSpan.MaxValue
+    };
+
+    [Theory]
+    [MemberData(nameof(DisabledTimeouts))]
+    public async Task Render_TimeoutDisabled_RendersRatherThanExpiringImmediately(TimeSpan timeout)
+    {
+        using var project = JsxProjectFixture.Create();
+        project.Options.TypeChecking = TypeCheckingMode.Off;
+        project.Options.ServerRendering.Timeout = timeout;
+        project.AddView("Home/Fast.tsx", Fast);
+        await project.CompileAsync();
+
+        var renderer = project.CreateServerRenderer();
+        var services = new ServiceCollection().BuildServiceProvider();
+
+        var result = await renderer.RenderAsync(
+            project.Locate("Home/Fast"), null, new Dictionary<string, object?>(), services);
+
+        result.Html.ShouldBe("<p>ok</p>");
+    }
+
+    [Theory]
+    [MemberData(nameof(DisabledTimeouts))]
+    public async Task Render_TimeoutDisabled_StillHonoursAnAbortedRequest(TimeSpan timeout)
+    {
+        using var project = JsxProjectFixture.Create();
+        project.Options.TypeChecking = TypeCheckingMode.Off;
+
+        // With no budget to end it, the abort token is the only thing left that can.
+        project.Options.ServerRendering.Timeout = timeout;
+        project.AddView("Home/Forever.tsx", Forever);
+        await project.CompileAsync();
+
+        var renderer = project.CreateServerRenderer();
+        var services = new ServiceCollection().BuildServiceProvider();
+
+        using var aborted = new CancellationTokenSource(TimeSpan.FromMilliseconds(250));
+        var elapsed = Stopwatch.StartNew();
+
+        var exception = await Record.ExceptionAsync(() => renderer.RenderAsync(
+            project.Locate("Home/Forever"), null, new Dictionary<string, object?>(), services, aborted.Token));
+
+        elapsed.Stop();
+
+        exception.ShouldBeAssignableTo<OperationCanceledException>();
+        elapsed.Elapsed.ShouldBeLessThan(TimeSpan.FromSeconds(15));
+    }
 }
