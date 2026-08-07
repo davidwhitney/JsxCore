@@ -446,8 +446,65 @@
       <Output TaskParameter="Result" PropertyName="JsxCoreResolvedCompilerPath" />
     </XmlPeek>
 
+    <!--
+      The compiler is not the only answer the restore changed. Where node_modules is, and the
+      runtime closure walked through it, are both read off the installed tree: before the restore
+      the first was empty and the second was the declared names alone, without the packages those
+      depend on.
+
+      Left stale, the publish output had no node_modules in it at all, because the item groups that
+      carry it are conditioned on the root being known and on this build it was not. That is every
+      container image and CI job, which is a clean checkout by definition, and the application then
+      started and returned 500 from the first view importing a package. A second publish, with the
+      tree already in place, was correct — which is what made it look like a caching problem rather
+      than an ordering one.
+    -->
+    <PropertyGroup>
+      <_JsxCoreReanalysed Condition="'$(_JsxCoreRestoreExit)' == '0' And Exists('$(JsxCoreGeneratedProps)')">true</_JsxCoreReanalysed>
+    </PropertyGroup>
+
+    <XmlPeek Condition="'$(_JsxCoreReanalysed)' == 'true'"
+             XmlInputPath="$(JsxCoreGeneratedProps)"
+             Query="/Project/PropertyGroup/JsxCoreNodeModulesRoot/text()">
+      <Output TaskParameter="Result" PropertyName="JsxCoreNodeModulesRoot" />
+    </XmlPeek>
+
+    <!--
+      XmlPeek appends to an item list rather than replacing it, so what the first analysis read has
+      to go before the second is read back. Without this every package is published twice.
+    -->
+    <ItemGroup Condition="'$(_JsxCoreReanalysed)' == 'true'">
+      <JsxCoreDependencyName Remove="@(JsxCoreDependencyName)" />
+      <JsxCoreDevDependencyName Remove="@(JsxCoreDevDependencyName)" />
+      <JsxCoreRuntimePackageName Remove="@(JsxCoreRuntimePackageName)" />
+    </ItemGroup>
+
+    <XmlPeek Condition="'$(_JsxCoreReanalysed)' == 'true'"
+             XmlInputPath="$(JsxCoreGeneratedProps)"
+             Query="/Project/ItemGroup/JsxCoreNpmDependency/@Include">
+      <Output TaskParameter="Result" ItemName="JsxCoreDependencyName" />
+    </XmlPeek>
+
+    <XmlPeek Condition="'$(_JsxCoreReanalysed)' == 'true'"
+             XmlInputPath="$(JsxCoreGeneratedProps)"
+             Query="/Project/ItemGroup/JsxCoreNpmDevDependency/@Include">
+      <Output TaskParameter="Result" ItemName="JsxCoreDevDependencyName" />
+    </XmlPeek>
+
+    <XmlPeek Condition="'$(_JsxCoreReanalysed)' == 'true'"
+             XmlInputPath="$(JsxCoreGeneratedProps)"
+             Query="/Project/ItemGroup/JsxCoreNpmRuntimePackage/@Include">
+      <Output TaskParameter="Result" ItemName="JsxCoreRuntimePackageName" />
+    </XmlPeek>
+
     <PropertyGroup>
       <JsxCoreCompilerPath Condition="'$(JsxCoreCompilerPath)' == ''">$(JsxCoreResolvedCompilerPath)</JsxCoreCompilerPath>
+
+      <!--
+        Set here as well as in JsxCoreLocateCompiler, which runs before this target and so read the
+        root as it was before anything was installed.
+      -->
+      <_JsxCoreNodeModules Condition="'$(JsxCoreNodeModulesRoot)' != ''">$(JsxCoreNodeModulesRoot)/</_JsxCoreNodeModules>
     </PropertyGroup>
   </Target>
 
