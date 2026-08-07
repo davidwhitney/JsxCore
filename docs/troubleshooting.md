@@ -178,6 +178,38 @@ shows the diagnostics directly in the page.
 
 If there are no diagnostics, confirm the view has a **default export that is a function**.
 
+### A model value renders as nothing
+
+`undefined` renders as nothing in JSX, so a mistyped property produces a page that is structurally
+correct with a blank where the value should be, and a 200 alongside it. A casing mistake and a
+broken feature look identical from the outside.
+
+Model properties reach a view through `JsonSerializerOptions`, so they arrive **camelCase** by
+default however the .NET type spells them:
+
+```tsx
+export default function Summary({ model }: { model: { count: number } }) {
+    return <aside>{model.count} customers</aside>;
+}
+```
+
+The generated declarations spell each property the way a view has to write it, so a view typed from
+[`dotnet:types`](model-types.md) reports this as a type error instead of rendering a blank. An
+inline annotation asserts the shape rather than checking it, which is what lets the mistake through.
+
+Form attributes keep the .NET spelling, so both conventions appear on one line. ASP.NET model
+binding reads `name` on POST; `model.name` is JSON that arrived from the server:
+
+```tsx
+<input name="Name" value={model.name} />
+```
+
+### A form POST returns 400
+
+The action has `[ValidateAntiForgeryToken]` and the view rendered no token. `@Html.AntiForgeryToken()`
+has no equivalent, because the token comes from a .NET service and a view reaches those by
+registering them: see [Razor request-state helpers](dotnet-interop.md#razor-request-state-helpers).
+
 ### `JsxViewNotFoundException`
 
 The message lists every location probed. A name without an extension resolves through

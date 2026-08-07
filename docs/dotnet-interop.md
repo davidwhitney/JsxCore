@@ -131,6 +131,47 @@ const summary = isServerRender() ? Inventory.getSummary() : null;
 
 ---
 
+## Razor request-state helpers
+
+Razor helpers that read per-request state have no direct equivalent, because the state lives in a
+.NET service and a view reaches those only by registration. Each one ports the same way: wrap the
+service in a class, register that as a global, call it from the view.
+
+Antiforgery is the one every ported form needs:
+
+```csharp
+public sealed class AntiforgeryTokens(IAntiforgery antiforgery, IHttpContextAccessor accessor)
+{
+    public string FieldName() => antiforgery.GetAndStoreTokens(accessor.HttpContext!).FormFieldName;
+    public string Token() => antiforgery.GetAndStoreTokens(accessor.HttpContext!).RequestToken!;
+}
+
+builder.Services.AddHttpContextAccessor();
+builder.Services.AddScoped<AntiforgeryTokens>();
+builder.AddJsxCore(options => options.Globals.Register<AntiforgeryTokens>("Antiforgery"));
+```
+
+```tsx
+import { Antiforgery } from "dotnet:globals";
+
+export function AntiforgeryField() {
+    return <input type="hidden" name={Antiforgery.fieldName()} value={Antiforgery.token()} />;
+}
+```
+
+| Helper | Reads | Accessor to register |
+|---|---|---|
+| `@Html.AntiForgeryToken()` | `IAntiforgery` | `IHttpContextAccessor` |
+| `asp-validation-for`, `asp-validation-summary` | `ModelState` | `IActionContextAccessor` |
+
+`ModelState` lives on the `ActionContext` rather than the `HttpContext`, which is why the second row
+needs a different accessor.
+
+A view calling any of these has to be [server-rendered](#availability): a client-rendered form
+carries no token, and its POST is rejected.
+
+---
+
 ## Security
 
 **Only what you register is reachable.** JsxCore never enables the JavaScript engine's general CLR
