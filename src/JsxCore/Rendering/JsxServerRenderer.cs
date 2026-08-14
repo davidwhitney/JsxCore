@@ -9,6 +9,7 @@ using Jint.Runtime.Interop;
 using JsxCore.Compilation;
 using JsxCore.Compilation.Assets;
 using JsxCore.Compilation.Modules;
+using JsxCore.Interop;
 using JsonParser = Jint.Native.Json.JsonParser;
 
 namespace JsxCore.Rendering;
@@ -132,14 +133,20 @@ public sealed class JsxServerRenderer(
         {
             var buildId = _compilation.BuildId;
             var pooled = Rent(buildId);
+
+            // The scope the engine's globals bridge resolves from, for as long as this render holds
+            // the engine. Cleared afterwards so an engine waiting in the pool is not holding on to
+            // a request whose scope has ended.
+            pooled.Globals.Services = services;
             pooled.Deadline.Begin(_options.ServerRendering.Timeout, cancellationToken);
             try
             {
-                return Render(pooled.Engine, view, modelJson, contextJson, services, entryPoint);
+                return Render(pooled.Engine, view, modelJson, contextJson, entryPoint);
             }
             finally
             {
                 pooled.Deadline.End();
+                pooled.Globals.Services = null;
                 Return(pooled);
             }
         }
@@ -154,13 +161,10 @@ public sealed class JsxServerRenderer(
         LocatedView view,
         string modelJson,
         string contextJson,
-        IServiceProvider services,
         string entryPoint)
     {
         try
         {
-            InstallGlobals(engine, services);
-
             var parser = new JsonParser(engine);
             var props = new JsObject(engine);
             props.Set("model", parser.Parse(modelJson));
@@ -216,22 +220,49 @@ public sealed class JsxServerRenderer(
     /// <summary>The object the registered .NET globals are installed on, for one render.</summary>
     private const string GlobalsName = "__jsxcore_dotnet";
 
-    private void InstallGlobals(Engine engine, IServiceProvider services)
+    /// <summary>
+    /// The .NET side of the globals bridge for one pooled engine: what the application registered,
+    /// and which request's scope the render currently holding the engine resolves it from.
+    /// </summary>
+    /// <remarks>
+    /// <para>
+    /// The registered objects come from the request's service scope, so one of them can be a
+    /// database context, a localizer, or anything else a scope builds on demand — and most views
+    /// read none of them. Building the bridge is therefore left until a view asks for it: the
+    /// engine holds the global as a factory, and a render that never mentions <c>dotnet:globals</c>
+    /// resolves no service and builds no wrapper. Importing one is not asking for it either, since
+    /// the JavaScript side hands out proxies that reach this only when a member is read.
+    /// </para>
+    /// <para>
+    /// Read at the moment a view asks, rather than captured per render, so a global registered
+    /// after startup is still reachable — which is what the catch-all export exists for.
+    /// </para>
+    /// </remarks>
+    private sealed class GlobalsBridge(JsxGlobalRegistry globals)
     {
-        var registrations = _options.Globals.Registrations;
-        if (registrations.Count == 0)
-        {
-            engine.SetValue(GlobalsName, JsValue.Undefined);
-            return;
-        }
+        /// <summary>The scope of the render holding this engine, or null between renders.</summary>
+        public IServiceProvider? Services { get; set; }
 
-        var globals = new JsObject(engine);
-        foreach (var (name, registration) in registrations)
+        public JsValue Build(Engine engine)
         {
-            globals.Set(name, JsValue.FromObject(engine, registration.Factory(services)));
-        }
+            var registrations = globals.Registrations;
+            var services = Services;
 
-        engine.SetValue(GlobalsName, globals);
+            if (services is null || registrations.Count == 0)
+            {
+                // What an application that registered nothing has always presented, and what the
+                // runtime reads as "there is nothing here to reach" when a view asks anyway.
+                return JsValue.Undefined;
+            }
+
+            var bridge = new JsObject(engine);
+            foreach (var (name, registration) in registrations)
+            {
+                bridge.Set(name, JsValue.FromObject(engine, registration.Factory(services)));
+            }
+
+            return bridge;
+        }
     }
 
     private PooledEngine Rent(string buildId)
@@ -358,12 +389,21 @@ public sealed class JsxServerRenderer(
         // and isServerRender() used to answer that wrongly.
         engine.SetValue(ServerFlag, true);
 
+        // Declared once for the engine, and before the snapshot below, which is what makes it a
+        // per-render bridge without a per-render write: the engine resolves the factory the first
+        // time a view reads the global and not at all otherwise, and returning the engine to the
+        // pool puts the property back to unresolved, so the next render resolves against the next
+        // request's scope. Installed after the snapshot instead, it would be a global the restore
+        // has to remove and the next render has to add again.
+        var globals = new GlobalsBridge(_options.Globals);
+        engine.Advanced.AddLazyGlobal(GlobalsName, globals, static (engine, globals) => globals.Build(engine));
+
         // Taken last, so that everything above it is part of what the engine is built with: a render
         // returning the engine to the pool restores this surface, and the shims and the flag have to
         // survive that rather than be swept away with the render's own leavings.
         var cleanGlobals = engine.Advanced.CaptureGlobalSnapshot();
 
-        return new PooledEngine(engine, buildId, cleanGlobals, deadline);
+        return new PooledEngine(engine, buildId, cleanGlobals, deadline, globals);
     }
 
     private static IEnumerable<string> MemberNames(System.Reflection.MemberInfo member)
@@ -408,9 +448,14 @@ public sealed class JsxServerRenderer(
     /// <param name="Deadline">
     /// The engine's own time budget, armed for the render currently holding it.
     /// </param>
+    /// <param name="Globals">
+    /// The engine's bridge to the registered .NET objects, pointed at the scope of the render
+    /// currently holding it.
+    /// </param>
     private sealed record PooledEngine(
         Engine Engine,
         string BuildId,
         GlobalSnapshot CleanGlobals,
-        OperationDeadlineConstraint Deadline);
+        OperationDeadlineConstraint Deadline,
+        GlobalsBridge Globals);
 }
