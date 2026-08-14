@@ -349,11 +349,19 @@ public sealed class JsxServerRenderer(
 
     private PooledEngine CreateEngine(string buildId)
     {
+        // Watching means the views can be recompiled while the application runs, and every rebuild
+        // throws this compilation's parsed modules away for a new set that one or two engines will
+        // read before the next edit does the same. Preparing those the cheaper way is worth more
+        // than the bookkeeping the fuller preparation would hand each engine. A server that will
+        // not recompile keeps its parses for the life of the pool, which is where the fuller
+        // preparation earns back what it costs.
+        var staticAnalysis = _options.WatchForChanges != true;
+
         var loader = new JsxModuleLoader(
             _compilation.Layout,
             _runtime,
             _options.AllowNodeModules ? _npm : null,
-            _moduleCache.Get(buildId, static () => new ServerModuleCache()));
+            _moduleCache.Get(buildId, () => new ServerModuleCache(staticAnalysis)));
 
         var settings = _options.ServerRendering;
 
