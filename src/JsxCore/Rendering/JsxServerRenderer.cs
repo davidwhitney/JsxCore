@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using System.Text.Json;
 using Acornima.Ast;
 using Jint;
+using Jint.Constraints;
 using Jint.Native;
 using Jint.Runtime;
 using Jint.Runtime.Interop;
@@ -186,6 +187,14 @@ public sealed class JsxServerRenderer(
                 $"JsxCore failed to server-render '{view.ViewName}': {ex.Message}{Environment.NewLine}" +
                 $"{ex.JavaScriptStackTrace}", ex);
         }
+        catch (TimeoutException ex)
+        {
+            // The engine reports an elapsed budget in its own words, which do not say whose budget
+            // it was. Which one ran out is the part a host can act on, so the render says it.
+            throw new JsxRenderException(
+                $"JsxCore failed to server-render '{view.ViewName}'.",
+                new TimeoutException("The render exceeded the configured server rendering timeout.", ex));
+        }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {
             throw new JsxRenderException($"JsxCore failed to server-render '{view.ViewName}'.", ex);
@@ -316,7 +325,12 @@ public sealed class JsxServerRenderer(
             _moduleCache.Get(buildId, static () => new ServerModuleCache()));
 
         var settings = _options.ServerRendering;
-        var deadline = new RenderDeadline();
+
+        // One budget for the whole render rather than one per entry into the engine. The engine
+        // resets its constraints at every entry from the host, and a render enters several times,
+        // so a plain timeout would give each entry the configured budget over again; this one is
+        // armed by the host and declines that reset.
+        var deadline = new OperationDeadlineConstraint();
 
         var engine = new Engine(options =>
         {
@@ -398,5 +412,5 @@ public sealed class JsxServerRenderer(
         Engine Engine,
         string BuildId,
         GlobalSnapshot CleanGlobals,
-        RenderDeadline Deadline);
+        OperationDeadlineConstraint Deadline);
 }
