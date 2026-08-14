@@ -161,8 +161,8 @@ public sealed class JsxModuleLoader : IModuleLoader
 
         // The name the engine gives back as the referencing location when this module's own
         // relative imports are resolved, so it has to be the one the engine would have derived
-        // from the resolved specifier itself.
-        var location = resolved.Uri?.LocalPath ?? resolved.Key;
+        // from the resolved specifier itself. LocationOf is that rule, published for exactly this.
+        var location = ModuleFactory.LocationOf(resolved);
         var prepared = _modules.GetOrParse(location, () => ReadSource(resolved.Key));
         return ModuleFactory.BuildSourceTextModule(engine, in prepared);
     }
@@ -231,7 +231,7 @@ public sealed class JsxModuleLoader : IModuleLoader
 
         // What is cached is the module as the engine sees it, after the CommonJS wrapping, so a
         // second engine pays for neither the read nor the transform.
-        var location = resolved.Uri?.LocalPath ?? resolved.Key;
+        var location = ModuleFactory.LocationOf(resolved);
         var prepared = _modules.GetOrParse(
             location,
             () => ModuleTransform.Apply(path, kind, File.ReadAllText(path), new EngineSpecifierRewriter(npm)).Source);
