@@ -217,6 +217,7 @@ public static class JsxCoreServiceCollectionExtensions
             options.HotReload ?? false,
             provider.GetRequiredService<JsxCompilationService>(),
             provider.GetRequiredService<JsxServerRendererReset>(),
+            provider.GetRequiredService<IHostApplicationLifetime>(),
             provider.GetRequiredService<ILogger<JsxHotReloadService>>()));
 
         services.TryAddSingleton<IJsxHotReloadState>(provider => provider.GetRequiredService<JsxHotReloadService>());

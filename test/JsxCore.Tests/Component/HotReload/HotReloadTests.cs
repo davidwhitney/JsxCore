@@ -1,8 +1,11 @@
 using System.Net;
+using JsxCore.Hosting;
 using JsxCore.Mvc;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Routing;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using System.Text.RegularExpressions;
 using Shouldly;
 
@@ -74,5 +77,23 @@ public class HotReloadTests
         var response = await host.Client.GetAsync("/_jsx/hmr");
 
         response.StatusCode.ShouldBe(HttpStatusCode.BadRequest);
+    }
+
+    [Fact]
+    public async Task HotReloadService_ApplicationStopping_AbortsConnectedSockets()
+    {
+        using var project = HostedViews.Project();
+        await using var host = await JsxTestHost.StartAsync(project, o => o.HotReload = true);
+
+        var webSocketClient = host.Server.CreateWebSocketClient();
+        var uri = new Uri(host.Server.BaseAddress, "/_jsx/hmr");
+        using var socket = await webSocketClient.ConnectAsync(uri, CancellationToken.None);
+
+        var hotReload = host.Server.Services.GetRequiredService<JsxHotReloadService>();
+        SpinWait.SpinUntil(() => hotReload.ClientCount == 1, TimeSpan.FromSeconds(5)).ShouldBeTrue();
+
+        host.Server.Services.GetRequiredService<IHostApplicationLifetime>().StopApplication();
+
+        SpinWait.SpinUntil(() => hotReload.ClientCount == 0, TimeSpan.FromSeconds(5)).ShouldBeTrue();
     }
 }

@@ -3,6 +3,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json;
 using JsxCore.Compilation;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
 namespace JsxCore.Hosting;
@@ -16,6 +17,7 @@ public sealed class JsxHotReloadService(
     bool enabled,
     JsxCompilationService compilation,
     JsxServerRendererReset reset,
+    IHostApplicationLifetime lifetime,
     ILogger<JsxHotReloadService> logger)
     : IJsxHotReloadState, IDisposable
 {
@@ -23,9 +25,14 @@ public sealed class JsxHotReloadService(
     private readonly ILogger<JsxHotReloadService> _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     private readonly JsxCompilationService _compilation = compilation ?? throw new ArgumentNullException(nameof(compilation));
     private readonly JsxServerRendererReset _reset = reset ?? throw new ArgumentNullException(nameof(reset));
+    private readonly IHostApplicationLifetime _lifetime = lifetime ?? throw new ArgumentNullException(nameof(lifetime));
+    private readonly object _clientGate = new();
+    private CancellationTokenRegistration _stoppingRegistration;
     private bool _subscribed;
+    private bool _stopped;
 
     public bool Enabled { get; } = enabled;
+    internal int ClientCount => _clients.Count;
 
     public void Start()
     {
@@ -35,6 +42,7 @@ public sealed class JsxHotReloadService(
         }
         _subscribed = true;
         _compilation.BuildCompleted += OnBuildCompleted;
+        _stoppingRegistration = _lifetime.ApplicationStopping.Register(Stop);
     }
 
     private void OnBuildCompleted(BuildState state)
@@ -59,7 +67,21 @@ public sealed class JsxHotReloadService(
         ArgumentNullException.ThrowIfNull(socket);
 
         var id = Guid.NewGuid();
-        _clients[id] = socket;
+        var accepted = false;
+        lock (_clientGate)
+        {
+            if (!_stopped)
+            {
+                _clients[id] = socket;
+                accepted = true;
+            }
+        }
+
+        if (!accepted)
+        {
+            socket.Abort();
+            return;
+        }
         _logger.LogDebug("JsxCore hot reload client {ClientId} connected.", id);
 
         try
@@ -120,14 +142,32 @@ public sealed class JsxHotReloadService(
         }
     }
 
-    public void Dispose()
+    internal void Stop()
     {
         if (_subscribed)
         {
             _compilation.BuildCompleted -= OnBuildCompleted;
             _subscribed = false;
         }
-        _clients.Clear();
+
+        List<WebSocket> sockets;
+        lock (_clientGate)
+        {
+            _stopped = true;
+            sockets = [.. _clients.Values];
+            _clients.Clear();
+        }
+
+        foreach (var socket in sockets)
+        {
+            socket.Abort();
+        }
+    }
+
+    public void Dispose()
+    {
+        Stop();
+        _stoppingRegistration.Dispose();
     }
 }
 
