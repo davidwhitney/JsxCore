@@ -142,7 +142,7 @@ public sealed class JsxHotReloadService(
         }
     }
 
-    internal void Stop()
+    private void Stop()
     {
         if (_subscribed)
         {
