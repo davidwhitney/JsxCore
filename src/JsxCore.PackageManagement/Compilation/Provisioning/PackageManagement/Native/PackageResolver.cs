@@ -141,26 +141,35 @@ public sealed class PackageResolver(
                 $"workspace dependencies are supported; this needs npm.");
         }
 
+        var already = Visible(placements, edge.Scope, edge.Name);
+        if (already is not null && edge.Range.Satisfies(already.Package.Version))
+        {
+            Relax(placements, already, edge);
+            return [];
+        }
+
+        // Described before it is placed, because where a nested copy can go depends on which
+        // version it turns out to be.
+        var described = await DescribeAsync(edge, token).ConfigureAwait(false);
+        if (described is null)
+        {
+            return [];
+        }
+
         var scope = "";
 
-        if (Visible(placements, edge.Scope, edge.Name) is { } already)
+        if (already is not null)
         {
-            if (edge.Range.Satisfies(already.Package.Version))
-            {
-                Relax(placements, already, edge);
-                return [];
-            }
-
             // Visible but wrong, so it has to go somewhere below whatever is in the way. The
-            // shallowest free scope, not simply the dependent's own, because nesting deeper than
+            // shallowest usable scope, not simply the dependent's own, because nesting deeper than
             // necessary duplicates the package for every dependent that shares an ancestor.
-            scope = ShallowestFreeScope(placements, edge.Scope, edge.Name);
+            scope = ShallowestUsableScope(placements, edge.Scope, already.Scope, edge.Name, described.Version);
 
             // A peer whose scope is already taken goes inside the package that asked for it, which
             // is the only place left that nothing else can see.
             if (scope == already.Scope && edge.DependentPath is { } dependent)
             {
-                scope = ShallowestFreeScope(placements, dependent, edge.Name);
+                scope = ShallowestUsableScope(placements, dependent, already.Scope, edge.Name, described.Version);
             }
 
             if (scope == already.Scope)
@@ -169,12 +178,6 @@ public sealed class PackageResolver(
                     $"'{edge.Name}' is needed at both {already.Package.Version} and {edge.Range} " +
                     $"in the same place, which cannot be satisfied.");
             }
-        }
-
-        var described = await DescribeAsync(edge, token).ConfigureAwait(false);
-        if (described is null)
-        {
-            return [];
         }
 
         var path = PathFor(scope, edge.Name);
@@ -311,14 +314,24 @@ public sealed class PackageResolver(
         }
     }
 
-    private static string ShallowestFreeScope(
+    // The shallowest scope between the dependent and the copy in its way where this version can
+    // go. Anything above the copy in the way is no use, since the dependent would still find that
+    // copy first. A scope with nothing of the name in it is not automatically usable either: a
+    // copy placed there is what every package below resolves the name to, so it must not come
+    // between one of them and a copy it currently reaches further up. test-exclude wants
+    // minimatch 10 and finds it at the top; its nested glob wants minimatch 9. Putting the 9 in
+    // test-exclude's own node_modules would satisfy glob and break test-exclude, so it goes in
+    // glob's, which is where npm puts it.
+    private static string ShallowestUsableScope(
         IReadOnlyDictionary<string, PlacedPackage> placements,
         string from,
-        string name)
+        string blockedAt,
+        string name,
+        SemanticVersion version)
     {
         var chain = new List<string>();
         var current = from;
-        while (true)
+        while (current != blockedAt)
         {
             chain.Add(current);
             if (current.Length == 0)
@@ -331,13 +344,96 @@ public sealed class PackageResolver(
         chain.Reverse();
         foreach (var scope in chain)
         {
-            if (!placements.ContainsKey(PathFor(scope, name)))
+            if (!placements.ContainsKey(PathFor(scope, name)) && !WouldShadow(placements, scope, name, version))
             {
                 return scope;
             }
         }
 
         return from;
+    }
+
+    // Whether a copy of this version at the scope would be reached, by some package already placed
+    // at or below it, in place of a copy further up that satisfied it.
+    private static bool WouldShadow(
+        IReadOnlyDictionary<string, PlacedPackage> placements,
+        string scope,
+        string name,
+        SemanticVersion version)
+    {
+        // Nothing further up means nothing to come between.
+        if (Visible(placements, scope, name) is null)
+        {
+            return false;
+        }
+
+        foreach (var package in placements.Values)
+        {
+            if (DeclaredRange(package.Package, name) is not { } range
+                || range.IsUnsupported
+                || range.Satisfies(version))
+            {
+                continue;
+            }
+
+            if (ResolvesThrough(placements, package.Path, scope, name))
+            {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    // What a package asks for under a name, if it asks at all: the same edges the resolver walks,
+    // with an optional entry taking precedence over a required one of the same name, and a peer
+    // counting unless the package can live without it.
+    private static VersionRange? DeclaredRange(RegistryPackage package, string name)
+    {
+        string? spec;
+        if (package.OptionalDependencies.TryGetValue(name, out var optional))
+        {
+            spec = optional;
+        }
+        else if (package.Dependencies.TryGetValue(name, out var required))
+        {
+            spec = required;
+        }
+        else if (package.PeerDependencies.TryGetValue(name, out var peer) && !package.OptionalPeers.Contains(name))
+        {
+            spec = peer;
+        }
+        else
+        {
+            return null;
+        }
+
+        return PackageSpecifier.Parse(name, spec).Range;
+    }
+
+    // Whether a package looking the name up from where it sits reaches the scope's own node_modules
+    // before it finds a copy anywhere closer. False when the package is not below the scope at all.
+    private static bool ResolvesThrough(
+        IReadOnlyDictionary<string, PlacedPackage> placements,
+        string path,
+        string scope,
+        string name)
+    {
+        var current = path;
+        while (true)
+        {
+            if (current == scope)
+            {
+                return true;
+            }
+
+            if (current.Length == 0 || placements.ContainsKey(PathFor(current, name)))
+            {
+                return false;
+            }
+
+            current = placements.TryGetValue(current, out var owner) ? owner.Scope : "";
+        }
     }
 
     private static string PathFor(string scope, string name) =>
