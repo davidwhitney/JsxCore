@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text.Json;
 
 namespace JsxCore.Compilation.Modules;
@@ -11,13 +12,18 @@ public enum NodeModuleKind
 
 public sealed record ResolvedNodeModule(string Path, NodeModuleKind Kind, string? PackageRoot);
 
+/// <remarks>
+/// One resolver is shared by the whole host — the renderer's import maps, the asset middleware, the specifier
+/// rewriters — and the first renders after a start arrive together, so everything it remembers is safe to read and
+/// fill from many threads at once.
+/// </remarks>
 public sealed class NodeModuleResolver
 {
     private static readonly string[] Conditions = ["import", "module", "browser", "default"];
     private static readonly string[] Extensions = [".mjs", ".js", ".cjs", ".json"];
 
     private readonly NodeModulesLayout _layout;
-    private readonly Dictionary<string, PackageManifest?> _manifests = new(StringComparer.OrdinalIgnoreCase);
+    private readonly ConcurrentDictionary<string, PackageManifest?> _manifests = new(StringComparer.OrdinalIgnoreCase);
 
     public NodeModuleResolver(NodeModulesLayout layout)
     {
@@ -31,7 +37,8 @@ public sealed class NodeModuleResolver
 
     public IReadOnlyList<string> SearchRoots => _layout.Roots;
 
-    public IReadOnlySet<string> RuntimeDependencies => _runtimeDependencies ??= ReadRuntimeDependencies();
+    // Read once, published once: two threads may both read the manifests, and one answer is kept.
+    public IReadOnlySet<string> RuntimeDependencies => LazyInitializer.EnsureInitialized(ref _runtimeDependencies, ReadRuntimeDependencies);
     private IReadOnlySet<string>? _runtimeDependencies;
 
     private IReadOnlySet<string> ReadRuntimeDependencies()
@@ -337,17 +344,7 @@ public sealed class NodeModuleResolver
         return null;
     }
 
-    private PackageManifest? ReadManifest(string directory)
-    {
-        if (_manifests.TryGetValue(directory, out var cached))
-        {
-            return cached;
-        }
-
-        var manifest = PackageManifest.In(directory);
-        _manifests[directory] = manifest;
-        return manifest;
-    }
+    private PackageManifest? ReadManifest(string directory) => _manifests.GetOrAdd(directory, PackageManifest.In);
 
     public bool IsInsideNodeModules(string path) => _layout.Contains(path);
 }

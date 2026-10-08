@@ -50,6 +50,28 @@ public class NodeModuleResolverTests
     }
 
     [Fact]
+    public void SharedResolver_ManyThreadsAtOnce_EveryAnswerIsTheSameAndNothingThrows()
+    {
+        // The first renders after a start build their import maps together, through the one resolver the host shares.
+        // A race shows only sometimes, so each round starts a cold resolver, as a start does.
+        var specifiers = new[] { "nanoid", "nanoid/non-secure", "date-fns", "classnames", "this-package-does-not-exist" };
+        for (var round = 0; round < 10; round++)
+        {
+            var resolver = Resolver();
+            var answers = new System.Collections.Concurrent.ConcurrentBag<string>();
+
+            Parallel.For(0, 2_000, new ParallelOptions { MaxDegreeOfParallelism = Math.Max(8, Environment.ProcessorCount) }, index =>
+            {
+                var specifier = specifiers[index % specifiers.Length];
+                answers.Add($"{specifier}={resolver.Resolve(specifier)?.Path}");
+                resolver.RuntimeDependencies.ShouldContain("marked");
+            });
+
+            answers.Distinct().Count().ShouldBe(specifiers.Length);
+        }
+    }
+
+    [Fact]
     public void RuntimeDependencies_ManifestIsPresent_ExcludesDevDependencies()
     {
         var dependencies = Resolver().RuntimeDependencies;
