@@ -25,6 +25,7 @@ Run a sample to see a change working:
 dotnet run --project samples/SampleApp            # every render mode, .NET globals, MVC
 dotnet run --project samples/SampleApp.React      # the React runtime
 dotnet run --project samples/SampleApp.Tailwind   # stylesheets and Tailwind
+dotnet run --project samples/SampleApp.ServerRender  # server rendering a component library that imports its own CSS
 ```
 
 ## The shape of the repository

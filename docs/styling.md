@@ -66,6 +66,13 @@ A stylesheet in the web root keeps its own URL, because the application already 
 file should keep one URL. The other two are build outputs, so they are served from the build's own
 prefix like a compiled module, and change URL when their contents change.
 
+A package can also import CSS from its own JavaScript, as component libraries built with
+`vite-plugin-lib-inject-css` do (`import"../assets/Button.css"`). Neither the server nor the browser
+can evaluate CSS as a module, so such an import becomes an empty module and the document links the
+stylesheet instead: every stylesheet the packages a view imports bring with them, in import order,
+before the view's own so the view's rules win. This is what lets such a library render on the server;
+[`samples/SampleApp.ServerRender`](../samples/SampleApp.ServerRender) shows it with and without JavaScript.
+
 ---
 
 ## CSS Modules

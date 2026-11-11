@@ -1,0 +1,2 @@
+body { margin: 0; font-family: system-ui, sans-serif; background: #f4f6fb; color: #1d2433; }
+.actions { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }

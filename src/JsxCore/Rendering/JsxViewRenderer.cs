@@ -183,14 +183,70 @@ public sealed class JsxViewRenderer(
 
             // A stylesheet the application already serves keeps its own URL. One JsxCore processed
             // is a build output, served from this build's prefix like any compiled module.
-            var styles = _compilation.Views.StylesFor(view.ModuleRelativePath)
-                .Select(style => style.StartsWith('/') ? style : $"{assetBase}/views/{style}")
+            // Package stylesheets come first so a view's own rules can override a component's.
+            var styles = PackageStyleSheetsFor(view, assetBase, buildId)
+                .Concat(_compilation.Views.StylesFor(view.ModuleRelativePath)
+                    .Select(style => style.StartsWith('/') ? style : $"{assetBase}/views/{style}"))
+                .Distinct(StringComparer.Ordinal)
                 .ToList();
 
             cache[view.ModuleRelativePath] = styles;
             return styles;
         }
     }
+
+    /// <summary>
+    /// The CSS the packages a view imports bring with them, found by walking the view's compiled
+    /// modules for bare specifiers.
+    /// </summary>
+    private IEnumerable<string> PackageStyleSheetsFor(LocatedView view, string assetBase, string buildId)
+    {
+        if (_npmGraph is null)
+        {
+            yield break;
+        }
+
+        var stylesheets = NpmManifestFor(assetBase, buildId).Stylesheets;
+        var output = Path.GetFullPath(_compilation.Layout.OutputDirectory);
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var pending = new Stack<string>();
+        pending.Push(Path.Combine(output, view.ModuleRelativePath));
+
+        while (pending.Count > 0)
+        {
+            var module = Path.GetFullPath(pending.Pop());
+            if (!module.StartsWith(output, StringComparison.OrdinalIgnoreCase) || !visited.Add(module)
+                || !File.Exists(module))
+            {
+                continue;
+            }
+
+            var specifiers = ModuleTransform.FindSpecifiers(File.ReadAllText(module)).ToList();
+            foreach (var specifier in specifiers)
+            {
+                if (stylesheets.TryGetValue(specifier, out var urls))
+                {
+                    foreach (var url in urls)
+                    {
+                        yield return url;
+                    }
+                }
+            }
+
+            for (var index = specifiers.Count - 1; index >= 0; index--)
+            {
+                if (specifiers[index].StartsWith('.'))
+                {
+                    pending.Push(Path.Combine(Path.GetDirectoryName(module)!, specifiers[index]));
+                }
+            }
+        }
+    }
+
+    private NpmClientManifest NpmManifestFor(string assetBase, string buildId) =>
+        _npmGraph!.ForBuild(
+            buildId, _compilation.Layout.OutputDirectory, assetBase,
+            _runtime.BuildImportMap(assetBase).Keys.ToList(), _runtime.ClientDependencies);
 
     private IReadOnlyDictionary<string, string> ImportMapFor(string assetBase, string buildId) =>
         _importMaps.Get(buildId, () =>
@@ -201,9 +257,7 @@ public sealed class JsxViewRenderer(
             // runtime, which owns its own specifiers and stages its own files.
             if (_npmGraph is not null)
             {
-                var manifest = _npmGraph.ForBuild(
-                    buildId, _compilation.Layout.OutputDirectory, assetBase, map.Keys.ToList(),
-                    _runtime.ClientDependencies);
+                var manifest = NpmManifestFor(assetBase, buildId);
 
                 foreach (var (specifier, url) in manifest.ImportMap)
                 {

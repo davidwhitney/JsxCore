@@ -118,6 +118,15 @@ page, rather than serving a stale build or a blank screen:
 
 <img src="https://raw.githubusercontent.com/davidwhitney/JsxCore/main/images/screenshots/hot-reload-error.png" alt="The development overlay showing a TypeScript compilation error" width="820">
 
+[`samples/SampleApp.ServerRender`](samples/SampleApp.ServerRender) server renders a component
+library that imports its own CSS from its JavaScript, as most design systems do. `/` is rendered on
+the server and hydrated; `/server-only` is the same view with no JavaScript, still fully styled, its
+button a plain form the server answers:
+
+```bash
+dotnet run --project samples/SampleApp.ServerRender
+```
+
 ## Contributing
 
 Issues and pull requests are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) covers getting it building,

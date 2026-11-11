@@ -1,6 +1,5 @@
 using System.Text;
 using System.Text.RegularExpressions;
-using JsxCore.Compilation;
 using JsxCore.Compilation.Modules;
 using JsxCore.Compilation.Provisioning;
 

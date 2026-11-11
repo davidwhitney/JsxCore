@@ -7,7 +7,8 @@ public enum NodeModuleKind
 {
     EsModule,
     CommonJs,
-    Json
+    Json,
+    Stylesheet
 }
 
 public sealed record ResolvedNodeModule(string Path, NodeModuleKind Kind, string? PackageRoot);
@@ -293,6 +294,7 @@ public sealed class NodeModuleResolver
         if (extension == ".mjs") return NodeModuleKind.EsModule;
         if (extension == ".cjs") return NodeModuleKind.CommonJs;
         if (extension == ".json") return NodeModuleKind.Json;
+        if (extension == ".css") return NodeModuleKind.Stylesheet;
 
         var declared = NearestPackageType(path) == "module" ? NodeModuleKind.EsModule : NodeModuleKind.CommonJs;
 
