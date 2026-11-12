@@ -38,6 +38,11 @@ public static partial class ModuleTransform
                 // Re-exported from a JavaScript module rather than imported as JSON.
                 return new ShapedModule("export default " + source + ";", dependencies);
 
+            // A component's own stylesheet import, made a no-op so it can run on the server and in the
+            // browser. The CSS itself reaches the page as a <link>; see NpmClientManifest.Stylesheets.
+            case NodeModuleKind.Stylesheet:
+                return new ShapedModule("export {};", dependencies);
+
             case NodeModuleKind.CommonJs:
             {
                 var resolved = new Dictionary<string, string>(StringComparer.Ordinal);
@@ -91,6 +96,6 @@ public static partial class ModuleTransform
 
     // Static imports, re-exports and dynamic imports. A literal that does not resolve is left
     // untouched, so a false match inside a string or comment is harmless.
-    [GeneratedRegex(@"(?<prefix>\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)(?<q>['""])(?<id>[^'""\n]*)\k<q>")]
+    [GeneratedRegex(@"(?<prefix>\bfrom\s*|\bimport\s*\(\s*|\bimport\s*)(?<q>['""])(?<id>[^'""\n]*)\k<q>")]
     private static partial Regex SpecifierPattern();
 }

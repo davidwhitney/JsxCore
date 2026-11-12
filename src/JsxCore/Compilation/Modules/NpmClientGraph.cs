@@ -5,7 +5,15 @@ public sealed record NpmClientAsset(string Url, string Content, string ContentTy
 
 public sealed record NpmClientManifest(
     IReadOnlyDictionary<string, string> ImportMap,
-    IReadOnlyDictionary<string, NpmClientAsset> Assets);
+    IReadOnlyDictionary<string, NpmClientAsset> Assets)
+{
+    /// <summary>
+    /// The stylesheets each import-map specifier pulls in, transitively and in import order, as URLs.
+    /// A page links them because a browser cannot import CSS from a module without an attribute.
+    /// </summary>
+    public IReadOnlyDictionary<string, IReadOnlyList<string>> Stylesheets { get; init; } =
+        new Dictionary<string, IReadOnlyList<string>>(StringComparer.Ordinal);
+}
 
 /// <param name="transform">
 /// Applied to every asset once the graph is closed, keyed by URL. Batching the whole graph is what
@@ -16,6 +24,7 @@ public sealed class NpmClientGraph(
     Func<IReadOnlyDictionary<string, string>, IReadOnlyDictionary<string, string>>? transform = null)
 {
     private const string JavaScriptContentType = "text/javascript; charset=utf-8";
+    private const string StylesheetContentType = "text/css; charset=utf-8";
 
     private readonly NodeModuleResolver _npm = npm ?? throw new ArgumentNullException(nameof(npm));
     private readonly BuildScopedCache<NpmClientManifest> _cache = new();
@@ -45,6 +54,8 @@ public sealed class NpmClientGraph(
         var assets = new Dictionary<string, NpmClientAsset>(StringComparer.Ordinal);
         var pending = new Queue<string>();
         var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var entries = new Dictionary<string, string>(StringComparer.Ordinal);
+        var edges = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
 
         if (!Directory.Exists(outputDirectory))
         {
@@ -88,6 +99,7 @@ public sealed class NpmClientGraph(
                 }
 
                 importMap[specifier] = assetBase + "/npm/" + UrlFor(resolved.Path);
+                entries[specifier] = resolved.Path;
                 if (seen.Add(resolved.Path))
                 {
                     pending.Enqueue(resolved.Path);
@@ -100,6 +112,13 @@ public sealed class NpmClientGraph(
             var path = pending.Dequeue();
             var asset = Prepare(path, assetBase, out var dependencies);
             assets[asset.Url] = asset;
+            edges[path] = dependencies;
+
+            if (_npm.KindOf(path) == NodeModuleKind.Stylesheet)
+            {
+                var url = StylesheetUrlFor(path);
+                assets[url] = new NpmClientAsset(url, ReadOrEmpty(path), StylesheetContentType);
+            }
 
             foreach (var dependency in dependencies.Where(dependency => seen.Add(dependency)))
             {
@@ -107,7 +126,48 @@ public sealed class NpmClientGraph(
             }
         }
 
-        return new NpmClientManifest(importMap, Transformed(assets));
+        var stylesheets = entries.ToDictionary(
+            pair => pair.Key,
+            pair => (IReadOnlyList<string>)StylesheetsFrom(pair.Value, edges)
+                .Select(path => assetBase + "/npm/" + StylesheetUrlFor(path))
+                .ToList(),
+            StringComparer.Ordinal);
+
+        return new NpmClientManifest(importMap, Transformed(assets)) { Stylesheets = stylesheets };
+    }
+
+    // Depth first in import order, which is the order a bundler would have emitted them in.
+    private List<string> StylesheetsFrom(string entry, IReadOnlyDictionary<string, List<string>> edges)
+    {
+        var found = new List<string>();
+        var visited = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var stack = new Stack<string>();
+        stack.Push(entry);
+
+        while (stack.Count > 0)
+        {
+            var path = stack.Pop();
+            if (!visited.Add(path))
+            {
+                continue;
+            }
+
+            if (_npm.KindOf(path) == NodeModuleKind.Stylesheet)
+            {
+                found.Add(path);
+                continue;
+            }
+
+            if (edges.TryGetValue(path, out var dependencies))
+            {
+                for (var index = dependencies.Count - 1; index >= 0; index--)
+                {
+                    stack.Push(dependencies[index]);
+                }
+            }
+        }
+
+        return found;
     }
 
     /// <summary>
@@ -122,7 +182,10 @@ public sealed class NpmClientGraph(
             return assets;
         }
 
-        var replaced = transform(assets.ToDictionary(pair => pair.Key, pair => pair.Value.Content, StringComparer.Ordinal));
+        // Only JavaScript: the transform treats everything it is given as a script.
+        var replaced = transform(assets
+            .Where(pair => pair.Value.ContentType == JavaScriptContentType)
+            .ToDictionary(pair => pair.Key, pair => pair.Value.Content, StringComparer.Ordinal));
 
         return assets.ToDictionary(
             pair => pair.Key,
@@ -153,13 +216,17 @@ public sealed class NpmClientGraph(
             }
 
             var relative = full[prefix.Length..].Replace(Path.DirectorySeparatorChar, '/');
+            // Imported as modules, so they are served as JavaScript under a name that says so.
             return index + "/" + (relative.EndsWith(".json", StringComparison.OrdinalIgnoreCase)
+                || relative.EndsWith(".css", StringComparison.OrdinalIgnoreCase)
                 ? relative + ".js"
                 : relative);
         }
 
         throw new JsxCoreException($"JsxCore resolved '{path}', which is not inside a known node_modules directory.");
     }
+
+    private string StylesheetUrlFor(string path) => UrlFor(path)[..^".js".Length];
 
     private static string ReadOrEmpty(string path)
     {

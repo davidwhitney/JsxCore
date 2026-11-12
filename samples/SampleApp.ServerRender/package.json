@@ -1,0 +1,19 @@
+{
+  "name": "sampleapp.serverrender",
+  "version": "1.0.0",
+  "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
+  "dependencies": {
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "sample-ui": "1.0.0"
+  },
+  "devDependencies": {
+    "typescript": "^7",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "esbuild": "^0.28.2"
+  }
+}
